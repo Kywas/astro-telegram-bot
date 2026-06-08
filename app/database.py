@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 import aiosqlite
@@ -25,6 +25,9 @@ class UserProfile:
     timezone: str
     premium_until: Optional[str]
     natal_mode: str
+    ref_code: Optional[str]
+    referrer_id: Optional[int]
+    ref_bonus_count: int
 
 
 class Database:
@@ -53,7 +56,20 @@ class Database:
                     daily_time TEXT DEFAULT '09:00',
                     timezone TEXT DEFAULT 'UTC',
                     premium_until TEXT,
-                    natal_mode TEXT DEFAULT 'full'
+                    natal_mode TEXT DEFAULT 'full',
+                    ref_code TEXT UNIQUE,
+                    referrer_id INTEGER,
+                    ref_bonus_count INTEGER DEFAULT 0
+                )
+                """
+            )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS referrals (
+                    invited_id INTEGER PRIMARY KEY,
+                    inviter_id INTEGER NOT NULL,
+                    bonus_days INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
                 )
                 """
             )
@@ -105,6 +121,9 @@ class Database:
                 "timezone": "TEXT DEFAULT 'UTC'",
                 "premium_until": "TEXT",
                 "natal_mode": "TEXT DEFAULT 'full'",
+                "ref_code": "TEXT UNIQUE",
+                "referrer_id": "INTEGER",
+                "ref_bonus_count": "INTEGER DEFAULT 0",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
@@ -179,6 +198,9 @@ class Database:
                     timezone=row["timezone"] or "UTC",
                     premium_until=row["premium_until"],
                     natal_mode=row["natal_mode"] or "full",
+                    ref_code=row["ref_code"],
+                    referrer_id=row["referrer_id"],
+                    ref_bonus_count=row["ref_bonus_count"] or 0,
                 )
 
     async def set_user_language(self, user_id: int, language: str) -> None:
@@ -261,6 +283,125 @@ class Database:
             )
             await db.commit()
 
+    async def ensure_ref_code(self, user_id: int) -> str:
+        code = f"u{user_id}"
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET ref_code = COALESCE(ref_code, ?) WHERE user_id = ?",
+                (code, user_id),
+            )
+            await db.commit()
+            async with db.execute(
+                "SELECT ref_code FROM users WHERE user_id = ?",
+                (user_id,),
+            ) as c:
+                row = await c.fetchone()
+                return row[0] if row and row[0] else code
+
+    async def get_user_id_by_ref_code(self, ref_code: str) -> Optional[int]:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT user_id FROM users WHERE ref_code = ?",
+                (ref_code,),
+            ) as c:
+                row = await c.fetchone()
+                return int(row[0]) if row else None
+
+    async def set_referrer_if_empty(self, invited_user_id: int, referrer_user_id: int) -> bool:
+        if invited_user_id == referrer_user_id:
+            return False
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT referrer_id FROM users WHERE user_id = ?",
+                (invited_user_id,),
+            ) as c:
+                row = await c.fetchone()
+                if row is None:
+                    return False
+                if row[0] is not None:
+                    return False
+            await db.execute(
+                "UPDATE users SET referrer_id = ? WHERE user_id = ?",
+                (referrer_user_id, invited_user_id),
+            )
+            await db.commit()
+            return True
+
+    async def get_referral_count(self, inviter_user_id: int) -> int:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT COUNT(*) FROM referrals WHERE inviter_id = ?",
+                (inviter_user_id,),
+            ) as c:
+                row = await c.fetchone()
+                return int(row[0] if row else 0)
+
+    async def reward_referral(
+        self,
+        invited_user_id: int,
+        bonus_days: int = 7,
+        min_events: int = 2,
+    ) -> Optional[int]:
+        now = datetime.now(timezone.utc)
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT referrer_id FROM users WHERE user_id = ?",
+                (invited_user_id,),
+            ) as c:
+                row = await c.fetchone()
+                if row is None or row[0] is None:
+                    return None
+                inviter_id = int(row[0])
+                if inviter_id == invited_user_id:
+                    return None
+
+            async with db.execute(
+                "SELECT inviter_id FROM referrals WHERE invited_id = ?",
+                (invited_user_id,),
+            ) as c:
+                exists = await c.fetchone()
+                if exists is not None:
+                    return None
+
+            async with db.execute(
+                "SELECT COUNT(*) FROM events WHERE user_id = ?",
+                (invited_user_id,),
+            ) as c:
+                event_row = await c.fetchone()
+                total_events = int(event_row[0] if event_row else 0)
+                if total_events < max(1, min_events):
+                    return None
+
+            async with db.execute(
+                "SELECT premium_until FROM users WHERE user_id = ?",
+                (inviter_id,),
+            ) as c:
+                inviter_row = await c.fetchone()
+                current_until = inviter_row[0] if inviter_row else None
+
+            base = now
+            if current_until:
+                try:
+                    parsed = datetime.fromisoformat(current_until)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    if parsed > now:
+                        base = parsed
+                except Exception:
+                    base = now
+
+            new_until = (base + timedelta(days=max(1, bonus_days))).isoformat()
+            await db.execute(
+                "UPDATE users SET premium_until = ?, ref_bonus_count = COALESCE(ref_bonus_count, 0) + 1 WHERE user_id = ?",
+                (new_until, inviter_id),
+            )
+            await db.execute(
+                "INSERT INTO referrals (invited_id, inviter_id, bonus_days, created_at) VALUES (?, ?, ?, ?)",
+                (invited_user_id, inviter_id, max(1, bonus_days), now.isoformat()),
+            )
+            await db.commit()
+            return inviter_id
+
     async def get_daily_recipients(self, hhmm: str) -> list[UserProfile]:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -299,6 +440,9 @@ class Database:
                     timezone=row["timezone"] or "UTC",
                     premium_until=row["premium_until"],
                     natal_mode=row["natal_mode"] or "full",
+                    ref_code=row["ref_code"],
+                    referrer_id=row["referrer_id"],
+                    ref_bonus_count=row["ref_bonus_count"] or 0,
                 )
             )
         return result

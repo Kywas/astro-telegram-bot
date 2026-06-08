@@ -260,6 +260,16 @@ TEXTS = {
         "btn_moon": "🌙 Лунный календарь",
         "btn_prefs": "⚙ Настройки",
         "btn_about": "ℹ О боте",
+        "btn_ref": "👥 Рефералка",
+        "ref_title": "Реферальная программа",
+        "ref_text": (
+            "Твоя ссылка:\n{link}\n\n"
+            "Приглашено: {count}\n"
+            "Бонус за каждого: +7 дней premium"
+        ),
+        "ref_invalid": "Некорректный реферальный код.",
+        "ref_attached": "Реферал привязан. Заверши профиль, чтобы начислить бонус пригласившему.",
+        "ref_reward_inviter": "🎉 По твоей ссылке пришел новый пользователь. +7 дней premium.",
     },
     "en": {
         "help": (
@@ -451,6 +461,16 @@ TEXTS = {
         "btn_moon": "🌙 Moon calendar",
         "btn_prefs": "⚙ Preferences",
         "btn_about": "ℹ About",
+        "btn_ref": "👥 Referral",
+        "ref_title": "Referral program",
+        "ref_text": (
+            "Your link:\n{link}\n\n"
+            "Invited users: {count}\n"
+            "Bonus per invite: +7 premium days"
+        ),
+        "ref_invalid": "Invalid referral code.",
+        "ref_attached": "Referral linked. Complete profile to reward your inviter.",
+        "ref_reward_inviter": "🎉 A new user joined via your link. +7 premium days.",
     },
 }
 
@@ -663,6 +683,9 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(locale, "btn_natal"), callback_data="nav:natal"),
             ],
             [
+                InlineKeyboardButton(text=t(locale, "btn_ref"), callback_data="nav:ref"),
+            ],
+            [
                 InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings"),
                 InlineKeyboardButton(text=t(locale, "btn_about"), callback_data="nav:about"),
             ],
@@ -823,9 +846,32 @@ async def start_handler(message: Message, state: FSMContext) -> None:
     user = message.from_user
     if user is None:
         return
+    payload = ""
+    text = (message.text or "").strip()
+    if text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        if len(parts) > 1:
+            payload = parts[1].strip()
 
     existing_profile = await db.get_user(user.id)
     if existing_profile is None:
+        default_lang = "ru" if (user.language_code or "").startswith("ru") else "en"
+        await db.upsert_user_identity(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            language=default_lang,
+        )
+        await db.ensure_ref_code(user.id)
+        if payload.startswith("ref_"):
+            ref_code = payload[4:]
+            inviter_id = await db.get_user_id_by_ref_code(ref_code)
+            if inviter_id is None:
+                await message.answer(t(default_lang, "ref_invalid"))
+            else:
+                linked = await db.set_referrer_if_empty(user.id, inviter_id)
+                if linked:
+                    await message.answer(t(default_lang, "ref_attached"))
         await state.clear()
         await message.answer(
             "Выбери язык / Choose language:",
@@ -840,6 +886,16 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         first_name=user.first_name,
         language=language,
     )
+    await db.ensure_ref_code(user.id)
+    if payload.startswith("ref_"):
+        ref_code = payload[4:]
+        inviter_id = await db.get_user_id_by_ref_code(ref_code)
+        if inviter_id is None:
+            await message.answer(t(language, "ref_invalid"))
+        else:
+            linked = await db.set_referrer_if_empty(user.id, inviter_id)
+            if linked:
+                await message.answer(t(language, "ref_attached"))
     await state.clear()
     if existing_profile.birth_date is None:
         await state.set_state(ProfileSetup.waiting_birth_date)
@@ -905,6 +961,24 @@ async def menu_handler(message: Message) -> None:
         return
     locale = await get_user_locale(user.id)
     await message.answer(t(locale, "menu_hint"), reply_markup=home_panel_keyboard(locale))
+
+
+@router.message(Command("ref"))
+async def ref_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    ref_code = await db.ensure_ref_code(user.id)
+    count = await db.get_referral_count(user.id)
+    me = await message.bot.get_me()
+    username = me.username or ""
+    link = f"https://t.me/{username}?start=ref_{ref_code}" if username else f"ref_{ref_code}"
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
+        f"{t(locale, 'ref_text', link=link, count=str(count))}",
+        reply_markup=home_panel_keyboard(locale),
+    )
 
 
 @router.message(Command("language"))
@@ -1025,6 +1099,23 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_about'))}\n\n{t(locale, 'about_block')}",
             about_commands_keyboard(locale),
+        )
+        return
+    if action == "ref":
+        ref_code = await db.ensure_ref_code(user.id)
+        count = await db.get_referral_count(user.id)
+        me = await callback.bot.get_me()
+        username = me.username or ""
+        link = f"https://t.me/{username}?start=ref_{ref_code}" if username else f"ref_{ref_code}"
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
+            f"{t(locale, 'ref_text', link=link, count=str(count))}",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
+                ]
+            ),
         )
         return
     if action == "natal":
@@ -2036,6 +2127,14 @@ async def city_handler(message: Message, state: FSMContext) -> None:
         city=city,
         sign=sign,
     )
+    await db.log_event(user.id, "profile_completed")
+    inviter_id = await db.reward_referral(user.id, bonus_days=7, min_events=2)
+    if inviter_id is not None:
+        try:
+            inviter_locale = await get_user_locale(inviter_id)
+            await message.bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
+        except Exception:
+            pass
     await state.clear()
     sign_name = get_sign_name(sign, locale)
     await message.answer(
@@ -2068,6 +2167,9 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
         return
     if text == t(locale, "btn_about") or action == "about":
         await about_handler(message)
+        return
+    if text == t(locale, "btn_ref") or action == "ref":
+        await ref_handler(message)
         return
     if text == t(locale, "btn_prefs") or action == "prefs":
         await settings_handler(message)
