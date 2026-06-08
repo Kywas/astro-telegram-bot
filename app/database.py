@@ -121,13 +121,16 @@ class Database:
                 "timezone": "TEXT DEFAULT 'UTC'",
                 "premium_until": "TEXT",
                 "natal_mode": "TEXT DEFAULT 'full'",
-                "ref_code": "TEXT UNIQUE",
+                "ref_code": "TEXT",
                 "referrer_id": "INTEGER",
                 "ref_bonus_count": "INTEGER DEFAULT 0",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            await db.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)"
+            )
             await db.commit()
 
     async def upsert_user_identity(
