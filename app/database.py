@@ -459,6 +459,20 @@ class Database:
             )
             await db.commit()
 
+    async def count_events_for_day(self, user_id: int, event_name: str, date_key: str) -> int:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM events
+                WHERE user_id = ?
+                  AND event_name = ?
+                  AND substr(created_at, 1, 10) = ?
+                """,
+                (user_id, event_name, date_key),
+            ) as c:
+                row = await c.fetchone()
+                return int(row[0] if row else 0)
+
     async def was_daily_sent(self, user_id: int, period: str, date_key: str) -> bool:
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute(

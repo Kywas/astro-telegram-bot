@@ -197,6 +197,9 @@ TEXTS = {
         "premium_buy_fail": "Не удалось открыть платеж. Проверь, что бот поддерживает Stars.",
         "premium_payment_ok": "Оплата прошла. Premium активирован на 30 дней.",
         "premium_payment_error": "Оплата не прошла, попробуй еще раз позже.",
+        "premium_required_full_natal": "Полная натальная карта доступна в Premium. В бесплатной версии доступен краткий формат.",
+        "premium_required_horo_period": "Неделя и месяц доступны в Premium. В бесплатной версии доступен период 'Сегодня'.",
+        "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан. Активируй Premium для безлимита.",
         "grant_usage": "Используй: /grantpremium <user_id> <days>. Пример: /grantpremium 123456789 30",
         "grant_done": "Premium выдан пользователю {user_id} на {days} дн.",
         "broadcast_usage": "Используй: /broadcast текст сообщения",
@@ -398,6 +401,9 @@ TEXTS = {
         "premium_buy_fail": "Failed to open payment form. Check Stars support for your bot.",
         "premium_payment_ok": "Payment completed. Premium activated for 30 days.",
         "premium_payment_error": "Payment failed, please try again later.",
+        "premium_required_full_natal": "Full natal chart is available in Premium. Free version has short mode only.",
+        "premium_required_horo_period": "Week and month are Premium features. Free version supports 'Today' only.",
+        "premium_required_compat_daily_limit": "Free compatibility limit for today is reached. Activate Premium for unlimited usage.",
         "grant_usage": "Use: /grantpremium <user_id> <days>. Example: /grantpremium 123456789 30",
         "grant_done": "Premium granted to user {user_id} for {days} days.",
         "broadcast_usage": "Use: /broadcast message text",
@@ -1235,8 +1241,13 @@ async def render_natal_for_user_mode(
     if profile is None or profile.birth_date is None or not profile.sign:
         return t(locale, "natal_profile_missing"), home_panel_keyboard(locale)
     sign_name = get_sign_name(profile.sign, locale)
+    premium_active = is_premium_active(profile.premium_until)
     profile_mode = "short" if profile.natal_mode == "short" else "full"
     normalized_mode = profile_mode if mode == "auto" else ("short" if mode == "short" else "full")
+    notice = ""
+    if normalized_mode == "full" and not premium_active:
+        normalized_mode = "short"
+        notice = t(locale, "premium_required_full_natal")
     text = build_natal_summary(
         locale=locale,
         sign_name=sign_name,
@@ -1249,6 +1260,8 @@ async def render_natal_for_user_mode(
         mood_score=profile.mood_score,
         mode=normalized_mode,
     )
+    if notice:
+        text = f"{notice}\n\n{text}"
     return (
         f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{text}",
         InlineKeyboardMarkup(
@@ -1295,6 +1308,11 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
     if period not in {"day", "week", "month"}:
         period = "day"
 
+    premium_active = is_premium_active(profile.premium_until)
+    if period in {"week", "month"} and not premium_active:
+        await callback.answer(t(locale, "premium_required_horo_period"), show_alert=True)
+        period = "day"
+
     await callback.answer()
     if callback.message:
         await _send_period_horoscope(
@@ -1316,6 +1334,17 @@ async def compat_handler(message: Message, state: FSMContext) -> None:
     if profile is None or not profile.sign:
         await message.answer(t(locale, "complete_profile_first"), reply_markup=home_panel_keyboard(locale))
         return
+
+    premium_active = is_premium_active(profile.premium_until)
+    if not premium_active:
+        date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        used = await db.count_events_for_day(user.id, "compat_result", date_key)
+        if used >= 3:
+            await message.answer(
+                t(locale, "premium_required_compat_daily_limit"),
+                reply_markup=settings_keyboard(locale),
+            )
+            return
 
     await state.clear()
     await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
@@ -2053,6 +2082,7 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
         ),
         reply_markup=home_panel_keyboard(locale),
     )
+    await db.log_event(user.id, "compat_result")
 
 
 @router.message(ProfileSetup.waiting_birth_date)
