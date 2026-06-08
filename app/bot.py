@@ -687,6 +687,7 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text=t(locale, "btn_natal"), callback_data="nav:natal"),
+                InlineKeyboardButton(text=t(locale, "btn_compat"), callback_data="nav:compat"),
             ],
             [
                 InlineKeyboardButton(text=t(locale, "btn_ref"), callback_data="nav:ref"),
@@ -1091,6 +1092,44 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
             horoscope_period_keyboard(locale),
+        )
+        return
+    if action == "compat":
+        profile = await db.get_user(user.id)
+        if profile is None or not profile.sign:
+            await edit_or_send(
+                callback,
+                t(locale, "complete_profile_first"),
+                inline_keyboard=home_panel_keyboard(locale),
+            )
+            return
+        await state.clear()
+        await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
+        mode_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=t(locale, "compat_mode_love"),
+                        callback_data="compatmode:love",
+                    ),
+                    InlineKeyboardButton(
+                        text=t(locale, "compat_mode_friendship"),
+                        callback_data="compatmode:friendship",
+                    ),
+                    InlineKeyboardButton(
+                        text=t(locale, "compat_mode_work"),
+                        callback_data="compatmode:work",
+                    ),
+                ],
+                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+            ]
+        )
+        await state.update_data(compat_mode="love")
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+            f"{t(locale, 'choose_compat_mode')}\n\n{t(locale, 'ask_compat_date')}",
+            mode_keyboard,
         )
         return
     if action == "admin":
