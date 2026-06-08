@@ -200,6 +200,14 @@ TEXTS = {
         "premium_required_full_natal": "Полная натальная карта доступна в Premium. В бесплатной версии доступен краткий формат.",
         "premium_required_horo_period": "Неделя и месяц доступны в Premium. В бесплатной версии доступен период 'Сегодня'.",
         "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан. Активируй Premium для безлимита.",
+        "premium_menu_title": "Premium",
+        "premium_features": (
+            "Что дает Premium:\n"
+            "• Полная натальная карта\n"
+            "• Гороскоп на неделю и месяц\n"
+            "• Безлимит совместимостей"
+        ),
+        "premium_buy_button": "⭐ Купить Premium",
         "grant_usage": "Используй: /grantpremium <user_id> <days>. Пример: /grantpremium 123456789 30",
         "grant_done": "Premium выдан пользователю {user_id} на {days} дн.",
         "broadcast_usage": "Используй: /broadcast текст сообщения",
@@ -264,6 +272,7 @@ TEXTS = {
         "btn_prefs": "⚙ Настройки",
         "btn_about": "ℹ О боте",
         "btn_ref": "👥 Рефералка",
+        "btn_premium": "⭐ Premium",
         "ref_title": "Реферальная программа",
         "ref_text": (
             "Твоя ссылка:\n{link}\n\n"
@@ -404,6 +413,14 @@ TEXTS = {
         "premium_required_full_natal": "Full natal chart is available in Premium. Free version has short mode only.",
         "premium_required_horo_period": "Week and month are Premium features. Free version supports 'Today' only.",
         "premium_required_compat_daily_limit": "Free compatibility limit for today is reached. Activate Premium for unlimited usage.",
+        "premium_menu_title": "Premium",
+        "premium_features": (
+            "Premium unlocks:\n"
+            "• Full natal chart\n"
+            "• Weekly and monthly horoscope\n"
+            "• Unlimited compatibility checks"
+        ),
+        "premium_buy_button": "⭐ Buy Premium",
         "grant_usage": "Use: /grantpremium <user_id> <days>. Example: /grantpremium 123456789 30",
         "grant_done": "Premium granted to user {user_id} for {days} days.",
         "broadcast_usage": "Use: /broadcast message text",
@@ -468,6 +485,7 @@ TEXTS = {
         "btn_prefs": "⚙ Preferences",
         "btn_about": "ℹ About",
         "btn_ref": "👥 Referral",
+        "btn_premium": "⭐ Premium",
         "ref_title": "Referral program",
         "ref_text": (
             "Your link:\n{link}\n\n"
@@ -691,6 +709,7 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text=t(locale, "btn_ref"), callback_data="nav:ref"),
+                InlineKeyboardButton(text=t(locale, "btn_premium"), callback_data="nav:premium"),
             ],
             [
                 InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings"),
@@ -702,6 +721,15 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
 
 def breadcrumb(locale: str, *parts: str) -> str:
     return " > ".join([t(locale, "crumb_root"), *parts])
+
+
+def premium_menu_keyboard(locale: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(locale, "premium_buy_button"), callback_data="premium:buy")],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+        ]
+    )
 
 
 async def render_inline_panel(
@@ -988,6 +1016,20 @@ async def ref_handler(message: Message) -> None:
     )
 
 
+async def _premium_panel_text(user_id: int, locale: str) -> str:
+    profile = await db.get_user(user_id)
+    status_text = (
+        t(locale, "premium_active", until=profile.premium_until or "-")
+        if profile and is_premium_active(profile.premium_until)
+        else t(locale, "premium_inactive")
+    )
+    return (
+        f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
+        f"{status_text}\n\n"
+        f"{t(locale, 'premium_features')}"
+    )
+
+
 @router.message(Command("language"))
 async def language_handler(message: Message) -> None:
     user = message.from_user
@@ -1161,6 +1203,13 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
                     [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
                 ]
             ),
+        )
+        return
+    if action == "premium":
+        await render_inline_panel(
+            callback,
+            await _premium_panel_text(user.id, locale),
+            premium_menu_keyboard(locale),
         )
         return
     if action == "natal":
@@ -1746,14 +1795,10 @@ async def premium_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    profile = await db.get_user(user.id)
-    if profile and is_premium_active(profile.premium_until):
-        await message.answer(
-            t(locale, "premium_active", until=profile.premium_until or "-"),
-            reply_markup=settings_keyboard(locale),
-        )
-    else:
-        await message.answer(t(locale, "premium_inactive"), reply_markup=settings_keyboard(locale))
+    await message.answer(
+        await _premium_panel_text(user.id, locale),
+        reply_markup=premium_menu_keyboard(locale),
+    )
 
 
 @router.message(Command("buypremium"))
@@ -1781,6 +1826,40 @@ async def buy_premium_handler(message: Message) -> None:
     except Exception:
         await db.log_event(user.id, "premium_invoice_failed")
         await message.answer(t(locale, "premium_buy_fail"), reply_markup=settings_keyboard(locale))
+
+
+@router.callback_query(F.data == "premium:buy")
+async def premium_buy_callback(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await callback.answer()
+    if callback.message is None:
+        return
+    if not settings.enable_payments:
+        await render_inline_panel(
+            callback,
+            t(locale, "payments_disabled"),
+            premium_menu_keyboard(locale),
+        )
+        return
+    try:
+        await callback.message.answer_invoice(
+            title="Astro Premium 30 days",
+            description="Extended horoscope, weekly delivery and advanced compatibility.",
+            payload="premium_30d",
+            currency="XTR",
+            prices=[LabeledPrice(label="Premium 30d", amount=settings.premium_price_stars)],
+        )
+        await db.log_event(user.id, "premium_invoice_sent")
+    except Exception:
+        await db.log_event(user.id, "premium_invoice_failed")
+        await render_inline_panel(
+            callback,
+            t(locale, "premium_buy_fail"),
+            premium_menu_keyboard(locale),
+        )
 
 
 @router.pre_checkout_query()
