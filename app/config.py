@@ -12,6 +12,7 @@ class Settings:
     admin_ids: tuple[int, ...] = ()
     premium_price_stars: int = 100
     enable_payments: bool = False
+    feedback_username: str | None = None
 
 
 def load_settings() -> Settings:
@@ -39,10 +40,14 @@ def load_settings() -> Settings:
     enable_payments_raw = os.getenv("ENABLE_PAYMENTS", "false").strip().lower()
     enable_payments = enable_payments_raw in {"1", "true", "yes", "on"}
 
+    feedback_username_raw = os.getenv("FEEDBACK_USERNAME", "").strip().lstrip("@")
+    feedback_username = feedback_username_raw or None
+
     return Settings(
         bot_token=bot_token,
         proxy_url=proxy_url,
         admin_ids=admin_ids,
         premium_price_stars=premium_price_stars,
         enable_payments=enable_payments,
+        feedback_username=feedback_username,
     )

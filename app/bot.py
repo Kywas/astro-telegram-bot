@@ -129,6 +129,7 @@ TEXTS = {
             "/premium - статус Premium\n"
             "/buypremium - оформить Premium (Telegram Stars)\n"
             "/about - что умеет бот\n"
+            "/feedback - обратная связь\n"
             "/language - сменить язык\n"
             "/menu - показать кнопки меню\n"
             "/help - список команд"
@@ -145,6 +146,13 @@ TEXTS = {
             "🌍 RU / EN"
         ),
         "about_show_commands": "Показать все команды",
+        "feedback_title": "Обратная связь",
+        "feedback_text": (
+            "Напиши нам — идеи, баги, вопросы по Premium и оплате Stars.\n\n"
+            "Контакт: @{contact}"
+        ),
+        "feedback_missing": "Обратная связь пока не настроена. Напиши /help.",
+        "feedback_write_button": "✉️ Написать",
         "welcome": (
             "🌙 Добро пожаловать в AstroPulse.\n"
             "Звёзды ждут твою дату рождения ✨\n\n"
@@ -415,6 +423,7 @@ TEXTS = {
             "/premium - Premium status\n"
             "/buypremium - buy Premium (Telegram Stars)\n"
             "/about - bot capabilities\n"
+            "/feedback - contact support\n"
             "/language - change language\n"
             "/menu - show menu buttons\n"
             "/help - command list"
@@ -431,6 +440,13 @@ TEXTS = {
             "🌍 RU / EN"
         ),
         "about_show_commands": "Show all commands",
+        "feedback_title": "Feedback",
+        "feedback_text": (
+            "Message us with ideas, bugs, or questions about Premium and Stars.\n\n"
+            "Contact: @{contact}"
+        ),
+        "feedback_missing": "Feedback is not configured yet. Try /help.",
+        "feedback_write_button": "✉️ Message us",
         "welcome": (
             "🌙 Welcome to AstroPulse.\n"
             "The stars await your birth date ✨\n\n"
@@ -687,6 +703,19 @@ TEXTS = {
 }
 
 
+def _feedback_contact_handle() -> str | None:
+    return settings.feedback_username
+
+
+def _feedback_profile_line(locale: str) -> str:
+    handle = _feedback_contact_handle()
+    if not handle:
+        return ""
+    if locale == "ru":
+        return f"\n\n💬 Обратная связь: @{handle}"
+    return f"\n\n💬 Feedback: @{handle}"
+
+
 def public_description_ru() -> str:
     return (
         "🌌 AstroPulse — карманный астролог на эфемеридах.\n\n"
@@ -697,6 +726,7 @@ def public_description_ru() -> str:
         "⭐ Premium: неделя и месяц, полная карта, луна на 30 дней, "
         "безлимит совместимости — Telegram Stars\n\n"
         "🔮 /start · RU / EN"
+        f"{_feedback_profile_line('ru')}"
     )
 
 
@@ -710,7 +740,44 @@ def public_description_en() -> str:
         "⭐ Premium: week and month, full chart, 30-day moon, "
         "unlimited compatibility — Telegram Stars\n\n"
         "🔮 /start · RU / EN"
+        f"{_feedback_profile_line('en')}"
     )
+
+
+def public_short_description_ru() -> str:
+    base = "🌌 AstroPulse · гороскоп · луна · Premium · /start"
+    handle = _feedback_contact_handle()
+    if handle:
+        extended = f"{base} · 💬 @{handle}"
+        if len(extended) <= 120:
+            return extended
+    return base[:120]
+
+
+def public_short_description_en() -> str:
+    base = "🌌 AstroPulse · horoscope · moon · Premium · /start"
+    handle = _feedback_contact_handle()
+    if handle:
+        extended = f"{base} · 💬 @{handle}"
+        if len(extended) <= 120:
+            return extended
+    return base[:120]
+
+
+def feedback_keyboard(locale: str) -> InlineKeyboardMarkup:
+    handle = _feedback_contact_handle()
+    rows: list[list[InlineKeyboardButton]] = []
+    if handle:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "feedback_write_button"),
+                    url=f"https://t.me/{handle}",
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 async def configure_public_profile(bot: Bot) -> None:
@@ -719,11 +786,11 @@ async def configure_public_profile(bot: Bot) -> None:
         await bot.set_my_name(name="AstroPulse", language_code="ru")
         await bot.set_my_name(name="AstroPulse", language_code="en")
     await bot.set_my_short_description(
-        short_description="🌌 AstroPulse · транзиты · луна · совместимость · Premium Stars · /start",
+        short_description=public_short_description_ru(),
         language_code="ru",
     )
     await bot.set_my_short_description(
-        short_description="🌌 AstroPulse · transits · moon · compatibility · Premium Stars · /start",
+        short_description=public_short_description_en(),
         language_code="en",
     )
     await bot.set_my_description(
@@ -2073,6 +2140,28 @@ async def about_handler(message: Message) -> None:
         message,
         f"{breadcrumb(locale, t(locale, 'crumb_about'))}\n\n{t(locale, 'about_block')}",
         reply_markup=about_commands_keyboard(locale),
+    )
+
+
+@router.message(Command("feedback"))
+async def feedback_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    handle = _feedback_contact_handle()
+    if not handle:
+        await show_panel_from_message(
+            message,
+            t(locale, "feedback_missing"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+    await show_panel_from_message(
+        message,
+        f"{breadcrumb(locale, t(locale, 'feedback_title'))}\n\n"
+        f"{t(locale, 'feedback_text').format(contact=handle)}",
+        reply_markup=feedback_keyboard(locale),
     )
 
 
