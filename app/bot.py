@@ -95,26 +95,14 @@ TEXTS = {
             "/help - список команд"
         ),
         "about_block": (
-            "Что может делать этот бот?\n\n"
-            "Бот для астропрогнозов и лунного календаря:\n\n"
-            "Гороскоп:\n"
-            "Сегодня\n"
-            "Неделя\n"
-            "Месяц\n\n"
-            "Совместимость:\n"
-            "Любовь\n"
-            "Дружба\n"
-            "Работа\n\n"
-            "Лунный календарь:\n"
-            "Сегодня\n"
-            "7 дней\n"
-            "30 дней\n"
-            "Подробнее по дню\n\n"
-            "Дополнительно:\n"
-            "Трекер настроения\n"
-            "Ежедневная рассылка\n"
-            "Профиль и настройки\n"
-            "RU / EN"
+            "🌙 AstroPulse — твой астро-помощник\n\n"
+            "🔮 Гороскоп — сегодня, неделя, месяц\n"
+            "💞 Совместимость — любовь, дружба, работа\n"
+            "🌙 Лунный календарь — 1, 7 и 30 дней\n"
+            "🪐 Натальная карта — кратко и подробно\n"
+            "⭐ Premium — расширенные прогнозы\n\n"
+            "⚙️ Профиль, настроение, рассылка, RU/EN\n\n"
+            "Контент носит развлекательный характер."
         ),
         "about_show_commands": "Показать все команды",
         "welcome": (
@@ -308,26 +296,14 @@ TEXTS = {
             "/help - command list"
         ),
         "about_block": (
-            "What can this bot do?\n\n"
-            "Astrology bot with horoscopes and moon calendar:\n\n"
-            "Horoscope:\n"
-            "Today\n"
-            "Week\n"
-            "Month\n\n"
-            "Compatibility:\n"
-            "Love\n"
-            "Friendship\n"
-            "Work\n\n"
-            "Moon calendar:\n"
-            "Today\n"
-            "7 days\n"
-            "30 days\n"
-            "Day details\n\n"
-            "Extra:\n"
-            "Mood tracker\n"
-            "Daily delivery\n"
-            "Profile and settings\n"
-            "RU / EN"
+            "🌙 AstroPulse — your astrology assistant\n\n"
+            "🔮 Horoscope — today, week, month\n"
+            "💞 Compatibility — love, friendship, work\n"
+            "🌙 Moon calendar — 1, 7 and 30 days\n"
+            "🪐 Natal chart — short and full modes\n"
+            "⭐ Premium — extended forecasts\n\n"
+            "⚙️ Profile, mood tracker, daily delivery, RU/EN\n\n"
+            "Content is for entertainment purposes."
         ),
         "about_show_commands": "Show all commands",
         "welcome": (
@@ -505,38 +481,45 @@ TEXTS = {
 
 def public_description_ru() -> str:
     return (
-        "Точный астробот для ежедневных решений.\n\n"
-        "Что внутри:\n"
-        "• Персональный гороскоп: сегодня, неделя, месяц\n"
-        "• Совместимость: любовь, дружба, работа\n"
-        "• Лунный календарь: сегодня, 7 и 30 дней\n"
-        "• Рекомендации на день: что делать и чего избегать\n"
-        "• Трекер настроения + авто-рассылка\n\n"
-        "Выбери язык RU/EN и начни с /start."
+        "🌙 AstroPulse — персональный астробот\n\n"
+        "🔮 Гороскоп на сегодня, неделю и месяц\n"
+        "💞 Совместимость: любовь, дружба, работа\n"
+        "🌙 Лунный календарь с советами на каждый день\n"
+        "🪐 Натальная карта и сферы жизни\n"
+        "⭐ Premium — полный доступ к прогнозам\n\n"
+        "📲 Нажми /start · языки RU и EN\n"
+        "Контент носит развлекательный характер."
     )
 
 
 def public_description_en() -> str:
     return (
-        "Your practical astrology assistant for daily decisions.\n\n"
-        "Inside:\n"
-        "• Personal horoscope: today, week, month\n"
-        "• Compatibility modes: love, friendship, work\n"
-        "• Moon calendar: today, 7 and 30 days\n"
-        "• Daily guidance: what to do and what to avoid\n"
-        "• Mood tracker + auto-delivery\n\n"
-        "Choose RU/EN and start with /start."
+        "🌙 AstroPulse — your personal astrology bot\n\n"
+        "🔮 Horoscope for today, week and month\n"
+        "💞 Compatibility: love, friendship, work\n"
+        "🌙 Moon calendar with daily guidance\n"
+        "🪐 Natal chart and life areas\n"
+        "⭐ Premium — full forecast access\n\n"
+        "📲 Tap /start · RU and EN supported\n"
+        "Content is for entertainment purposes."
     )
 
 
 async def configure_public_profile(bot: Bot) -> None:
     # Telegram shows these texts on the bot card before user presses Start.
+    if hasattr(bot, "set_my_name"):
+        await bot.set_my_name(name="AstroPulse", language_code="ru")
+        await bot.set_my_name(name="AstroPulse", language_code="en")
     await bot.set_my_short_description(
-        short_description="Гороскопы, совместимость и лунный календарь в одном боте",
+        short_description=(
+            "🌙 AstroPulse · гороскоп · совместимость · луна · натальная карта · RU/EN · /start"
+        ),
         language_code="ru",
     )
     await bot.set_my_short_description(
-        short_description="Horoscope, compatibility and moon calendar in one bot",
+        short_description=(
+            "🌙 AstroPulse · horoscope · compatibility · moon · natal chart · RU/EN · /start"
+        ),
         language_code="en",
     )
     await bot.set_my_description(
