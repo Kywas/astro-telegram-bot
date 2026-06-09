@@ -18,6 +18,7 @@ from aiogram.types import (
 
 from app.config import load_settings
 from app.admin_middleware import AdminOnlyMiddleware
+from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
 from app.horoscope import generate_horoscope
@@ -2618,6 +2619,9 @@ async def run_bot() -> None:
             message=str(e),
         )
     dp = Dispatcher(storage=MemoryStorage())
+    cleanup_middleware = DeleteUserInputMiddleware()
+    router.message.middleware(cleanup_middleware)
+    admin_router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(
         AdminOnlyMiddleware(
             admin_ids=settings.admin_ids,
