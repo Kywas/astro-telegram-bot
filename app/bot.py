@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 import re
 from urllib.parse import quote
