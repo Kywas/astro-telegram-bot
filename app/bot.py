@@ -3430,6 +3430,16 @@ async def successful_payment_handler(message: Message) -> None:
         )
 
 
+def _format_tx_datetime(value: datetime | int | float | None) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, datetime):
+        dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    else:
+        dt = datetime.fromtimestamp(value, tz=timezone.utc)
+    return dt.strftime("%d.%m.%Y %H:%M UTC")
+
+
 async def build_stars_report_text(bot: Bot, locale: str) -> str:
     try:
         if hasattr(bot, "get_my_star_balance"):
@@ -3458,7 +3468,7 @@ async def build_stars_report_text(bot: Bot, locale: str) -> str:
         else:
             for tx in reversed(transactions[-5:]):
                 sign = "+" if tx.amount > 0 else ""
-                when = datetime.fromtimestamp(tx.date, tz=timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+                when = _format_tx_datetime(tx.date)
                 lines.append(f"• {when}: {sign}{tx.amount} ⭐")
         return "\n".join(lines)
     except Exception as exc:
