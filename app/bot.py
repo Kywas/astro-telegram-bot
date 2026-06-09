@@ -22,7 +22,7 @@ from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
 from app.evening_checkin import build_evening_response
-from app.geo import resolve_city
+from app.geo import resolve_city, warm_timezone_finder
 from app.horoscope import generate_home_teaser, generate_horoscope, personalization_from_profile
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
@@ -322,6 +322,7 @@ TEXTS = {
         "ask_city": "Введите город рождения:",
         "city_short": "Название города слишком короткое, попробуйте еще раз.",
         "city_not_found": "Город не найден. Укажи полное название, например: Казань, Россия",
+        "city_geocode_error": "Не удалось определить город. Попробуй ещё раз или укажи «Город, страна».",
         "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Сессия истекла. Начните заново командой /start.",
         "profile_saved": (
@@ -583,6 +584,7 @@ TEXTS = {
         "ask_city": "Enter your birth city:",
         "city_short": "City name looks too short, please try again.",
         "city_not_found": "City not found. Try the full name, e.g. Kazan, Russia",
+        "city_geocode_error": "Could not resolve the city. Try again or use “City, country”.",
         "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Session expired. Please restart with /start.",
         "profile_saved": (
@@ -1446,6 +1448,14 @@ def partner_profile_limit(profile) -> int:
     if profile and is_premium_active(profile.premium_until):
         return PREMIUM_PARTNER_LIMIT
     return FREE_PARTNER_LIMIT
+
+
+async def geocode_city_input(message: Message, city: str):
+    try:
+        await message.bot.send_chat_action(message.chat.id, "typing")
+    except Exception:
+        pass
+    return await resolve_city(city, db)
 
 
 def partner_limit_text(locale: str, profile, limit: int) -> str:
@@ -3596,7 +3606,24 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
-    location = await resolve_city(city, db)
+    try:
+        location = await geocode_city_input(message, city)
+    except Exception as e:
+        await db.log_error(
+            source="partner_city_handler",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_geocode_error')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+
     if location is None:
         await show_panel_from_message(
             message,
@@ -3711,7 +3738,22 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
     sign = zodiac_sign(birth_date)
 
-    location = await resolve_city(city, db)
+    try:
+        location = await geocode_city_input(message, city)
+    except Exception as e:
+        await db.log_error(
+            source="city_handler",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_geocode_error')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
     if location is None:
         await show_panel_from_message(
             message,
@@ -3880,7 +3922,8 @@ async def run_bot() -> None:
     )
     dp.include_router(router)
     dp.include_router(admin_router)
-    await bot.delete_webhook(drop_pending_updates=True)
+    asyncio.create_task(asyncio.to_thread(warm_timezone_finder))
+    await bot.delete_webhook(drop_pending_updates=False)
     daily_task = asyncio.create_task(run_daily_loop(db, bot))
     try:
         await dp.start_polling(bot)

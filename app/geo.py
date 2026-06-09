@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
@@ -45,6 +46,34 @@ STATIC_CITIES: dict[str, tuple[float, float, str]] = {
     "yekaterinburg": (56.8389, 60.6057, "Asia/Yekaterinburg"),
     "новосибирск": (55.0084, 82.9357, "Asia/Novosibirsk"),
     "novosibirsk": (55.0084, 82.9357, "Asia/Novosibirsk"),
+    "красноярск": (56.0153, 92.8932, "Asia/Krasnoyarsk"),
+    "krasnoyarsk": (56.0153, 92.8932, "Asia/Krasnoyarsk"),
+    "челябинск": (55.1644, 61.4368, "Asia/Yekaterinburg"),
+    "chelyabinsk": (55.1644, 61.4368, "Asia/Yekaterinburg"),
+    "нижний новгород": (56.2965, 43.9361, "Europe/Moscow"),
+    "nizhny novgorod": (56.2965, 43.9361, "Europe/Moscow"),
+    "тюмень": (57.1530, 65.5343, "Asia/Yekaterinburg"),
+    "tyumen": (57.1530, 65.5343, "Asia/Yekaterinburg"),
+    "хабаровск": (48.4827, 135.0838, "Asia/Vladivostok"),
+    "khabarovsk": (48.4827, 135.0838, "Asia/Vladivostok"),
+    "саратов": (51.5336, 46.0343, "Europe/Saratov"),
+    "saratov": (51.5336, 46.0343, "Europe/Saratov"),
+    "тольятти": (53.5078, 49.4204, "Europe/Samara"),
+    "tolyatti": (53.5078, 49.4204, "Europe/Samara"),
+    "ижевск": (56.8527, 53.2115, "Europe/Samara"),
+    "izhevsk": (56.8527, 53.2115, "Europe/Samara"),
+    "барнаул": (53.3480, 83.7798, "Asia/Barnaul"),
+    "barnaul": (53.3480, 83.7798, "Asia/Barnaul"),
+    "ульяновск": (54.3142, 48.4031, "Europe/Ulyanovsk"),
+    "ulyanovsk": (54.3142, 48.4031, "Europe/Ulyanovsk"),
+    "томск": (56.4846, 84.9482, "Asia/Tomsk"),
+    "tomsk": (56.4846, 84.9482, "Asia/Tomsk"),
+    "кемерово": (55.3909, 86.0468, "Asia/Novokuznetsk"),
+    "kemerovo": (55.3909, 86.0468, "Asia/Novokuznetsk"),
+    "ярославль": (57.6261, 39.8845, "Europe/Moscow"),
+    "yaroslavl": (57.6261, 39.8845, "Europe/Moscow"),
+    "махачкала": (42.9849, 47.5047, "Europe/Moscow"),
+    "makhachkala": (42.9849, 47.5047, "Europe/Moscow"),
     "казань": (55.7963, 49.1088, "Europe/Moscow"),
     "kazan": (55.7963, 49.1088, "Europe/Moscow"),
     "самара": (53.1959, 50.1002, "Europe/Samara"),
@@ -144,7 +173,7 @@ def lookup_static_city(city: str) -> GeocodedLocation | None:
     return None
 
 
-def timezone_at(lat: float, lon: float) -> str:
+def _timezone_at_sync(lat: float, lon: float) -> str:
     global _timezone_finder
     try:
         if _timezone_finder is None:
@@ -156,6 +185,20 @@ def timezone_at(lat: float, lon: float) -> str:
     except Exception:
         logger.debug("timezone lookup failed lat=%s lon=%s", lat, lon, exc_info=True)
     return "UTC"
+
+
+async def timezone_at(lat: float, lon: float) -> str:
+    return await asyncio.to_thread(_timezone_at_sync, lat, lon)
+
+
+def warm_timezone_finder() -> None:
+    """Load timezone polygons once; safe to call from a background thread at startup."""
+    _timezone_at_sync(55.7558, 37.6173)
+
+
+def shorten_display_name(display_name: str, fallback: str) -> str:
+    first = display_name.split(",", 1)[0].strip()
+    return first or fallback.strip()
 
 
 async def _fetch_nominatim(query: str) -> GeocodedLocation | None:
@@ -187,12 +230,14 @@ async def _fetch_nominatim(query: str) -> GeocodedLocation | None:
     except (KeyError, TypeError, ValueError):
         return None
 
-    display_name = str(item.get("display_name") or query.strip())
+    raw_name = str(item.get("display_name") or query.strip())
+    display_name = shorten_display_name(raw_name, query)
+    tz = await timezone_at(lat, lon)
     return GeocodedLocation(
         display_name=display_name,
         lat=lat,
         lon=lon,
-        timezone=timezone_at(lat, lon),
+        timezone=tz,
         source="nominatim",
     )
 
