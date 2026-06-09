@@ -1219,15 +1219,42 @@ def premium_menu_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
-_USER_PANELS: dict[int, tuple[int, int]] = {}
+_USER_PANELS: dict[int, list[tuple[int, int]]] = {}
 
 
 def _save_user_panel(user_id: int, chat_id: int, message_id: int) -> None:
-    _USER_PANELS[user_id] = (chat_id, message_id)
+    key = (chat_id, message_id)
+    panels = _USER_PANELS.setdefault(user_id, [])
+    if key in panels:
+        panels.remove(key)
+    panels.append(key)
 
 
 def _get_user_panel(user_id: int) -> tuple[int, int] | None:
-    return _USER_PANELS.get(user_id)
+    panels = _USER_PANELS.get(user_id)
+    if not panels:
+        return None
+    return panels[-1]
+
+
+async def _delete_user_panels(
+    bot: Bot,
+    user_id: int,
+    *,
+    keep: tuple[int, int] | None = None,
+) -> None:
+    panels = list(_USER_PANELS.get(user_id, []))
+    for chat_id, message_id in panels:
+        if keep is not None and (chat_id, message_id) == keep:
+            continue
+        try:
+            await bot.delete_message(chat_id, message_id)
+        except TelegramBadRequest:
+            pass
+    if keep is None:
+        _USER_PANELS.pop(user_id, None)
+    else:
+        _USER_PANELS[user_id] = [keep]
 
 
 def _is_not_modified_error(exc: TelegramBadRequest) -> bool:
@@ -1259,23 +1286,16 @@ async def show_ui_panel(
                 message_id=target_msg_id,
                 reply_markup=reply_markup,
             )
+            await _delete_user_panels(bot, user_id, keep=(target_chat_id, target_msg_id))
             _save_user_panel(user_id, target_chat_id, target_msg_id)
             return
         except TelegramBadRequest as exc:
             if _is_not_modified_error(exc):
+                await _delete_user_panels(bot, user_id, keep=(target_chat_id, target_msg_id))
                 _save_user_panel(user_id, target_chat_id, target_msg_id)
                 return
 
-    for target_chat_id, target_msg_id in targets:
-        try:
-            await bot.delete_message(target_chat_id, target_msg_id)
-        except TelegramBadRequest:
-            pass
-    if stored:
-        try:
-            await bot.delete_message(stored[0], stored[1])
-        except TelegramBadRequest:
-            pass
+    await _delete_user_panels(bot, user_id)
 
     try:
         sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
@@ -1289,6 +1309,13 @@ async def show_ui_panel(
         raise
 
 
+async def delete_user_wizard_message(message: Message) -> None:
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
+
+
 async def show_panel_from_message(
     message: Message,
     text: str,
@@ -1300,7 +1327,7 @@ async def show_panel_from_message(
     if user is None:
         return
     if prefer_new:
-        _USER_PANELS.pop(user.id, None)
+        await _delete_user_panels(message.bot, user.id)
     try:
         await show_ui_panel(
             bot=message.bot,
@@ -1317,6 +1344,7 @@ async def show_panel_from_message(
             message=str(e),
             context=f"user_id={user.id}",
         )
+        await _delete_user_panels(message.bot, user.id)
         sent = await message.answer(text=text, reply_markup=reply_markup)
         _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
@@ -3656,8 +3684,6 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
             lon=location.lon,
             sign=sign,
         )
-        await state.clear()
-        partners = await db.list_partners(user.id)
     except Exception as e:
         await db.log_error(
             source="partner_city_handler_save",
@@ -3672,6 +3698,9 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
+    await delete_user_wizard_message(message)
+    await state.clear()
+    partners = await db.list_partners(user.id)
     await show_panel_from_message(
         message,
         f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
@@ -3820,6 +3849,7 @@ async def city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
+    await delete_user_wizard_message(message)
     await state.set_state(ProfileSetup.waiting_relationship)
     await show_panel_from_message(
         message,
