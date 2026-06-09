@@ -11,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import ErrorEvent
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from app.auth import is_admin
 from app.admin_alerts import (
     notify_admins_bot_crashed,
     notify_admins_bot_started,
@@ -124,10 +125,12 @@ from app.states import (
 )
 from app.timezones import user_local_date_key
 from app.ui import (
+    _save_user_panel,
     delete_user_wizard_message,
     edit_or_send,
     render_inline_panel,
     show_panel_from_message,
+    show_ui_panel,
 )
 from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.zodiac import resolve_sun_sign
