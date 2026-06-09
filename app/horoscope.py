@@ -17,6 +17,7 @@ SECTION_TEMPLATES = {
         "affirmation_title": "Аффирмация дня",
         "advice_title": "Совет дня",
         "unavailable": "Прогноз временно недоступен — проверьте дату рождения в профиле.",
+        "details_header": "📋 Прогноз по сферам",
     },
     "en": {
         "header": "Astrological forecast",
@@ -31,8 +32,31 @@ SECTION_TEMPLATES = {
         "affirmation_title": "Affirmation",
         "advice_title": "Advice of the day",
         "unavailable": "Forecast is temporarily unavailable — check your birth date in profile.",
+        "details_header": "📋 Life areas forecast",
     },
 }
+
+SECTION_ICONS = {
+    "energy_title": "⚡",
+    "work_title": "💼",
+    "finance_title": "💰",
+    "love_title": "❤️",
+    "social_title": "👥",
+    "health_title": "🌿",
+    "lucky_time_title": "🕐",
+    "avoid_title": "⚠️",
+    "affirmation_title": "✨",
+    "advice_title": "💡",
+}
+
+GOAL_FOCUS_KEYS = {
+    "love": "love_title",
+    "career": "work_title",
+    "money": "finance_title",
+    "balance": "advice_title",
+}
+
+DETAILS_DIVIDER = "──────────────────"
 
 GOAL_LABELS = {
     "ru": {
@@ -84,17 +108,26 @@ def personalization_from_profile(profile) -> PersonalizationContext | None:
     return ctx if ctx.has_data() else None
 
 
-def _section_title(labels: dict[str, str], key: str, goal: str | None) -> str:
+def _is_focus_section(key: str, goal: str | None) -> bool:
+    return bool(goal and GOAL_FOCUS_KEYS.get(goal) == key)
+
+
+def _format_detail_block(
+    labels: dict[str, str],
+    key: str,
+    text: str,
+    *,
+    goal: str | None,
+    score: int | None = None,
+) -> str:
+    icon = SECTION_ICONS[key]
     title = labels[key]
-    focus_map = {
-        "love": "love_title",
-        "career": "work_title",
-        "money": "finance_title",
-        "balance": "advice_title",
-    }
-    if goal and focus_map.get(goal) == key:
-        return f"⭐ {title}"
-    return title
+    focus = "⭐ " if _is_focus_section(key, goal) else ""
+    if score is not None:
+        header = f"{focus}{icon} {title} · {score}/10"
+    else:
+        header = f"{focus}{icon} {title}"
+    return f"{header}\n{text}"
 
 
 def _personalization_banner(locale: str, ctx: PersonalizationContext) -> str:
@@ -163,22 +196,32 @@ def _format_forecast(
         banner = _personalization_banner(locale, personalization)
         if banner:
             lines.append(banner)
-    lines.extend(
-        [
-            "",
-            f"• {_section_title(labels, 'energy_title', goal)} ({forecast.energy.score}/10): {forecast.energy.text}",
-            f"• {_section_title(labels, 'work_title', goal)} ({forecast.work.score}/10): {forecast.work.text}",
-            f"• {_section_title(labels, 'finance_title', goal)} ({forecast.finance.score}/10): {forecast.finance.text}",
-            f"• {_section_title(labels, 'love_title', goal)} ({forecast.love.score}/10): {forecast.love.text}",
-            f"• {labels['social_title']}: {forecast.social.text}",
-            f"• {labels['health_title']} ({forecast.health.score}/10): {forecast.health.text}",
-            f"• {labels['lucky_time_title']}: {forecast.lucky_time}",
-            f"• {labels['avoid_title']}: {forecast.avoid}",
-            f"• {labels['affirmation_title']}: {forecast.affirmation}",
-            f"• {_section_title(labels, 'advice_title', goal)}: {forecast.advice}",
-        ]
-    )
-    return "\n".join(lines)
+
+    detail_blocks = [
+        _format_detail_block(
+            labels, "energy_title", forecast.energy.text, goal=goal, score=forecast.energy.score
+        ),
+        _format_detail_block(
+            labels, "work_title", forecast.work.text, goal=goal, score=forecast.work.score
+        ),
+        _format_detail_block(
+            labels, "finance_title", forecast.finance.text, goal=goal, score=forecast.finance.score
+        ),
+        _format_detail_block(
+            labels, "love_title", forecast.love.text, goal=goal, score=forecast.love.score
+        ),
+        _format_detail_block(labels, "social_title", forecast.social.text, goal=goal),
+        _format_detail_block(
+            labels, "health_title", forecast.health.text, goal=goal, score=forecast.health.score
+        ),
+        _format_detail_block(labels, "lucky_time_title", forecast.lucky_time, goal=goal),
+        _format_detail_block(labels, "avoid_title", forecast.avoid, goal=goal),
+        _format_detail_block(labels, "affirmation_title", forecast.affirmation, goal=goal),
+        _format_detail_block(labels, "advice_title", forecast.advice, goal=goal),
+    ]
+    backdrop = "\n".join(lines)
+    details = "\n\n".join(detail_blocks)
+    return f"{backdrop}\n\n{DETAILS_DIVIDER}\n{labels['details_header']}\n\n{details}"
 
 
 def generate_home_teaser(
