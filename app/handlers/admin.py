@@ -6,7 +6,8 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from app.bot_context import admin_router, db
+from app.admin_alerts import notify_admins
+from app.bot_context import admin_router, db, settings
 from app.i18n import t
 from app.keyboards import admin_panel_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
 from app.premium import format_premium_until
@@ -14,6 +15,30 @@ from app.services.home import build_admin_stats_text, build_home_panel_text
 from app.services.locale_users import get_user_locale
 from app.states import AdminPanel
 from app.ui import edit_or_send, render_inline_panel
+
+
+def _ping_alerts_line(locale: str, user_id: int) -> str:
+    if not settings.admin_ids:
+        return t(locale, "ping_alerts_missing_env")
+    if user_id in settings.admin_ids:
+        return t(locale, "ping_alerts_ok", count=str(len(settings.admin_ids)))
+    return t(
+        locale,
+        "ping_alerts_not_listed",
+        ids=",".join(str(admin_id) for admin_id in settings.admin_ids),
+        user_id=str(user_id),
+    )
+
+
+def _ping_panel_text(locale: str, user_id: int) -> str:
+    utc_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return t(
+        locale,
+        "ping_text",
+        utc=utc_now,
+        alerts_line=_ping_alerts_line(locale, user_id),
+    )
+
 
 def _format_tx_datetime(value: datetime | int | float | None) -> str:
     if value is None:
@@ -144,8 +169,30 @@ async def ping_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    utc_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    await message.answer(t(locale, "ping_text", utc=utc_now), reply_markup=admin_panel_keyboard(locale))
+    await message.answer(
+        _ping_panel_text(locale, user.id),
+        reply_markup=admin_panel_keyboard(locale),
+    )
+
+
+@admin_router.message(Command("adminalert"))
+async def admin_alert_test_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    if user.id not in settings.admin_ids:
+        await message.answer(t(locale, "admin_only"), reply_markup=admin_panel_keyboard(locale))
+        return
+    sent = await notify_admins(
+        message.bot,
+        settings.admin_ids,
+        "🔔 Тест алерта админа\nЕсли видишь это — уведомления работают.",
+    )
+    await message.answer(
+        f"Тест отправлен: {sent}/{len(settings.admin_ids)}",
+        reply_markup=admin_panel_keyboard(locale),
+    )
 
 
 @admin_router.message(Command("stars"))
@@ -205,10 +252,9 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
                 await callback.message.answer(report, reply_markup=admin_panel_keyboard(locale))
         return
     if action == "ping":
-        utc_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         await render_inline_panel(
             callback,
-            t(locale, "ping_text", utc=utc_now),
+            _ping_panel_text(locale, user.id),
             admin_panel_keyboard(locale),
         )
         return

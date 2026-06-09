@@ -2727,7 +2727,15 @@ async def run_bot() -> None:
     dp.include_router(router)
     asyncio.create_task(asyncio.to_thread(warm_timezone_finder))
     await bot.delete_webhook(drop_pending_updates=False)
-    await notify_admins_bot_started(bot, settings.admin_ids)
+    sent = await notify_admins_bot_started(bot, settings.admin_ids)
+    if sent == 0 and settings.admin_ids:
+        logger.warning(
+            "Startup alert failed for all admins (%s). "
+            "Ensure each admin sent /start to the bot.",
+            ",".join(str(x) for x in settings.admin_ids),
+        )
+    elif not settings.admin_ids:
+        logger.warning("Startup alert skipped: set ADMIN_IDS in .env")
     daily_task = asyncio.create_task(
         run_daily_loop(db, bot, admin_ids=settings.admin_ids)
     )

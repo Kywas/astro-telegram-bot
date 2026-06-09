@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -28,6 +29,8 @@ class Settings:
 
 
 def load_settings() -> Settings:
+    project_root = Path(__file__).resolve().parent.parent
+    load_dotenv(project_root / ".env")
     load_dotenv()
     bot_token = os.getenv("BOT_TOKEN", "").strip()
     if not bot_token:
