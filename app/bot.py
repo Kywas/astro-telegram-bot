@@ -755,6 +755,7 @@ async def show_ui_panel(
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
     edit_message: Message | None = None,
+    fallback_message: Message | None = None,
 ) -> None:
     targets: list[tuple[int, int]] = []
     if edit_message is not None:
@@ -789,25 +790,48 @@ async def show_ui_panel(
         except TelegramBadRequest:
             pass
 
-    sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
-    _save_user_panel(user_id, sent.chat.id, sent.message_id)
+    try:
+        sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+        _save_user_panel(user_id, sent.chat.id, sent.message_id)
+        return
+    except TelegramBadRequest:
+        if fallback_message is not None:
+            sent = await fallback_message.answer(text=text, reply_markup=reply_markup)
+            _save_user_panel(user_id, sent.chat.id, sent.message_id)
+            return
+        raise
 
 
 async def show_panel_from_message(
     message: Message,
     text: str,
     reply_markup: InlineKeyboardMarkup | None = None,
+    *,
+    prefer_new: bool = False,
 ) -> None:
     user = message.from_user
     if user is None:
         return
-    await show_ui_panel(
-        bot=message.bot,
-        user_id=user.id,
-        chat_id=message.chat.id,
-        text=text,
-        reply_markup=reply_markup,
-    )
+    if prefer_new:
+        _USER_PANELS.pop(user.id, None)
+    try:
+        await show_ui_panel(
+            bot=message.bot,
+            user_id=user.id,
+            chat_id=message.chat.id,
+            text=text,
+            reply_markup=reply_markup,
+            fallback_message=message,
+        )
+    except Exception as e:
+        await db.log_error(
+            source="show_panel_from_message",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id}",
+        )
+        sent = await message.answer(text=text, reply_markup=reply_markup)
+        _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
 
 async def render_inline_panel(
@@ -1018,19 +1042,34 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             if linked:
                 await message.answer(t(language, "ref_attached"))
     await state.clear()
-    if existing_profile.birth_date is None:
-        await state.set_state(ProfileSetup.waiting_birth_date)
+    try:
+        if existing_profile.birth_date is None:
+            await state.set_state(ProfileSetup.waiting_birth_date)
+            panel_text = t(language, "welcome")
+        else:
+            panel_text = t(language, "start_home")
         await show_panel_from_message(
             message,
-            t(language, "welcome"),
+            panel_text,
             reply_markup=home_panel_keyboard(language),
+            prefer_new=True,
         )
-    else:
-        await show_panel_from_message(
-            message,
-            t(language, "start_home"),
-            reply_markup=home_panel_keyboard(language),
+    except Exception as e:
+        await db.log_error(
+            source="start_handler",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id}",
         )
+        fallback_text = (
+            t(language, "welcome")
+            if existing_profile.birth_date is None
+            else t(language, "start_home")
+        )
+        if existing_profile.birth_date is None:
+            await state.set_state(ProfileSetup.waiting_birth_date)
+        sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
+        _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
 
 @router.callback_query(F.data.startswith("startlang:"))
@@ -1094,6 +1133,7 @@ async def menu_handler(message: Message) -> None:
         message,
         t(locale, "menu_hint"),
         reply_markup=home_panel_keyboard(locale),
+        prefer_new=True,
     )
 
 
@@ -1976,6 +2016,7 @@ async def buy_premium_handler(message: Message) -> None:
             title="Astro Premium 30 days",
             description="Extended horoscope, weekly delivery and advanced compatibility.",
             payload="premium_30d",
+            provider_token="",
             currency="XTR",
             prices=[LabeledPrice(label="Premium 30d", amount=settings.premium_price_stars)],
         )
@@ -2006,6 +2047,7 @@ async def premium_buy_callback(callback: CallbackQuery) -> None:
             title="Astro Premium 30 days",
             description="Extended horoscope, weekly delivery and advanced compatibility.",
             payload="premium_30d",
+            provider_token="",
             currency="XTR",
             prices=[LabeledPrice(label="Premium 30d", amount=settings.premium_price_stars)],
         )
@@ -2555,6 +2597,10 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
 async def run_bot() -> None:
     await db.init()
     session = HttpProxyAiohttpSession(settings.proxy_url) if settings.proxy_url else None
+    if settings.proxy_url:
+        import logging
+
+        logging.getLogger(__name__).warning("BOT_PROXY is enabled: %s", settings.proxy_url)
     bot = Bot(token=settings.bot_token, session=session)
     try:
         await configure_public_profile(bot)

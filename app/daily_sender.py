@@ -8,7 +8,7 @@ from app.horoscope import generate_horoscope
 from app.premium import is_premium_active
 
 
-async def _send_for_time(db: Database, bot: Bot, hhmm: str) -> None:
+async def _send_for_time(db: Database, bot: Bot, hhmm: str, now: datetime) -> None:
     recipients = await db.get_daily_recipients(hhmm)
     for user in recipients:
         locale = user.language
@@ -41,5 +41,5 @@ async def run_daily_loop(db: Database, bot: Bot) -> None:
     while True:
         now = datetime.now(timezone.utc)
         hhmm = now.strftime("%H:%M")
-        await _send_for_time(db, bot, hhmm)
+        await _send_for_time(db, bot, hhmm, now)
         await asyncio.sleep(60)
