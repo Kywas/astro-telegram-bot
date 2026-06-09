@@ -372,7 +372,6 @@ TEXTS = {
         "settings_btn_language": "🌐 Язык",
         "settings_btn_profile": "🧩 Профиль",
         "settings_btn_daily": "⏰ Рассылка",
-        "settings_btn_relationship": "💞 Статус",
         "settings_btn_help": "❓ Помощь",
         "btn_today": "🔮 Гороскоп",
         "btn_profile": "👤 Профиль",
@@ -657,7 +656,6 @@ TEXTS = {
         "settings_btn_language": "🌐 Language",
         "settings_btn_profile": "🧩 Profile",
         "settings_btn_daily": "⏰ Daily",
-        "settings_btn_relationship": "💞 Status",
         "settings_btn_help": "❓ Help",
         "btn_today": "🔮 Horoscope",
         "btn_profile": "👤 Profile",
@@ -993,21 +991,15 @@ def settings_keyboard(locale: str) -> InlineKeyboardMarkup:
                     callback_data="settings:language",
                 ),
                 InlineKeyboardButton(
-                    text=t(locale, "settings_btn_relationship"),
-                    callback_data="settings:relationship",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
                     text=t(locale, "settings_btn_profile"),
                     callback_data="settings:profile",
                 ),
+            ],
+            [
                 InlineKeyboardButton(
                     text=t(locale, "settings_btn_daily"),
                     callback_data="settings:daily",
                 ),
-            ],
-            [
                 InlineKeyboardButton(
                     text=t(locale, "settings_btn_help"),
                     callback_data="settings:help",
@@ -2203,14 +2195,6 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         await state.clear()
         text, keyboard = await render_daily_panel(user.id, locale)
         await render_inline_panel(callback, text, keyboard)
-        return
-    if action == "relationship":
-        await render_inline_panel(
-            callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_relationship'))}\n\n"
-            f"{t(locale, 'choose_relationship_menu')}",
-            home_relationship_keyboard(locale, back_callback="nav:settings"),
-        )
         return
     if action == "help":
         await render_inline_panel(
