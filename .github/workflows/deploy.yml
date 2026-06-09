@@ -21,8 +21,10 @@ jobs:
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
+            python -m compileall app main.py scripts
+            python scripts/smoke_test.py
             systemctl restart astrobot
-            sleep 2
+            sleep 5
             systemctl is-active --quiet astrobot
             systemctl status astrobot --no-pager
-            journalctl -u astrobot -n 15 --no-pager
+            journalctl -u astrobot -n 30 --no-pager

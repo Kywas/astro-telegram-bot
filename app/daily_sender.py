@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import date, datetime, timedelta, timezone
 
 from aiogram import Bot
@@ -203,9 +204,13 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
 
 
 async def run_daily_loop(db: Database, bot: Bot) -> None:
+    logger = logging.getLogger(__name__)
     while True:
-        now = datetime.now(timezone.utc)
-        await _send_due_deliveries(db, bot, now)
-        await _send_evening_checkins(db, bot, now)
-        await _send_lunar_notifications(db, bot, now)
+        try:
+            now = datetime.now(timezone.utc)
+            await _send_due_deliveries(db, bot, now)
+            await _send_evening_checkins(db, bot, now)
+            await _send_lunar_notifications(db, bot, now)
+        except Exception:
+            logger.exception("daily loop tick failed")
         await asyncio.sleep(60)

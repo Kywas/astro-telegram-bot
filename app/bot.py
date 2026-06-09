@@ -1917,19 +1917,15 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             message=str(e),
             context=f"user_id={user.id}",
         )
-        fallback_text = (
-            t(language, "welcome")
-            if existing_profile.birth_date is None
-            else await build_home_panel_text(user.id, language, variant="start")
-        )
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
-            sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
+            fallback_text = t(language, "welcome")
         elif await onboarding_step_needed(user.id):
             await resume_onboarding_if_needed(user.id, language, state, message=message)
             return
         else:
-            sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
+            fallback_text = t(language, "start_home")
+        sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
         _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
 
@@ -4343,13 +4339,25 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
 
 
 async def run_bot() -> None:
+    import logging
+
+    logger = logging.getLogger(__name__)
     await db.init()
     session = HttpProxyAiohttpSession(settings.proxy_url) if settings.proxy_url else None
     if settings.proxy_url:
-        import logging
-
-        logging.getLogger(__name__).warning("BOT_PROXY is enabled: %s", settings.proxy_url)
+        logger.warning("BOT_PROXY is enabled: %s", settings.proxy_url)
     bot = Bot(token=settings.bot_token, session=session)
+    try:
+        me = await bot.get_me()
+        logger.info("Connected to Telegram as @%s (id=%s)", me.username, me.id)
+    except Exception as e:
+        await db.log_error(
+            source="startup_get_me",
+            error_type=type(e).__name__,
+            message=str(e),
+        )
+        logger.exception("Failed to connect to Telegram API")
+        raise
     try:
         await configure_public_profile(bot)
     except Exception as e:
