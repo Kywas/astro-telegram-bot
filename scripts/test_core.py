@@ -74,6 +74,9 @@ def test_referral_profile_requirements() -> None:
         ref_bonus_count=0,
     )
     assert complete.relationship_status and complete.goal and complete.sign
+
+
+def test_premium_dates() -> None:
     until = extend_premium_until(None, 7)
     assert is_premium_active(until.isoformat())
     left = days_until_premium_end(until.isoformat(), "UTC")
@@ -83,6 +86,7 @@ def test_referral_profile_requirements() -> None:
 def main() -> None:
     test_payment_payloads()
     test_payment_options()
+    test_referral_profile_requirements()
     test_premium_dates()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
