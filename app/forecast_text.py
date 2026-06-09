@@ -128,6 +128,121 @@ ASPECT_VERB_SHORT = {
     },
 }
 
+DOMAIN_FOCUS = {
+    "ru": {
+        "energy": {
+            "SUN": "личную силу и самопроявление",
+            "MOON": "эмоциональный фон и тонус",
+            "MERCURY": "ясность мыслей",
+            "VENUS": "настроение и приятные импульсы",
+            "MARS": "драйв и напор",
+            "JUPITER": "масштаб и уверенность дня",
+            "SATURN": "дисциплину и сдержанность",
+        },
+        "work": {
+            "SUN": "карьерные приоритеты и статус",
+            "MOON": "рабочий настрой",
+            "MERCURY": "задачи, сроки и договорённости",
+            "VENUS": "ценность результата",
+            "MARS": "темп и конкуренцию",
+            "JUPITER": "рост и новые возможности",
+            "SATURN": "ответственность и структуру",
+        },
+        "finance": {
+            "SUN": "финансовую уверенность",
+            "MOON": "эмоциональные траты",
+            "MERCURY": "расчёты и сделки",
+            "VENUS": "удовольствие и покупки",
+            "MARS": "импульсивные решения",
+            "JUPITER": "оптимизм в деньгах",
+            "SATURN": "бюджет и ограничения",
+        },
+        "love": {
+            "SUN": "важность и видимость в паре",
+            "MOON": "потребность в тепле",
+            "MERCURY": "слова и ожидания",
+            "VENUS": "близость и притяжение",
+            "MARS": "страсть и возможные трения",
+            "JUPITER": "щедрость и открытость",
+            "SATURN": "границы и серьёзность",
+        },
+        "social": {
+            "SUN": "видимость в контактах",
+            "MOON": "личный тон общения",
+            "MERCURY": "переписку и диалог",
+            "VENUS": "приятные контакты",
+            "MARS": "остроту в словах",
+            "JUPITER": "новые связи",
+            "SATURN": "формальность и дистанцию",
+        },
+        "health": {
+            "SUN": "жизненный ресурс",
+            "MOON": "сон, питание и настроение",
+            "MERCURY": "нервную систему",
+            "VENUS": "телесный комфорт",
+            "MARS": "активность и нагрузку",
+            "JUPITER": "склонность к перегрузу",
+            "SATURN": "режим и границы нагрузки",
+        },
+    },
+    "en": {
+        "energy": {
+            "SUN": "personal strength and self-expression",
+            "MOON": "emotional tone and vitality",
+            "MERCURY": "mental clarity",
+            "VENUS": "mood and pleasant impulses",
+            "MARS": "drive and momentum",
+            "JUPITER": "confidence and scale of the day",
+            "SATURN": "discipline and restraint",
+        },
+        "work": {
+            "SUN": "career priorities and status",
+            "MOON": "work mood",
+            "MERCURY": "tasks, deadlines, and agreements",
+            "VENUS": "value of the outcome",
+            "MARS": "pace and competition",
+            "JUPITER": "growth and new opportunities",
+            "SATURN": "responsibility and structure",
+        },
+        "finance": {
+            "SUN": "financial confidence",
+            "MOON": "emotional spending",
+            "MERCURY": "calculations and deals",
+            "VENUS": "pleasure and purchases",
+            "MARS": "impulsive decisions",
+            "JUPITER": "optimism about money",
+            "SATURN": "budget and limits",
+        },
+        "love": {
+            "SUN": "importance and visibility in a relationship",
+            "MOON": "need for warmth",
+            "MERCURY": "words and expectations",
+            "VENUS": "closeness and attraction",
+            "MARS": "passion and possible friction",
+            "JUPITER": "generosity and openness",
+            "SATURN": "boundaries and seriousness",
+        },
+        "social": {
+            "SUN": "visibility in contacts",
+            "MOON": "personal tone in communication",
+            "MERCURY": "messages and dialogue",
+            "VENUS": "pleasant contacts",
+            "MARS": "sharpness in speech",
+            "JUPITER": "new connections",
+            "SATURN": "formality and distance",
+        },
+        "health": {
+            "SUN": "life force",
+            "MOON": "sleep, food, and mood",
+            "MERCURY": "nervous system",
+            "VENUS": "physical comfort",
+            "MARS": "activity and exertion",
+            "JUPITER": "tendency to overdo it",
+            "SATURN": "routine and load limits",
+        },
+    },
+}
+
 DOMAIN_OPENERS = {
     "ru": {
         "energy": "Энергия",
@@ -405,6 +520,44 @@ def _natal_role_short(locale: str, natal: str) -> str:
     return NATAL_ROLE_SHORT[lang].get(natal, _planet_label(locale, natal).lower())
 
 
+def _domain_focus(locale: str, domain: str, natal: str) -> str:
+    lang = _lang(locale)
+    return DOMAIN_FOCUS[lang].get(domain, {}).get(natal, _natal_role_short(locale, natal))
+
+
+def _transit_domain_intro(locale: str, transit: str, domain: str) -> str:
+    lang = _lang(locale)
+    text = TRANSIT_DOMAIN_VERB[lang].get(
+        (transit, domain),
+        TRANSIT_DOMAIN_VERB[lang].get((transit, "energy"), _planet_label(locale, transit)),
+    )
+    return f"{text}."
+
+
+def _domain_hit_line(
+    locale: str,
+    domain: str,
+    transit: str,
+    natal: str,
+    aspect: str,
+    orb: float,
+    *,
+    bullet: str = "▸",
+    focus_planet: str | None = None,
+) -> str:
+    lang = _lang(locale)
+    transit_name = _planet_label(locale, transit)
+    natal_name = _planet_label(locale, natal)
+    symbol = ASPECT_SYMBOL.get(aspect, "•")
+    orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
+    verb = ASPECT_VERB_SHORT[lang][aspect]
+    focus = _domain_focus(locale, domain, focus_planet or natal)
+    core = f"{transit_name} {symbol} {natal_name}{orb_part} — {verb} {focus}"
+    if not bullet:
+        return core
+    return f"{bullet} {core}"
+
+
 def _compact_hit_line(
     locale: str,
     transit: str,
@@ -434,7 +587,7 @@ def _love_suffix(locale: str, domain: str, transit: str, relationship_status: st
     if relationship_status == "single" and transit in {"VENUS", "MOON"}:
         return " Это особенно заметно в новых знакомствах." if lang == "ru" else " Especially visible in new connections."
     if relationship_status == "relationship" and transit in {"VENUS", "MOON", "MARS"}:
-        return " Обсуди это с партнёром напрямую." if lang == "ru" else " Discuss it openly with your partner."
+        return ". Обсуди это с партнёром напрямую." if lang == "ru" else ". Discuss it openly with your partner."
     return ""
 
 
@@ -448,9 +601,18 @@ def format_domain_hit(
     *,
     relationship_status: str | None = None,
     include_opener: bool = True,
+    focus_planet: str | None = None,
 ) -> str:
     del include_opener
-    line = _compact_hit_line(locale, transit, natal, aspect, orb)
+    line = _domain_hit_line(
+        locale,
+        domain,
+        transit,
+        natal,
+        aspect,
+        orb,
+        focus_planet=focus_planet,
+    )
     return line + _love_suffix(locale, domain, transit, relationship_status)
 
 
@@ -484,7 +646,13 @@ def format_domain_section(
         return format_neutral_domain(locale, domain, moon_sign, natal_sun_sign)
     selected = hits[:2]
     lines: list[str] = []
+    first_orb, first_transit, _first_natal, _first_aspect = selected[0]
+    del first_orb
+    lines.append(_transit_domain_intro(locale, first_transit, domain))
+    seen_natal: set[str] = set()
     for index, (orb, transit, natal, aspect) in enumerate(selected):
+        focus_planet = natal if natal not in seen_natal else transit
+        seen_natal.add(natal)
         line = format_domain_hit(
             locale,
             domain,
@@ -493,6 +661,7 @@ def format_domain_section(
             aspect,
             orb,
             relationship_status=relationship_status if domain == "love" and index == len(selected) - 1 else None,
+            focus_planet=focus_planet,
         )
         lines.append(line)
     return "\n".join(lines)
