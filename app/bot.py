@@ -781,30 +781,40 @@ def feedback_keyboard(locale: str) -> InlineKeyboardMarkup:
 
 
 async def configure_public_profile(bot: Bot) -> None:
+    import logging
+
+    logger = logging.getLogger(__name__)
     # Telegram shows these texts on the bot card before user presses Start.
     if hasattr(bot, "set_my_name"):
         await bot.set_my_name(name="AstroPulse", language_code="ru")
         await bot.set_my_name(name="AstroPulse", language_code="en")
-    await bot.set_my_short_description(
-        short_description=public_short_description_ru(),
-        language_code="ru",
-    )
-    await bot.set_my_short_description(
-        short_description=public_short_description_en(),
-        language_code="en",
-    )
-    await bot.set_my_description(
-        description=public_description_ru(),
-        language_code="ru",
-    )
-    await bot.set_my_description(
-        description=public_description_en(),
-        language_code="en",
-    )
+
+    short_ru = public_short_description_ru()
+    short_en = public_short_description_en()
+    desc_ru = public_description_ru()
+    desc_en = public_description_en()
+
+    # Default (no language_code) overwrites old BotFather text for all locales.
+    await bot.set_my_short_description(short_description=short_ru)
+    await bot.set_my_description(description=desc_ru)
+    await bot.set_my_short_description(short_description=short_ru, language_code="ru")
+    await bot.set_my_short_description(short_description=short_en, language_code="en")
+    await bot.set_my_description(description=desc_ru, language_code="ru")
+    await bot.set_my_description(description=desc_en, language_code="en")
+
+    handle = _feedback_contact_handle()
+    if handle:
+        logger.info("Public profile configured with feedback @%s", handle)
+    else:
+        logger.warning("Public profile configured without FEEDBACK_USERNAME")
+
     if BOT_ICON_PATH.is_file() and hasattr(bot, "set_my_profile_photo"):
-        await bot.set_my_profile_photo(
-            photo=InputProfilePhotoStatic(photo=FSInputFile(BOT_ICON_PATH)),
-        )
+        try:
+            await bot.set_my_profile_photo(
+                photo=InputProfilePhotoStatic(photo=FSInputFile(BOT_ICON_PATH)),
+            )
+        except Exception:
+            logger.exception("Failed to update bot profile photo")
 
 
 def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
@@ -4715,6 +4725,7 @@ async def run_bot() -> None:
     try:
         await configure_public_profile(bot)
     except Exception as e:
+        logger.exception("Failed to configure public profile")
         await db.log_error(
             source="configure_public_profile",
             error_type=type(e).__name__,

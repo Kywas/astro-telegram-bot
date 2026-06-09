@@ -23,6 +23,7 @@ jobs:
             pip install -r requirements.txt
             python -m compileall app main.py scripts
             PYTHONPATH=. python scripts/check_env.py
+            PYTHONPATH=. python scripts/verify_profile.py
             cp deploy/astrobot.service /etc/systemd/system/astrobot.service
             systemctl daemon-reload
             systemctl enable astrobot.service
