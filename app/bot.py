@@ -136,11 +136,11 @@ TEXTS = {
         "about_block": (
             "🌌 AstroPulse\n"
             "Карманный астролог на эфемеридах.\n\n"
-            "✨ Гороскоп по транзитам — сегодня, неделя, месяц\n"
+            "✨ Гороскоп на сегодня — бесплатно\n"
             "💞 Совместимость с полным профилем партнёра\n"
             "🌙 Лунный календарь и ежедневные напоминания\n"
             "🪐 Натальная карта по Swiss Ephemeris\n\n"
-            "⭐ Premium: полная карта, неделя/месяц, луна 30 дней, "
+            "⭐ Premium: неделя и месяц, полная карта, луна 30 дней, "
             "безлимит совместимости — Telegram Stars\n\n"
             "🌍 RU / EN"
         ),
@@ -183,6 +183,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Кратко",
         "natal_mode_full": "📚 Подробно",
         "choose_horoscope_period": "Выбери период гороскопа:",
+        "choose_horoscope_period_free": "Бесплатно — только прогноз на сегодня. Неделя и месяц — в Premium.",
         "share_horoscope": "📤 Поделиться прогнозом",
         "back": "⬅ Назад",
         "crumb_root": "Главная",
@@ -420,11 +421,11 @@ TEXTS = {
         "about_block": (
             "🌌 AstroPulse\n"
             "Pocket astrologer powered by ephemerides.\n\n"
-            "✨ Transit horoscope — today, week, month\n"
+            "✨ Daily horoscope — free\n"
             "💞 Compatibility with full partner profile\n"
             "🌙 Moon calendar and daily lunar reminders\n"
             "🪐 Natal chart via Swiss Ephemeris\n\n"
-            "⭐ Premium: full chart, week/month, 30-day moon, "
+            "⭐ Premium: week and month, full chart, 30-day moon, "
             "unlimited compatibility — Telegram Stars\n\n"
             "🌍 RU / EN"
         ),
@@ -467,6 +468,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Short",
         "natal_mode_full": "📚 Full",
         "choose_horoscope_period": "Choose horoscope period:",
+        "choose_horoscope_period_free": "Free — daily forecast only. Week and month are Premium.",
         "share_horoscope": "📤 Share forecast",
         "back": "⬅ Back",
         "crumb_root": "Home",
@@ -686,11 +688,11 @@ TEXTS = {
 def public_description_ru() -> str:
     return (
         "🌌 AstroPulse — карманный астролог на эфемеридах.\n\n"
-        "✨ Гороскоп по транзитам: сегодня, неделя, месяц\n"
+        "✨ Гороскоп на сегодня — бесплатно\n"
         "💞 Совместимость с полным профилем партнёра\n"
         "🌙 Лунный календарь и ежедневные напоминания\n"
         "🪐 Натальная карта по Swiss Ephemeris\n\n"
-        "⭐ Premium: полная карта, неделя/месяц, луна на 30 дней, "
+        "⭐ Premium: неделя и месяц, полная карта, луна на 30 дней, "
         "безлимит совместимости — Telegram Stars\n\n"
         "🔮 /start · RU / EN"
     )
@@ -699,11 +701,11 @@ def public_description_ru() -> str:
 def public_description_en() -> str:
     return (
         "🌌 AstroPulse — pocket astrologer powered by ephemerides.\n\n"
-        "✨ Transit horoscope: today, week, month\n"
+        "✨ Daily horoscope — free\n"
         "💞 Compatibility with full partner profile\n"
         "🌙 Moon calendar and daily lunar reminders\n"
         "🪐 Natal chart via Swiss Ephemeris\n\n"
-        "⭐ Premium: full chart, week/month, 30-day moon, "
+        "⭐ Premium: week and month, full chart, 30-day moon, "
         "unlimited compatibility — Telegram Stars\n\n"
         "🔮 /start · RU / EN"
     )
@@ -751,20 +753,31 @@ def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
 def horoscope_period_keyboard(
     locale: str,
     *,
+    premium_active: bool = False,
     share_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     if locale == "ru":
-        labels = [("Сегодня", "day"), ("Неделя", "week"), ("Месяц", "month")]
+        day_label, week_label, month_label = "Сегодня", "Неделя", "Месяц"
     else:
-        labels = [("Today", "day"), ("Week", "week"), ("Month", "month")]
+        day_label, week_label, month_label = "Today", "Week", "Month"
 
-    rows: list[list[InlineKeyboardButton]] = [
-        [
-            InlineKeyboardButton(text=labels[0][0], callback_data=f"horo:{labels[0][1]}"),
-            InlineKeyboardButton(text=labels[1][0], callback_data=f"horo:{labels[1][1]}"),
-            InlineKeyboardButton(text=labels[2][0], callback_data=f"horo:{labels[2][1]}"),
-        ],
-    ]
+    rows: list[list[InlineKeyboardButton]] = []
+    if premium_active:
+        rows.append(
+            [
+                InlineKeyboardButton(text=day_label, callback_data="horo:day"),
+                InlineKeyboardButton(text=week_label, callback_data="horo:week"),
+                InlineKeyboardButton(text=month_label, callback_data="horo:month"),
+            ]
+        )
+    else:
+        rows.append([InlineKeyboardButton(text=day_label, callback_data="horo:day")])
+        rows.append(
+            [
+                InlineKeyboardButton(text=f"⭐ {week_label}", callback_data="horo:week"),
+                InlineKeyboardButton(text=f"⭐ {month_label}", callback_data="horo:month"),
+            ]
+        )
     if share_url:
         rows.append([InlineKeyboardButton(text=t(locale, "share_horoscope"), url=share_url)])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
@@ -2252,10 +2265,21 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "horo":
-        await render_inline_panel(
-            callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
-            horoscope_period_keyboard(locale),
+        if callback.message is None:
+            return
+        profile = await db.get_user(user.id)
+        if profile is None or not profile.sign:
+            await edit_or_send(
+                callback,
+                t(locale, "complete_profile_first"),
+                inline_keyboard=home_panel_keyboard(locale),
+            )
+            return
+        await open_horoscope_for_user(
+            bot=callback.bot,
+            user_id=user.id,
+            locale=locale,
+            message=callback.message,
         )
         return
     if action == "compat":
@@ -2405,10 +2429,11 @@ async def today_handler(message: Message) -> None:
         )
         return
 
-    await show_panel_from_message(
-        message,
-        f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
-        reply_markup=horoscope_period_keyboard(locale),
+    await open_horoscope_for_user(
+        bot=message.bot,
+        user_id=user.id,
+        locale=locale,
+        message=message,
     )
 
 
@@ -2422,6 +2447,22 @@ async def _send_period_horoscope(
     period: str,
     profile=None,
 ) -> None:
+    premium_active = is_premium_active(profile.premium_until if profile else None)
+    if period in {"week", "month"} and not premium_active:
+        await show_ui_panel(
+            bot=bot,
+            user_id=user_id,
+            chat_id=message.chat.id,
+            text=(
+                f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n"
+                f"{t(locale, 'premium_required_horo_period')}\n\n"
+                f"{t(locale, 'premium_features')}"
+            ),
+            reply_markup=premium_upsell_keyboard(locale, back_data="nav:horo"),
+            edit_message=message,
+        )
+        return
+
     sign_name = get_sign_name(sign, locale)
     if period == "week":
         header = t(locale, "week_header", sign=sign_name)
@@ -2429,6 +2470,10 @@ async def _send_period_horoscope(
         header = t(locale, "month_header", sign=sign_name)
     else:
         header = t(locale, "today_header", sign=sign_name)
+
+    intro = ""
+    if not premium_active and period == "day":
+        intro = f"{t(locale, 'choose_horoscope_period_free')}\n\n"
 
     horoscope_text = generate_horoscope(
         sign=sign,
@@ -2456,8 +2501,47 @@ async def _send_period_horoscope(
         user_id=user_id,
         chat_id=message.chat.id,
         text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
-        reply_markup=horoscope_period_keyboard(locale, share_url=share_url),
+        reply_markup=horoscope_period_keyboard(locale, premium_active=premium_active, share_url=share_url),
         edit_message=message,
+    )
+
+
+async def open_horoscope_for_user(
+    *,
+    bot: Bot,
+    user_id: int,
+    locale: str,
+    message: Message,
+) -> None:
+    profile = await db.get_user(user_id)
+    if profile is None or not profile.sign:
+        await show_panel_from_message(
+            message,
+            t(locale, "complete_profile_first"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
+    premium_active = is_premium_active(profile.premium_until)
+    if premium_active:
+        await show_ui_panel(
+            bot=bot,
+            user_id=user_id,
+            chat_id=message.chat.id,
+            text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
+            reply_markup=horoscope_period_keyboard(locale, premium_active=True),
+            edit_message=message,
+        )
+        return
+
+    await _send_period_horoscope(
+        bot=bot,
+        user_id=user_id,
+        message=message,
+        locale=locale,
+        sign=profile.sign,
+        period="day",
+        profile=profile,
     )
 
 
