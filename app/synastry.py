@@ -3,7 +3,7 @@ from datetime import date, time
 
 from app.astro_engine import build_synastry_analysis
 from app.compatibility import compatibility_summary
-from app.zodiac import zodiac_sign
+from app.zodiac import resolve_sun_sign
 
 
 @dataclass
@@ -38,7 +38,15 @@ def build_synastry(
     partner_name: str | None = None,
 ) -> SynastryResult:
     if user_birth_date is None:
-        partner_sign = zodiac_sign(partner_birth_date)
+        partner_sign = resolve_sun_sign(
+            partner_birth_date,
+            partner_birth_time,
+            city=partner_city,
+            timezone_name=partner_timezone or user_timezone or "UTC",
+            lat=partner_lat,
+            lon=partner_lon,
+            birth_timezone=partner_birth_timezone,
+        )
         unavailable = (
             "Синастрия недоступна — заполните дату рождения в профиле."
             if locale == "ru"
@@ -72,7 +80,15 @@ def build_synastry(
         partner_birth_timezone=partner_birth_timezone,
     )
     if analysis is None:
-        partner_sign = zodiac_sign(partner_birth_date)
+        partner_sign = resolve_sun_sign(
+            partner_birth_date,
+            partner_birth_time,
+            city=partner_city,
+            timezone_name=partner_timezone or user_timezone or "UTC",
+            lat=partner_lat,
+            lon=partner_lon,
+            birth_timezone=partner_birth_timezone,
+        )
         unavailable = (
             "Не удалось рассчитать синастрию. Попробуйте позже."
             if locale == "ru"

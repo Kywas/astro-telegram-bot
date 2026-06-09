@@ -1,5 +1,8 @@
-from datetime import date
+from __future__ import annotations
 
+from datetime import date, time
+
+from app.astro_engine import compute_sun_sign
 
 ZODIAC_RANGES = [
     ("Capricorn", (12, 22), (1, 19)),
@@ -17,7 +20,8 @@ ZODIAC_RANGES = [
 ]
 
 
-def zodiac_sign(birth_date: date) -> str:
+def calendar_zodiac_sign(birth_date: date) -> str:
+    """Approximate Sun sign from calendar date ranges (fallback only)."""
     month = birth_date.month
     day = birth_date.day
 
@@ -34,3 +38,32 @@ def zodiac_sign(birth_date: date) -> str:
                 return sign
 
     return "Unknown"
+
+
+def resolve_sun_sign(
+    birth_date: date,
+    birth_time: time | None = None,
+    *,
+    city: str | None = None,
+    timezone_name: str = "UTC",
+    lat: float | None = None,
+    lon: float | None = None,
+    birth_timezone: str | None = None,
+) -> str:
+    sign = compute_sun_sign(
+        birth_date,
+        birth_time,
+        timezone_name,
+        city=city,
+        lat=lat,
+        lon=lon,
+        birth_timezone=birth_timezone,
+    )
+    if sign:
+        return sign
+    return calendar_zodiac_sign(birth_date)
+
+
+def zodiac_sign(birth_date: date) -> str:
+    """Backward-compatible alias: ephemeris Sun at UTC noon when only date is known."""
+    return resolve_sun_sign(birth_date, birth_time=None, timezone_name="UTC")

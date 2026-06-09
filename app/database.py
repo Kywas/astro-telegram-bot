@@ -284,6 +284,66 @@ class Database:
             )
             await db.commit()
 
+    async def update_user_sign(self, user_id: int, sign: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET sign = ? WHERE user_id = ?",
+                (sign, user_id),
+            )
+            await db.commit()
+
+    async def update_partner_sign(self, partner_id: int, sign: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE partner_profiles SET sign = ? WHERE id = ?",
+                (sign, partner_id),
+            )
+            await db.commit()
+
+    @staticmethod
+    def _resolved_user_sun_sign(profile: UserProfile) -> str | None:
+        if profile.birth_date is None:
+            return None
+        from app.zodiac import resolve_sun_sign
+
+        return resolve_sun_sign(
+            profile.birth_date,
+            profile.birth_time,
+            city=profile.city,
+            timezone_name=profile.birth_timezone or profile.timezone or "UTC",
+            lat=profile.birth_lat,
+            lon=profile.birth_lon,
+            birth_timezone=profile.birth_timezone,
+        )
+
+    @staticmethod
+    def _resolved_partner_sun_sign(partner: PartnerProfile) -> str:
+        from app.zodiac import resolve_sun_sign
+
+        return resolve_sun_sign(
+            partner.birth_date,
+            partner.birth_time,
+            city=partner.city,
+            timezone_name=partner.timezone or "UTC",
+            lat=partner.lat,
+            lon=partner.lon,
+            birth_timezone=partner.timezone,
+        )
+
+    async def _sync_user_sign(self, profile: UserProfile) -> UserProfile:
+        resolved = self._resolved_user_sun_sign(profile)
+        if resolved and resolved != profile.sign:
+            await self.update_user_sign(profile.user_id, resolved)
+            profile.sign = resolved
+        return profile
+
+    async def _sync_partner_sign(self, partner: PartnerProfile) -> PartnerProfile:
+        resolved = self._resolved_partner_sun_sign(partner)
+        if resolved != partner.sign:
+            await self.update_partner_sign(partner.id, resolved)
+            partner.sign = resolved
+        return partner
+
     async def get_user(self, user_id: int) -> Optional[UserProfile]:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -297,7 +357,7 @@ class Database:
 
                 birth_date = date.fromisoformat(row["birth_date"]) if row["birth_date"] else None
                 birth_time = time.fromisoformat(row["birth_time"]) if row["birth_time"] else None
-                return UserProfile(
+                profile = UserProfile(
                     user_id=row["user_id"],
                     username=row["username"],
                     first_name=row["first_name"],
@@ -330,6 +390,7 @@ class Database:
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
                 )
+                return await self._sync_user_sign(profile)
 
     async def set_user_language(self, user_id: int, language: str) -> None:
         async with aiosqlite.connect(self._db_path) as db:
@@ -434,7 +495,7 @@ class Database:
                 """
             ) as cursor:
                 rows = await cursor.fetchall()
-        return self._rows_to_profiles(rows)
+        return await self._profiles_from_rows(rows)
 
     async def get_lunar_notify_subscribers(self) -> list[UserProfile]:
         async with aiosqlite.connect(self._db_path) as db:
@@ -447,7 +508,7 @@ class Database:
                 """
             ) as cursor:
                 rows = await cursor.fetchall()
-        return self._rows_to_profiles(rows)
+        return await self._profiles_from_rows(rows)
 
     async def set_daily_subscription(
         self,
@@ -490,7 +551,7 @@ class Database:
             ) as cursor:
                 rows = await cursor.fetchall()
 
-        return self._rows_to_profiles(rows)
+        return await self._profiles_from_rows(rows)
 
     def _rows_to_profiles(self, rows: list) -> list[UserProfile]:
         result: list[UserProfile] = []
@@ -533,6 +594,12 @@ class Database:
                 )
             )
         return result
+
+    async def _profiles_from_rows(self, rows: list) -> list[UserProfile]:
+        synced: list[UserProfile] = []
+        for profile in self._rows_to_profiles(rows):
+            synced.append(await self._sync_user_sign(profile))
+        return synced
 
     async def set_premium_until(self, user_id: int, premium_until: Optional[str]) -> None:
         async with aiosqlite.connect(self._db_path) as db:
@@ -683,7 +750,7 @@ class Database:
                 (hhmm,),
             ) as cursor:
                 rows = await cursor.fetchall()
-        return self._rows_to_profiles(rows)
+        return await self._profiles_from_rows(rows)
 
     async def log_event(self, user_id: int, event_name: str) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -791,7 +858,11 @@ class Database:
                 (user_id,),
             ) as cursor:
                 rows = await cursor.fetchall()
-        return [self._row_to_partner(row) for row in rows]
+        partners = [self._row_to_partner(row) for row in rows]
+        synced: list[PartnerProfile] = []
+        for partner in partners:
+            synced.append(await self._sync_partner_sign(partner))
+        return synced
 
     async def get_partner(self, user_id: int, partner_id: int) -> Optional[PartnerProfile]:
         async with aiosqlite.connect(self._db_path) as db:
@@ -801,7 +872,9 @@ class Database:
                 (user_id, partner_id),
             ) as cursor:
                 row = await cursor.fetchone()
-        return self._row_to_partner(row) if row else None
+        if row is None:
+            return None
+        return await self._sync_partner_sign(self._row_to_partner(row))
 
     async def count_partners(self, user_id: int) -> int:
         async with aiosqlite.connect(self._db_path) as db:

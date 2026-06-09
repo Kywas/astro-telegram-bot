@@ -49,7 +49,7 @@ from app.timezones import (
     timezone_label_with_offset,
     user_local_date_key,
 )
-from app.zodiac import zodiac_sign
+from app.zodiac import resolve_sun_sign
 
 
 router = Router()
@@ -3670,7 +3670,6 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
     birth_date = date.fromisoformat(birth_date_iso)
     birth_time_iso = data.get("partner_birth_time")
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
-    sign = zodiac_sign(birth_date)
 
     count = await db.count_partners(user.id)
     limit = partner_profile_limit(profile)
@@ -3715,6 +3714,16 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
             reply_markup=back_keyboard,
         )
         return
+
+    sign = resolve_sun_sign(
+        birth_date,
+        birth_time,
+        city=city,
+        timezone_name=location.timezone,
+        lat=location.lat,
+        lon=location.lon,
+        birth_timezone=location.timezone,
+    )
 
     try:
         await db.add_partner(
@@ -3834,7 +3843,6 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     birth_date = datetime.fromisoformat(birth_date_iso).date()
     birth_time_iso = data.get("birth_time")
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
-    sign = zodiac_sign(birth_date)
 
     await show_panel_from_message(
         message,
@@ -3867,6 +3875,16 @@ async def city_handler(message: Message, state: FSMContext) -> None:
             ),
         )
         return
+
+    sign = resolve_sun_sign(
+        birth_date,
+        birth_time,
+        city=city,
+        timezone_name=location.timezone,
+        lat=location.lat,
+        lon=location.lon,
+        birth_timezone=location.timezone,
+    )
 
     try:
         await db.update_profile(
