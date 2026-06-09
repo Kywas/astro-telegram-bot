@@ -21,6 +21,7 @@ jobs:
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
+            apt-get install -y -qq fonts-dejavu-core >/dev/null 2>&1 || true
             systemctl restart astrobot
             sleep 2
             systemctl is-active --quiet astrobot

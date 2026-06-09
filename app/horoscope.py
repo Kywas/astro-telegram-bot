@@ -375,6 +375,19 @@ SHARE_PERIOD_LABELS = {
 }
 
 
+@dataclass(frozen=True)
+class ShareForecastContext:
+    sign_name: str
+    sign_emoji: str
+    period_label: str
+    energy_score: int
+    energy_text: str
+    advice: str
+    lucky_time: str
+    affirmation: str
+    locale: str
+
+
 def _truncate_share_line(text: str, limit: int = 140) -> str:
     cleaned = " ".join(text.split())
     if len(cleaned) <= limit:
@@ -382,7 +395,7 @@ def _truncate_share_line(text: str, limit: int = 140) -> str:
     return cleaned[: limit - 1].rstrip() + "…"
 
 
-def build_horoscope_share_text(
+def build_share_forecast_context(
     *,
     sign: str,
     sign_name: str,
@@ -392,7 +405,7 @@ def build_horoscope_share_text(
     profile=None,
     personalization: PersonalizationContext | None = None,
     for_date: date | None = None,
-) -> str | None:
+) -> ShareForecastContext | None:
     current_locale = "ru" if locale == "ru" else "en"
     current_period = period if period in {"day", "week", "month"} else "day"
     ctx_rel = personalization.relationship_status if personalization else None
@@ -423,27 +436,63 @@ def build_horoscope_share_text(
     if forecast is None:
         return None
 
-    period_label = SHARE_PERIOD_LABELS[current_locale][current_period]
-    sign_prefix = f"{sign_emoji} " if sign_emoji else ""
-    advice = _truncate_share_line(forecast.advice)
+    return ShareForecastContext(
+        sign_name=sign_name,
+        sign_emoji=sign_emoji,
+        period_label=SHARE_PERIOD_LABELS[current_locale][current_period],
+        energy_score=forecast.energy.score,
+        energy_text=forecast.energy.text,
+        advice=forecast.advice,
+        lucky_time=forecast.lucky_time,
+        affirmation=forecast.affirmation,
+        locale=current_locale,
+    )
 
-    if current_locale == "ru":
+
+def build_horoscope_share_text(
+    *,
+    sign: str,
+    sign_name: str,
+    sign_emoji: str,
+    locale: str,
+    period: str,
+    profile=None,
+    personalization: PersonalizationContext | None = None,
+    for_date: date | None = None,
+) -> str | None:
+    context = build_share_forecast_context(
+        sign=sign,
+        sign_name=sign_name,
+        sign_emoji=sign_emoji,
+        locale=locale,
+        period=period,
+        profile=profile,
+        personalization=personalization,
+        for_date=for_date,
+    )
+    if context is None:
+        return None
+
+    sign_prefix = f"{context.sign_emoji} " if context.sign_emoji else ""
+    advice = _truncate_share_line(context.advice)
+
+    if context.locale == "ru":
         lines = [
-            f"🔮 Мой астрологический прогноз · {period_label}",
+            f"🔮 Мой астрологический прогноз · {context.period_label}",
             "",
-            f"{sign_prefix}{sign_name} · энергия {forecast.energy.score}/10",
+            f"{sign_prefix}{context.sign_name} · энергия {context.energy_score}/10",
             f"💡 {advice}",
-            f"🕐 Удачное время: {forecast.lucky_time}",
+            f"🕐 Удачное время: {context.lucky_time}",
             "",
             "Персональный гороскоп в AstroPulse 👇",
         ]
     else:
         lines = [
-            f"🔮 My astrological forecast · {period_label}",
+            f"🔮 My astrological forecast · {context.period_label}",
             "",
-            f"{sign_prefix}{sign_name} · energy {forecast.energy.score}/10",
+            f"{sign_prefix}{context.sign_name} · energy {context.energy_score}/10",
             f"💡 {advice}",
-            f"🕐 Lucky time: {forecast.lucky_time}",
+            f"🕐 Lucky time: {context.lucky_time}",
             "",
             "Get your personal horoscope in AstroPulse 👇",
         ]
