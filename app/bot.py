@@ -926,6 +926,7 @@ async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "me
             sign_label=sign_display(locale, profile.sign),
             sign_emoji=SIGN_EMOJI.get(profile.sign, ""),
             personalization=personalization_from_profile(profile),
+            profile=profile,
         ),
     ]
     if profile.relationship_status:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import swisseph as swe
@@ -27,6 +27,21 @@ ZODIAC_SIGNS = [
     "Pisces",
 ]
 
+SIGN_ELEMENTS = {
+    "Aries": "fire",
+    "Leo": "fire",
+    "Sagittarius": "fire",
+    "Taurus": "earth",
+    "Virgo": "earth",
+    "Capricorn": "earth",
+    "Gemini": "air",
+    "Libra": "air",
+    "Aquarius": "air",
+    "Cancer": "water",
+    "Scorpio": "water",
+    "Pisces": "water",
+}
+
 PLANETS = {
     "SUN": swe.SUN,
     "MOON": swe.MOON,
@@ -39,6 +54,7 @@ PLANETS = {
 
 TRANSIT_PLANETS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
 NATAL_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
+DOMAINS = ("energy", "work", "finance", "love", "social", "health")
 
 ASPECTS = (
     ("conjunction", 0, 8),
@@ -114,9 +130,92 @@ ASPECT_LABELS = {
     },
 }
 
+AVOID_BY_PLANET = {
+    "ru": {
+        "SUN": "давления на себя и спешки в главных решениях",
+        "MOON": "эмоциональных перегрузок и недосыпа",
+        "MERCURY": "поспешных договорённостей и путаницы в переписке",
+        "VENUS": "эмоциональных трат и обидчивости в близости",
+        "MARS": "конфликтов и импульсивных поступков",
+        "JUPITER": "избыточного риска и переоценки возможностей",
+        "SATURN": "жёсткого самокритицизма и перегруза обязанностями",
+    },
+    "en": {
+        "SUN": "self-pressure and rushed major decisions",
+        "MOON": "emotional overload and sleep deprivation",
+        "MERCURY": "hasty agreements and messy communication",
+        "VENUS": "emotional spending and touchiness in closeness",
+        "MARS": "conflicts and impulsive actions",
+        "JUPITER": "excessive risk and overestimating opportunities",
+        "SATURN": "harsh self-criticism and duty overload",
+    },
+}
+
+ADVICE_BY_PLANET = {
+    "ru": {
+        "SUN": "Сфокусируйся на одном приоритете — солнечный транзит поддерживает ясность цели.",
+        "MOON": "Слушай своё состояние: ритм дня важнее внешнего давления.",
+        "MERCURY": "Сначала проясни детали и договорённости, затем принимай решения.",
+        "VENUS": "Инвестируй внимание в то, что приносит гармонию и ценность.",
+        "MARS": "Направь напор в конкретное дело, избегая лишних столкновений.",
+        "JUPITER": "Расширяй горизонты, но проверяй реалистичность планов.",
+        "SATURN": "Структурируй задачи и двигайся последовательно — дисциплина сейчас полезна.",
+    },
+    "en": {
+        "SUN": "Focus on one priority — the solar transit supports clear intent.",
+        "MOON": "Listen to your state: your daily rhythm matters more than outside pressure.",
+        "MERCURY": "Clarify details and agreements before making decisions.",
+        "VENUS": "Invest attention in what brings harmony and real value.",
+        "MARS": "Channel drive into one concrete task and avoid unnecessary clashes.",
+        "JUPITER": "Expand your horizon, but check whether plans stay realistic.",
+        "SATURN": "Structure tasks and move step by step — discipline helps now.",
+    },
+}
+
+AFFIRMATION_BY_ASPECT = {
+    "ru": {
+        "trine": "Я принимаю поддержку дня и действую спокойно, в своём ритме.",
+        "sextile": "Я замечаю возможности и использую их в нужный момент.",
+        "conjunction": "Я осознанно усиливаю главную тему дня и держу фокус.",
+        "square": "Я сохраняю равновесие и не форсирую события.",
+        "opposition": "Я нахожу баланс между своими потребностями и обстоятельствами.",
+    },
+    "en": {
+        "trine": "I accept the day's support and act calmly at my own pace.",
+        "sextile": "I notice opportunities and use them at the right moment.",
+        "conjunction": "I consciously strengthen today's main theme and stay focused.",
+        "square": "I keep balance and do not force outcomes.",
+        "opposition": "I balance my needs with what the situation requires.",
+    },
+}
+
+
+@dataclass
+class SectionForecast:
+    text: str
+    score: int
+
+
+@dataclass
+class AstroForecast:
+    summary_lines: list[str]
+    energy: SectionForecast
+    work: SectionForecast
+    finance: SectionForecast
+    love: SectionForecast
+    social: SectionForecast
+    health: SectionForecast
+    lucky_time: str
+    avoid: str
+    affirmation: str
+    advice: str
+    moon_sign: str = ""
+
 
 @dataclass
 class AstroHoroscopeContext:
+    """Backward-compatible subset used by legacy callers."""
+
     summary_lines: list[str]
     score_adjustments: dict[str, int] = field(default_factory=dict)
     moon_sign: str = ""
@@ -126,6 +225,24 @@ def _longitude_to_sign(longitude: float) -> str:
     normalized = longitude % 360
     index = int(normalized // 30) % 12
     return ZODIAC_SIGNS[index]
+
+
+def _sign_index(sign: str) -> int:
+    try:
+        return ZODIAC_SIGNS.index(sign)
+    except ValueError:
+        return 0
+
+
+def _element_relation(first_sign: str, second_sign: str) -> str:
+    first = SIGN_ELEMENTS.get(first_sign, "fire")
+    second = SIGN_ELEMENTS.get(second_sign, "fire")
+    if first == second:
+        return "harmony"
+    pairs = {frozenset({"fire", "air"}), frozenset({"earth", "water"})}
+    if frozenset({first, second}) in pairs:
+        return "support"
+    return "tension"
 
 
 def _angle_diff(first: float, second: float) -> float:
@@ -188,8 +305,378 @@ def _sign_label(locale: str, sign: str) -> str:
     return SIGN_LABELS[lang].get(sign, sign)
 
 
+def _lang(locale: str) -> str:
+    return "ru" if locale == "ru" else "en"
+
+
+def _solar_natal_longitudes(sign: str) -> dict[str, float]:
+    sun_lon = _sign_index(sign) * 30 + 15
+    return {"SUN": sun_lon}
+
+
+def _period_dates(period: str, for_date: date) -> list[date]:
+    if period == "week":
+        week_start = for_date - timedelta(days=for_date.weekday())
+        return [week_start + timedelta(days=i) for i in range(7)]
+    if period == "month":
+        month_start = for_date.replace(day=1)
+        next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        days = (next_month - month_start).days
+        return [month_start + timedelta(days=i) for i in range(days)]
+    return [for_date]
+
+
+def _score_delta(aspect: str, transit: str) -> int:
+    if aspect in {"trine", "sextile"}:
+        return 1
+    if aspect == "conjunction":
+        return 1 if transit in {"VENUS", "JUPITER", "SUN"} else -1
+    return -1
+
+
+def _hit_domains(transit: str, natal: str) -> set[str]:
+    domains: set[str] = set()
+    domains.update(PLANET_DOMAINS.get(transit, []))
+    domains.update(PLANET_DOMAINS.get(natal, []))
+    return domains
+
+
+def _collect_hits(
+    natal_longitudes: dict[str, float],
+    transit_longitudes: dict[str, float],
+    *,
+    birth_time: time | None,
+    include_moon_transits: bool = False,
+) -> list[tuple[float, str, str, str]]:
+    hits: list[tuple[float, str, str, str]] = []
+    for transit_key in TRANSIT_PLANETS:
+        if transit_key == "MOON" and not include_moon_transits:
+            continue
+        for natal_key in natal_longitudes:
+            if natal_key == "MOON" and birth_time is None:
+                continue
+            aspect_info = _find_aspect(
+                transit_longitudes[transit_key],
+                natal_longitudes[natal_key],
+            )
+            if aspect_info is None:
+                continue
+            aspect_name, orb_delta = aspect_info
+            hits.append((orb_delta, transit_key, natal_key, aspect_name))
+    hits.sort(key=lambda item: item[0])
+    return hits
+
+
+def _domain_hits(
+    hits: list[tuple[float, str, str, str]],
+    domain: str,
+) -> list[tuple[float, str, str, str]]:
+    return [hit for hit in hits if domain in _hit_domains(hit[1], hit[2])]
+
+
+def _domain_score(domain_hits: list[tuple[float, str, str, str]]) -> int:
+    score = 5
+    for _orb, transit_key, _natal_key, aspect_name in domain_hits:
+        score += _score_delta(aspect_name, transit_key)
+    return max(1, min(10, score))
+
+
+def _domain_hit_line(
+    locale: str,
+    domain: str,
+    transit: str,
+    natal: str,
+    aspect: str,
+    *,
+    relationship_status: str | None = None,
+    include_opener: bool = True,
+) -> str:
+    lang = _lang(locale)
+    t = _planet_label(locale, transit)
+    n = _planet_label(locale, natal)
+    openers = {
+        "ru": {
+            "energy": "В сфере энергии",
+            "work": "В работе",
+            "finance": "В финансах",
+            "love": "В отношениях",
+            "social": "В общении",
+            "health": "Для самочувствия",
+        },
+        "en": {
+            "energy": "For energy",
+            "work": "At work",
+            "finance": "In finances",
+            "love": "In relationships",
+            "social": "In communication",
+            "health": "For well-being",
+        },
+    }
+    verbs = {
+        "ru": {
+            "trine": f"гармоничный аспект {t} к натальному {n} поддерживает и облегчает день",
+            "sextile": f"секстиль {t}—{n} открывает полезные возможности",
+            "conjunction": f"соединение {t} с {n} усиливает тему — действуй осознанно",
+            "square": f"квадрат {t}—{n} создаёт напряжение — не форсируй",
+            "opposition": f"оппозиция {t}—{n} требует баланса между противоположными потребностями",
+        },
+        "en": {
+            "trine": f"harmonious aspect of {t} to natal {n} supports and eases the day",
+            "sextile": f"sextile {t}–{n} opens useful opportunities",
+            "conjunction": f"conjunction of {t} with {n} intensifies the theme — act consciously",
+            "square": f"square {t}–{n} creates tension — avoid forcing outcomes",
+            "opposition": f"opposition {t}–{n} asks for balance between opposing needs",
+        },
+    }
+    suffix = ""
+    if domain == "love":
+        if relationship_status == "single" and transit in {"VENUS", "MOON"}:
+            suffix = (
+                " Благоприятный фон для новых знакомств."
+                if lang == "ru"
+                else " Supportive backdrop for new connections."
+            )
+        elif relationship_status == "relationship" and transit in {"VENUS", "MOON", "MARS"}:
+            suffix = (
+                " Удели внимание партнёру и совместным договорённостям."
+                if lang == "ru"
+                else " Give attention to your partner and shared agreements."
+            )
+    body = verbs[lang][aspect]
+    if not include_opener:
+        also = "Также " if lang == "ru" else "Also "
+        return f"{also}{body}.{suffix}"
+    return f"{openers[lang][domain]}: {body}.{suffix}"
+
+
+def _neutral_domain_line(
+    locale: str,
+    domain: str,
+    moon_sign: str,
+    natal_sun_sign: str,
+) -> str:
+    lang = _lang(locale)
+    relation = _element_relation(moon_sign, natal_sun_sign)
+    moon = _sign_label(locale, moon_sign)
+    templates = {
+        "ru": {
+            ("energy", "harmony"): f"Луна в {moon} поддерживает твой солнечный знак — ровный приток сил.",
+            ("energy", "support"): f"Луна в {moon} благоприятна для активности без резких перепадов.",
+            ("energy", "tension"): f"Луна в {moon} требует бережного отношения к ресурсу — не перегружай день.",
+            ("work", "harmony"): f"Луна в {moon} помогает сосредоточиться на задачах без лишней суеты.",
+            ("work", "support"): f"Луна в {moon} поддерживает рабочий ритм — двигай приоритеты спокойно.",
+            ("work", "tension"): f"Луна в {moon} советует не спешить с решениями в делах.",
+            ("finance", "harmony"): f"Луна в {moon} благоприятна для спокойного финансового планирования.",
+            ("finance", "support"): f"Луна в {moon} поддерживает аккуратные денежные решения.",
+            ("finance", "tension"): f"Луна в {moon} — лучше избегать импульсивных трат.",
+            ("love", "harmony"): f"Луна в {moon} создаёт тёплый эмоциональный фон для близости.",
+            ("love", "support"): f"Луна в {moon} помогает открытому и спокойному общению.",
+            ("love", "tension"): f"Луна в {moon} усиливает чувствительность — говори мягче.",
+            ("social", "harmony"): f"Луна в {moon} облегчает контакты и короткие встречи.",
+            ("social", "support"): f"Луна в {moon} поддерживает полезные разговоры.",
+            ("social", "tension"): f"Луна в {moon} — избегай резких формулировок в переписке.",
+            ("health", "harmony"): f"Луна в {moon} поддерживает восстановление и стабильный режим.",
+            ("health", "support"): f"Луна в {moon} благоприятна для умеренной активности и отдыха.",
+            ("health", "tension"): f"Луна в {moon} — береги сон и не перегружай тело.",
+        },
+        "en": {
+            ("energy", "harmony"): f"Moon in {moon} supports your sun sign — steady vitality.",
+            ("energy", "support"): f"Moon in {moon} favors activity without sharp swings.",
+            ("energy", "tension"): f"Moon in {moon} asks you to protect your energy — avoid overload.",
+            ("work", "harmony"): f"Moon in {moon} helps you focus on tasks without extra noise.",
+            ("work", "support"): f"Moon in {moon} supports a calm work rhythm.",
+            ("work", "tension"): f"Moon in {moon} advises against rushing business decisions.",
+            ("finance", "harmony"): f"Moon in {moon} favors calm financial planning.",
+            ("finance", "support"): f"Moon in {moon} supports careful money choices.",
+            ("finance", "tension"): f"Moon in {moon} — avoid impulsive spending.",
+            ("love", "harmony"): f"Moon in {moon} brings a warm emotional tone for closeness.",
+            ("love", "support"): f"Moon in {moon} helps open and calm communication.",
+            ("love", "tension"): f"Moon in {moon} increases sensitivity — speak gently.",
+            ("social", "harmony"): f"Moon in {moon} eases contacts and short meetings.",
+            ("social", "support"): f"Moon in {moon} supports useful conversations.",
+            ("social", "tension"): f"Moon in {moon} — avoid sharp wording in chats.",
+            ("health", "harmony"): f"Moon in {moon} supports recovery and a steady routine.",
+            ("health", "support"): f"Moon in {moon} favors moderate activity and rest.",
+            ("health", "tension"): f"Moon in {moon} — protect sleep and avoid overloading your body.",
+        },
+    }
+    return templates[lang][(domain, relation)]
+
+
+def _domain_text(
+    locale: str,
+    domain: str,
+    hits: list[tuple[float, str, str, str]],
+    *,
+    moon_sign: str,
+    natal_sun_sign: str,
+    relationship_status: str | None = None,
+) -> str:
+    domain_hits = _domain_hits(hits, domain)
+    if not domain_hits:
+        return _neutral_domain_line(locale, domain, moon_sign, natal_sun_sign)
+    parts = []
+    for index, (_orb, transit, natal, aspect) in enumerate(domain_hits[:2]):
+        parts.append(
+            _domain_hit_line(
+                locale,
+                domain,
+                transit,
+                natal,
+                aspect,
+                relationship_status=relationship_status,
+                include_opener=index == 0,
+            )
+        )
+    return " ".join(parts)
+
+
+def _format_hour_ranges(hours: list[int], locale: str) -> str:
+    if not hours:
+        lang = _lang(locale)
+        return (
+            "нет ярко выраженных окон — ориентируйся на спокойный ритм"
+            if lang == "ru"
+            else "no strong windows — follow a calm daily rhythm"
+        )
+
+    ranges: list[tuple[int, int]] = []
+    start = prev = hours[0]
+    for hour in hours[1:]:
+        if hour == prev + 1:
+            prev = hour
+            continue
+        ranges.append((start, prev))
+        start = prev = hour
+    ranges.append((start, prev))
+
+    parts = []
+    for start_hour, end_hour in ranges[:2]:
+        end_display = end_hour + 1
+        parts.append(f"{start_hour:02d}:00-{end_display:02d}:00")
+
+    lang = _lang(locale)
+    if len(parts) == 1:
+        return parts[0]
+    connector = " и " if lang == "ru" else " and "
+    return connector.join(parts)
+
+
+def _lucky_hours_for_day(
+    for_date: date,
+    timezone_name: str,
+    natal_longitudes: dict[str, float],
+    *,
+    birth_time: time | None,
+) -> list[int]:
+    lucky: list[int] = []
+    natal_targets = [key for key in ("SUN", "VENUS", "JUPITER") if key in natal_longitudes]
+    if not natal_targets:
+        natal_targets = ["SUN"]
+
+    for hour in range(7, 22):
+        jd = _local_moment_jd(for_date, timezone_name, hour=hour, minute=0)
+        moon_lon = _planet_longitude(jd, PLANETS["MOON"])
+        for natal_key in natal_targets:
+            if natal_key == "MOON" and birth_time is None:
+                continue
+            aspect_info = _find_aspect(moon_lon, natal_longitudes[natal_key])
+            if aspect_info and aspect_info[0] in {"trine", "sextile", "conjunction"}:
+                lucky.append(hour)
+                break
+    return lucky
+
+
+def _lucky_time_text(
+    period: str,
+    period_dates: list[date],
+    timezone_name: str,
+    natal_longitudes: dict[str, float],
+    locale: str,
+    *,
+    birth_time: time | None,
+) -> str:
+    if period == "day":
+        hours = _lucky_hours_for_day(
+            period_dates[0],
+            timezone_name,
+            natal_longitudes,
+            birth_time=birth_time,
+        )
+        return _format_hour_ranges(hours, locale)
+
+    best_date = period_dates[0]
+    best_hours: list[int] = []
+    for day in period_dates:
+        hours = _lucky_hours_for_day(day, timezone_name, natal_longitudes, birth_time=birth_time)
+        if len(hours) > len(best_hours):
+            best_date = day
+            best_hours = hours
+
+    hours_text = _format_hour_ranges(best_hours, locale)
+    lang = _lang(locale)
+    if lang == "ru":
+        weekday_names = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
+        day_label = weekday_names[best_date.weekday()]
+        if period == "month":
+            day_label = f"{best_date.day} число"
+        return f"{day_label}, {hours_text}"
+    weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    day_label = weekday_names[best_date.weekday()]
+    if period == "month":
+        day_label = f"the {best_date.day}th"
+    return f"{day_label}, {hours_text}"
+
+
+def _avoid_text(
+    hits: list[tuple[float, str, str, str]],
+    locale: str,
+) -> str:
+    lang = _lang(locale)
+    challenging = [hit for hit in hits if hit[3] in {"square", "opposition"}]
+    if not challenging:
+        if lang == "ru":
+            return "острых астрологических противоречий нет — держи обычную осмотрительность."
+        return "no sharp astrological friction — keep your usual caution."
+
+    _orb, transit, _natal, aspect = challenging[0]
+    planet_avoid = AVOID_BY_PLANET[lang][transit]
+    aspect_label = ASPECT_LABELS[lang][aspect]
+    if lang == "ru":
+        return f"{aspect_label} транзитного {_planet_label(locale, transit)}: {planet_avoid}."
+    return f"{aspect_label} from transit {_planet_label(locale, transit)}: {planet_avoid}."
+
+
+def _affirmation_text(
+    hits: list[tuple[float, str, str, str]],
+    locale: str,
+) -> str:
+    lang = _lang(locale)
+    positive = [hit for hit in hits if hit[3] in {"trine", "sextile", "conjunction"}]
+    if positive:
+        return AFFIRMATION_BY_ASPECT[lang][positive[0][3]]
+    if hits:
+        return AFFIRMATION_BY_ASPECT[lang][hits[0][3]]
+    if lang == "ru":
+        return "Я сохраняю спокойствие и двигаюсь в своём ритме."
+    return "I stay calm and move at my own pace."
+
+
+def _advice_text(
+    hits: list[tuple[float, str, str, str]],
+    locale: str,
+) -> str:
+    lang = _lang(locale)
+    if hits:
+        _orb, transit, _natal, _aspect = hits[0]
+        return ADVICE_BY_PLANET[lang][transit]
+    if lang == "ru":
+        return "Ориентируйся на стабильный ритм — день без ярких транзитов."
+    return "Follow a steady rhythm — a day without major transits."
+
+
 def _aspect_phrase(locale: str, transit: str, natal: str, aspect: str) -> str:
-    lang = "ru" if locale == "ru" else "en"
+    lang = _lang(locale)
     aspect_name = ASPECT_LABELS[lang][aspect]
     if lang == "ru":
         tone = {
@@ -216,12 +703,199 @@ def _aspect_phrase(locale: str, transit: str, natal: str, aspect: str) -> str:
     )
 
 
-def _score_delta(aspect: str, transit: str) -> int:
-    if aspect in {"trine", "sextile"}:
-        return 1
-    if aspect == "conjunction":
-        return 1 if transit in {"VENUS", "JUPITER", "SUN"} else -1
-    return -1
+def _build_summary_lines(
+    locale: str,
+    hits: list[tuple[float, str, str, str]],
+    moon_sign: str,
+    *,
+    birth_time: time | None,
+    solar_only: bool,
+    period: str,
+) -> list[str]:
+    lang = _lang(locale)
+    period_note = ""
+    if period == "week":
+        period_note = " (неделя)" if lang == "ru" else " (week)"
+    elif period == "month":
+        period_note = " (месяц)" if lang == "ru" else " (month)"
+
+    summary = [
+        (
+            f"🪐 Астрологический прогноз (Swiss Ephemeris){period_note}"
+            if lang == "ru"
+            else f"🪐 Astrological forecast (Swiss Ephemeris){period_note}"
+        ),
+        (
+            f"• Луна в {_sign_label(locale, moon_sign)}"
+            if lang == "ru"
+            else f"• Moon in {_sign_label(locale, moon_sign)}"
+        ),
+    ]
+    if solar_only:
+        summary.append(
+            "• Расчёт по солнечному знаку — укажите дату рождения для натальной карты."
+            if lang == "ru"
+            else "• Solar-sign chart only — add your birth date for a natal chart."
+        )
+    elif birth_time is None:
+        summary.append(
+            "• Натал: время рождения не указано — Луна и дома не учитываются."
+            if lang == "ru"
+            else "• Natal: birth time missing — Moon and houses are not included."
+        )
+    if not hits:
+        summary.append(
+            "• Ярких транзитных аспектов к наталу нет — день более ровный."
+            if lang == "ru"
+            else "• No major transits to your natal chart — a steadier day."
+        )
+    else:
+        for _orb, transit_key, natal_key, aspect_name in hits[:3]:
+            summary.append(f"• {_aspect_phrase(locale, transit_key, natal_key, aspect_name)}")
+    return summary
+
+
+def _aggregate_hits(
+    natal_longitudes: dict[str, float],
+    period_dates: list[date],
+    timezone_name: str,
+    *,
+    birth_time: time | None,
+) -> tuple[list[tuple[float, str, str, str]], str, dict[str, float]]:
+    all_hits: list[tuple[float, str, str, str]] = []
+    last_transit: dict[str, float] = {}
+    moon_sign = "Aries"
+
+    for day in period_dates:
+        transit_jd = _local_moment_jd(day, timezone_name, hour=12, minute=0)
+        transit_longitudes = _collect_longitudes(transit_jd, TRANSIT_PLANETS)
+        last_transit = transit_longitudes
+        moon_sign = _longitude_to_sign(transit_longitudes["MOON"])
+        day_hits = _collect_hits(
+            natal_longitudes,
+            transit_longitudes,
+            birth_time=birth_time,
+        )
+        all_hits.extend(day_hits)
+
+    unique: dict[tuple[str, str, str], tuple[float, str, str, str]] = {}
+    for hit in all_hits:
+        key = (hit[1], hit[2], hit[3])
+        if key not in unique or hit[0] < unique[key][0]:
+            unique[key] = hit
+    merged = sorted(unique.values(), key=lambda item: item[0])
+    return merged, moon_sign, last_transit
+
+
+def build_astro_forecast(
+    *,
+    birth_date: date | None,
+    birth_time: time | None,
+    city: str | None,
+    timezone_name: str,
+    for_date: date,
+    locale: str,
+    period: str = "day",
+    sign: str | None = None,
+    relationship_status: str | None = None,
+    user_id: int | None = None,
+) -> AstroForecast | None:
+    try:
+        tz = normalize_timezone(timezone_name)
+        _lat, _lon, resolved_tz = resolve_birth_location(city, tz)
+        period_key = period if period in {"day", "week", "month"} else "day"
+        period_dates = _period_dates(period_key, for_date)
+
+        solar_only = birth_date is None
+        if solar_only:
+            if not sign:
+                return None
+            natal_longitudes = _solar_natal_longitudes(sign)
+        else:
+            natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
+            natal_longitudes = _collect_longitudes(natal_jd, NATAL_POINTS)
+
+        hits, moon_sign, _transit_longitudes = _aggregate_hits(
+            natal_longitudes,
+            period_dates,
+            tz,
+            birth_time=birth_time,
+        )
+        natal_sun_sign = _longitude_to_sign(natal_longitudes["SUN"])
+
+        summary_lines = _build_summary_lines(
+            locale,
+            hits,
+            moon_sign,
+            birth_time=birth_time,
+            solar_only=solar_only,
+            period=period_key,
+        )
+
+        sections = {}
+        for domain in DOMAINS:
+            domain_hits = _domain_hits(hits, domain)
+            if len(period_dates) > 1:
+                daily_scores = []
+                for day in period_dates:
+                    day_jd = _local_moment_jd(day, tz, hour=12, minute=0)
+                    day_transit = _collect_longitudes(day_jd, TRANSIT_PLANETS)
+                    day_hits = _collect_hits(natal_longitudes, day_transit, birth_time=birth_time)
+                    daily_scores.append(_domain_score(_domain_hits(day_hits, domain)))
+                score = max(1, min(10, round(sum(daily_scores) / len(daily_scores))))
+            else:
+                score = _domain_score(domain_hits)
+            text = _domain_text(
+                locale,
+                domain,
+                hits,
+                moon_sign=moon_sign,
+                natal_sun_sign=natal_sun_sign,
+                relationship_status=relationship_status,
+            )
+            sections[domain] = SectionForecast(text=text, score=score)
+
+        lucky_time = _lucky_time_text(
+            period_key,
+            period_dates,
+            tz,
+            natal_longitudes,
+            locale,
+            birth_time=birth_time,
+        )
+
+        return AstroForecast(
+            summary_lines=summary_lines,
+            energy=sections["energy"],
+            work=sections["work"],
+            finance=sections["finance"],
+            love=sections["love"],
+            social=sections["social"],
+            health=sections["health"],
+            lucky_time=lucky_time,
+            avoid=_avoid_text(hits, locale),
+            affirmation=_affirmation_text(hits, locale),
+            advice=_advice_text(hits, locale),
+            moon_sign=moon_sign,
+        )
+    except Exception:
+        logger.warning(
+            (
+                "astro forecast failed user_id=%s birth_date=%s birth_time=%s "
+                "city=%r timezone=%s for_date=%s period=%s locale=%s sign=%s"
+            ),
+            user_id,
+            birth_date,
+            birth_time,
+            city,
+            timezone_name,
+            for_date,
+            period,
+            locale,
+            sign,
+            exc_info=True,
+        )
+        return None
 
 
 def build_astro_horoscope_context(
@@ -234,86 +908,32 @@ def build_astro_horoscope_context(
     locale: str,
     user_id: int | None = None,
 ) -> AstroHoroscopeContext | None:
-    try:
-        tz = normalize_timezone(timezone_name)
-        _lat, _lon, resolved_tz = resolve_birth_location(city, tz)
-        natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
-        transit_jd = _local_moment_jd(for_date, tz, hour=12, minute=0)
-
-        natal_longitudes = _collect_longitudes(natal_jd, NATAL_POINTS)
-        transit_longitudes = _collect_longitudes(transit_jd, TRANSIT_PLANETS)
-
-        hits: list[tuple[float, str, str, str]] = []
-        score_adjustments: dict[str, int] = {}
-
-        for transit_key in TRANSIT_PLANETS:
-            if transit_key == "MOON":
-                continue
-            for natal_key in NATAL_POINTS:
-                if natal_key == "MOON" and birth_time is None:
-                    continue
-                aspect_info = _find_aspect(
-                    transit_longitudes[transit_key],
-                    natal_longitudes[natal_key],
-                )
-                if aspect_info is None:
-                    continue
-                aspect_name, orb_delta = aspect_info
-                hits.append((orb_delta, transit_key, natal_key, aspect_name))
-                delta = _score_delta(aspect_name, transit_key)
-                for domain in PLANET_DOMAINS.get(natal_key, []):
-                    score_adjustments[domain] = score_adjustments.get(domain, 0) + delta
-
-        hits.sort(key=lambda item: item[0])
-        moon_sign = _longitude_to_sign(transit_longitudes["MOON"])
-
-        lang = "ru" if locale == "ru" else "en"
-        summary_lines = [
-            "🪐 Астрологический фон (Swiss Ephemeris)" if lang == "ru" else "🪐 Astrological backdrop (Swiss Ephemeris)",
-            (
-                f"• Луна сегодня в {_sign_label(locale, moon_sign)}"
-                if lang == "ru"
-                else f"• Moon today in {_sign_label(locale, moon_sign)}"
-            ),
-        ]
-
-        if birth_time is None:
-            summary_lines.append(
-                "• Натал: время рождения не указано — точность снижена."
-                if lang == "ru"
-                else "• Natal chart: birth time missing — accuracy is reduced."
-            )
-
-        if not hits:
-            summary_lines.append(
-                "• Ярких транзитных аспектов к наталу сегодня нет — день более ровный."
-                if lang == "ru"
-                else "• No major transits to your natal chart today — a steadier day."
-            )
-        else:
-            for _orb, transit_key, natal_key, aspect_name in hits[:3]:
-                summary_lines.append(
-                    f"• {_aspect_phrase(locale, transit_key, natal_key, aspect_name)}"
-                )
-
-        return AstroHoroscopeContext(
-            summary_lines=summary_lines,
-            score_adjustments=score_adjustments,
-            moon_sign=moon_sign,
-        )
-    except Exception:
-        logger.warning(
-            (
-                "astro horoscope block skipped user_id=%s birth_date=%s "
-                "birth_time=%s city=%r timezone=%s for_date=%s locale=%s"
-            ),
-            user_id,
-            birth_date,
-            birth_time,
-            city,
-            timezone_name,
-            for_date,
-            locale,
-            exc_info=True,
-        )
+    forecast = build_astro_forecast(
+        birth_date=birth_date,
+        birth_time=birth_time,
+        city=city,
+        timezone_name=timezone_name,
+        for_date=for_date,
+        locale=locale,
+        period="day",
+        user_id=user_id,
+    )
+    if forecast is None:
         return None
+
+    adjustments: dict[str, int] = {}
+    for domain, section in (
+        ("energy", forecast.energy),
+        ("work", forecast.work),
+        ("finance", forecast.finance),
+        ("love", forecast.love),
+        ("social", forecast.social),
+        ("health", forecast.health),
+    ):
+        adjustments[domain] = section.score - 5
+
+    return AstroHoroscopeContext(
+        summary_lines=forecast.summary_lines,
+        score_adjustments=adjustments,
+        moon_sign=forecast.moon_sign,
+    )
