@@ -5,6 +5,11 @@ from datetime import datetime, timedelta, timezone
 PREMIUM_PERIOD_DAYS = 30
 PREMIUM_PAYLOAD = "premium_30d"
 
+# Aligned premium tier for 30 days (100 Stars · 199 ₽ · $3.00).
+DEFAULT_PREMIUM_PRICE_STARS = 100
+DEFAULT_PREMIUM_PRICE_RUB = 199
+DEFAULT_PREMIUM_PRICE_USD_CENTS = 300
+
 
 def is_premium_active(premium_until: str | None) -> bool:
     if not premium_until:

@@ -40,8 +40,14 @@ from app.moon_calendar import (
 from app.natal import build_natal_summary
 from app.states import CompatibilityCheck, MoonDetails, PartnerSetup, PreferencesSetup, ProfileSetup
 from app.states import AdminPanel, DailySetup
+from app.payments import (
+    PayCurrency,
+    available_payment_options,
+    get_payment_option,
+    parse_premium_payload,
+    premium_payload,
+)
 from app.premium import (
-    PREMIUM_PAYLOAD,
     PREMIUM_PERIOD_DAYS,
     format_premium_until,
     is_premium_active,
@@ -127,7 +133,7 @@ TEXTS = {
             "/stats - статистика бота (админ)\n"
             "/stars - баланс Stars бота (админ)\n"
             "/premium - статус Premium\n"
-            "/buypremium - оформить Premium (Telegram Stars)\n"
+            "/buypremium - оформить Premium (Stars / ₽ / $)\n"
             "/about - что умеет бот\n"
             "/feedback - обратная связь\n"
             "/language - сменить язык\n"
@@ -142,7 +148,7 @@ TEXTS = {
             "🌙 Лунный календарь и ежедневные напоминания\n"
             "🪐 Натальная карта по Swiss Ephemeris\n\n"
             "⭐ Premium: неделя и месяц, полная карта, луна 30 дней, "
-            "безлимит совместимости — Telegram Stars\n\n"
+            "безлимит совместимости — Stars / ₽ / $\n\n"
             "🌍 RU / EN"
         ),
         "about_show_commands": "Показать все команды",
@@ -295,6 +301,9 @@ TEXTS = {
         "premium_active": "Premium активен до {until}.",
         "premium_inactive": "Premium не активен. Сейчас доступен базовый режим.",
         "premium_price_line": "💫 {price} Stars · {days} дней",
+        "premium_prices_header": "Способы оплаты · {days} дней:",
+        "premium_choose_payment": "Выбери способ оплаты:",
+        "premium_fiat_disabled": "Оплата в ₽/$ не настроена. Доступны только Stars.",
         "payments_disabled": "Платежи временно отключены.",
         "premium_buy_intro": "Premium на {days} дней — {price} Stars.",
         "premium_buy_fail": "Не удалось открыть платёж. Проверь, что бот поддерживает Stars.",
@@ -421,7 +430,7 @@ TEXTS = {
             "/stats - bot stats (admin)\n"
             "/stars - bot Stars balance (admin)\n"
             "/premium - Premium status\n"
-            "/buypremium - buy Premium (Telegram Stars)\n"
+            "/buypremium - buy Premium (Stars / ₽ / $)\n"
             "/about - bot capabilities\n"
             "/feedback - contact support\n"
             "/language - change language\n"
@@ -436,7 +445,7 @@ TEXTS = {
             "🌙 Moon calendar and daily lunar reminders\n"
             "🪐 Natal chart via Swiss Ephemeris\n\n"
             "⭐ Premium: week and month, full chart, 30-day moon, "
-            "unlimited compatibility — Telegram Stars\n\n"
+            "unlimited compatibility — Stars / ₽ / $\n\n"
             "🌍 RU / EN"
         ),
         "about_show_commands": "Show all commands",
@@ -589,6 +598,9 @@ TEXTS = {
         "premium_active": "Premium active until {until}.",
         "premium_inactive": "Premium is not active. You are using base mode.",
         "premium_price_line": "💫 {price} Stars · {days} days",
+        "premium_prices_header": "Payment options · {days} days:",
+        "premium_choose_payment": "Choose a payment method:",
+        "premium_fiat_disabled": "Card payments in ₽/$ are not configured. Stars only.",
         "payments_disabled": "Payments are temporarily disabled.",
         "premium_buy_intro": "Premium for {days} days — {price} Stars.",
         "premium_buy_fail": "Failed to open payment form. Check Stars support for your bot.",
@@ -1442,10 +1454,26 @@ def breadcrumb(locale: str, *parts: str) -> str:
 
 def premium_menu_keyboard(locale: str, *, active: bool = False) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
-    if settings.enable_payments:
+    if available_payment_options(settings):
         label = t(locale, "premium_renew_button") if active else t(locale, "premium_buy_button")
         rows.append([InlineKeyboardButton(text=label, callback_data="premium:buy")])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def premium_payment_keyboard(locale: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for option in available_payment_options(settings):
+        label = option.button_ru if locale == "ru" else option.button_en
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=f"premium:pay:{option.currency.value}",
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:premium")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -2231,15 +2259,84 @@ async def _premium_panel_text(user_id: int, locale: str) -> str:
         )
     else:
         status_text = t(locale, "premium_inactive")
-        if settings.enable_payments:
-            status_text = (
-                f"{status_text}\n"
-                f"{t(locale, 'premium_price_line', price=str(settings.premium_price_stars), days=str(PREMIUM_PERIOD_DAYS))}"
-            )
+        prices_text = _premium_prices_text(locale)
+        if prices_text:
+            status_text = f"{status_text}\n{prices_text}"
     return (
         f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
         f"{status_text}\n\n"
         f"{t(locale, 'premium_features')}"
+    )
+
+
+def _premium_prices_text(locale: str) -> str:
+    options = available_payment_options(settings)
+    if not options:
+        return ""
+    lines = [t(locale, "premium_prices_header", days=str(PREMIUM_PERIOD_DAYS))]
+    for option in options:
+        lines.append(option.panel_ru if locale == "ru" else option.panel_en)
+    return "\n".join(lines)
+
+
+def _parse_pay_currency(raw: str) -> PayCurrency | None:
+    try:
+        return PayCurrency(raw)
+    except ValueError:
+        return None
+
+
+async def _send_premium_invoice(
+    *,
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    locale: str,
+    currency: PayCurrency,
+) -> bool:
+    option = get_payment_option(settings, currency)
+    if option is None:
+        return False
+    title, description = _premium_invoice_copy(locale)
+    try:
+        await bot.send_invoice(
+            chat_id=chat_id,
+            title=title,
+            description=description,
+            payload=premium_payload(currency),
+            provider_token=option.provider_token,
+            currency=option.telegram_currency,
+            prices=[LabeledPrice(label=f"Premium {PREMIUM_PERIOD_DAYS}d", amount=option.invoice_amount)],
+        )
+        await db.log_event(user_id, f"premium_invoice_sent:{currency.value}")
+        return True
+    except Exception:
+        await db.log_event(user_id, f"premium_invoice_failed:{currency.value}")
+        return False
+
+
+async def _start_premium_checkout(
+    *,
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    locale: str,
+    currency: PayCurrency | None = None,
+) -> bool | None:
+    options = available_payment_options(settings)
+    if not options:
+        return None
+    if currency is None:
+        if len(options) == 1:
+            currency = options[0].currency
+        else:
+            return False
+    return await _send_premium_invoice(
+        bot=bot,
+        chat_id=chat_id,
+        user_id=user_id,
+        locale=locale,
+        currency=currency,
     )
 
 
@@ -2253,31 +2350,6 @@ def _premium_invoice_copy(locale: str) -> tuple[str, str]:
         f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} days",
         "Full natal chart, week/month horoscope, compatibility, 30-day moon, 7-day lunar alerts.",
     )
-
-
-async def _send_premium_invoice(
-    *,
-    bot: Bot,
-    chat_id: int,
-    user_id: int,
-    locale: str,
-) -> bool:
-    title, description = _premium_invoice_copy(locale)
-    try:
-        await bot.send_invoice(
-            chat_id=chat_id,
-            title=title,
-            description=description,
-            payload=PREMIUM_PAYLOAD,
-            provider_token="",
-            currency="XTR",
-            prices=[LabeledPrice(label=f"Premium {PREMIUM_PERIOD_DAYS}d", amount=settings.premium_price_stars)],
-        )
-        await db.log_event(user_id, "premium_invoice_sent")
-        return True
-    except Exception:
-        await db.log_event(user_id, "premium_invoice_failed")
-        return False
 
 
 @router.message(Command("language"))
@@ -3611,24 +3683,23 @@ async def buy_premium_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    if not settings.enable_payments:
+    if not available_payment_options(settings):
         await message.answer(t(locale, "payments_disabled"), reply_markup=settings_keyboard(locale))
         return
-    await message.answer(
-        t(
-            locale,
-            "premium_buy_intro",
-            price=str(settings.premium_price_stars),
-            days=str(PREMIUM_PERIOD_DAYS),
-        ),
-        reply_markup=settings_keyboard(locale),
-    )
-    if not await _send_premium_invoice(
+    checkout = await _start_premium_checkout(
         bot=message.bot,
         chat_id=message.chat.id,
         user_id=user.id,
         locale=locale,
-    ):
+    )
+    if checkout is False:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'premium_choose_payment')}\n\n{_premium_prices_text(locale)}",
+            reply_markup=premium_payment_keyboard(locale),
+        )
+        return
+    if not checkout:
         await message.answer(t(locale, "premium_buy_fail"), reply_markup=settings_keyboard(locale))
 
 
@@ -3643,19 +3714,27 @@ async def premium_buy_callback(callback: CallbackQuery) -> None:
         return
     profile = await db.get_user(user.id)
     active = bool(profile and is_premium_active(profile.premium_until))
-    if not settings.enable_payments:
+    if not available_payment_options(settings):
         await render_inline_panel(
             callback,
             f"{await _premium_panel_text(user.id, locale)}\n\n{t(locale, 'payments_disabled')}",
             premium_menu_keyboard(locale, active=active),
         )
         return
-    if not await _send_premium_invoice(
+    checkout = await _start_premium_checkout(
         bot=callback.bot,
         chat_id=callback.message.chat.id,
         user_id=user.id,
         locale=locale,
-    ):
+    )
+    if checkout is False:
+        await render_inline_panel(
+            callback,
+            f"{await _premium_panel_text(user.id, locale)}\n\n{t(locale, 'premium_choose_payment')}",
+            premium_payment_keyboard(locale),
+        )
+        return
+    if not checkout:
         await render_inline_panel(
             callback,
             t(locale, "premium_buy_fail"),
@@ -3663,16 +3742,48 @@ async def premium_buy_callback(callback: CallbackQuery) -> None:
         )
 
 
+@router.callback_query(F.data.startswith("premium:pay:"))
+async def premium_pay_callback(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    if callback.message is None:
+        return
+    currency = _parse_pay_currency((callback.data or "").split(":")[-1])
+    if currency is None:
+        await callback.answer(t(locale, "premium_buy_fail"), show_alert=True)
+        return
+    if not await _send_premium_invoice(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        user_id=user.id,
+        locale=locale,
+        currency=currency,
+    ):
+        await callback.answer(t(locale, "premium_buy_fail"), show_alert=True)
+        return
+    await callback.answer()
+
+
 @router.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query) -> None:
     locale = await get_user_locale(pre_checkout_query.from_user.id)
-    if pre_checkout_query.invoice_payload != PREMIUM_PAYLOAD:
+    currency = parse_premium_payload(pre_checkout_query.invoice_payload)
+    option = get_payment_option(settings, currency) if currency else None
+    if option is None:
         await pre_checkout_query.answer(
             ok=False,
             error_message=t(locale, "premium_payment_error"),
         )
         return
-    if pre_checkout_query.total_amount != settings.premium_price_stars:
+    if pre_checkout_query.currency != option.telegram_currency:
+        await pre_checkout_query.answer(
+            ok=False,
+            error_message=t(locale, "premium_payment_error"),
+        )
+        return
+    if pre_checkout_query.total_amount != option.invoice_amount:
         await pre_checkout_query.answer(
             ok=False,
             error_message=t(locale, "premium_payment_error"),
@@ -3688,15 +3799,17 @@ async def successful_payment_handler(message: Message) -> None:
         return
     locale = await get_user_locale(user.id)
     payment = message.successful_payment
-    if payment.invoice_payload != PREMIUM_PAYLOAD:
+    currency = parse_premium_payload(payment.invoice_payload)
+    option = get_payment_option(settings, currency) if currency else None
+    if option is None:
         await db.log_event(user.id, "premium_paid_invalid_payload")
         return
-    if payment.total_amount != settings.premium_price_stars:
+    if payment.currency != option.telegram_currency or payment.total_amount != option.invoice_amount:
         await db.log_event(user.id, "premium_paid_invalid_amount")
         return
     try:
         until_iso = await db.extend_premium(user.id, PREMIUM_PERIOD_DAYS)
-        await db.log_event(user.id, "premium_paid")
+        await db.log_event(user.id, f"premium_paid:{currency.value if currency else 'unknown'}")
         await show_panel_from_message(
             message,
             t(locale, "premium_payment_ok", until=format_premium_until(until_iso, locale)),

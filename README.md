@@ -70,9 +70,20 @@ Admin and premium config in `.env`:
 
 ```env
 ADMIN_IDS=123456789,987654321
+ENABLE_PAYMENTS=true
 PREMIUM_PRICE_STARS=100
-ENABLE_PAYMENTS=false
+PREMIUM_PRICE_RUB=199
+PREMIUM_PRICE_USD=300
+PAYMENT_PROVIDER_TOKEN=
+PAYMENT_PROVIDER_TOKEN_USD=
 ```
+
+Premium payments (aligned tier **100 Stars · 199 ₽ · $3.00** per 30 days):
+- **Stars** — works with `PREMIUM_PRICE_STARS` only (no provider token).
+- **RUB** — connect YooKassa (or another provider) in [@BotFather](https://t.me/BotFather) → Bot Settings → Payments, then paste the provider token into `PAYMENT_PROVIDER_TOKEN` and set `PREMIUM_PRICE_RUB` in whole rubles.
+- **USD** — connect Stripe (or another USD provider) in BotFather, set `PAYMENT_PROVIDER_TOKEN_USD` and `PREMIUM_PRICE_USD` in cents (`300` = $3.00).
+
+If a fiat provider is not configured, that currency is hidden automatically.
 
 ## Commands
 
@@ -88,7 +99,7 @@ ENABLE_PAYMENTS=false
 - `/setprefs m single career` - update profile preferences
 - `/prefssetup` - open step-by-step preferences wizard
 - `/premium` - show premium status
-- `/buypremium` - open premium payment skeleton
+- `/buypremium` - choose Premium payment method (Stars / RUB / USD)
 - `/stats` - show bot stats
 - `/grantpremium <user_id> <days>` - admin grant premium
 - `/broadcast <text>` - admin broadcast message to all users
@@ -98,7 +109,7 @@ ENABLE_PAYMENTS=false
 
 Notes:
 - `/stats` is admin-only (IDs from `ADMIN_IDS`)
-- `/buypremium` works only when `ENABLE_PAYMENTS=true`
+- `/buypremium` works when `ENABLE_PAYMENTS=true` and at least one price is configured
 
 ## Notes
 

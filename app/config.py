@@ -3,6 +3,12 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
+from app.premium import (
+    DEFAULT_PREMIUM_PRICE_RUB,
+    DEFAULT_PREMIUM_PRICE_STARS,
+    DEFAULT_PREMIUM_PRICE_USD_CENTS,
+)
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -10,8 +16,12 @@ class Settings:
     database_path: str = "astro_bot.db"
     proxy_url: str | None = None
     admin_ids: tuple[int, ...] = ()
-    premium_price_stars: int = 100
+    premium_price_stars: int = DEFAULT_PREMIUM_PRICE_STARS
     enable_payments: bool = False
+    payment_provider_token: str | None = None
+    payment_provider_token_usd: str | None = None
+    premium_price_rub: int = DEFAULT_PREMIUM_PRICE_RUB
+    premium_price_usd_cents: int = DEFAULT_PREMIUM_PRICE_USD_CENTS
     feedback_username: str | None = None
 
 
@@ -35,13 +45,34 @@ def load_settings() -> Settings:
                 ids.append(int(part))
         admin_ids = tuple(ids)
 
-    premium_price_stars_raw = os.getenv("PREMIUM_PRICE_STARS", "100").strip()
-    premium_price_stars = int(premium_price_stars_raw) if premium_price_stars_raw.isdigit() else 100
+    premium_price_stars_raw = os.getenv("PREMIUM_PRICE_STARS", str(DEFAULT_PREMIUM_PRICE_STARS)).strip()
+    premium_price_stars = (
+        int(premium_price_stars_raw)
+        if premium_price_stars_raw.isdigit()
+        else DEFAULT_PREMIUM_PRICE_STARS
+    )
     enable_payments_raw = os.getenv("ENABLE_PAYMENTS", "false").strip().lower()
     enable_payments = enable_payments_raw in {"1", "true", "yes", "on"}
 
     feedback_username_raw = os.getenv("FEEDBACK_USERNAME", "").strip().lstrip("@")
     feedback_username = feedback_username_raw or None
+
+    payment_provider_token_raw = os.getenv("PAYMENT_PROVIDER_TOKEN", "").strip()
+    payment_provider_token = payment_provider_token_raw or None
+    payment_provider_token_usd_raw = os.getenv("PAYMENT_PROVIDER_TOKEN_USD", "").strip()
+    payment_provider_token_usd = payment_provider_token_usd_raw or None
+
+    premium_price_rub_raw = os.getenv("PREMIUM_PRICE_RUB", str(DEFAULT_PREMIUM_PRICE_RUB)).strip()
+    premium_price_rub = (
+        int(premium_price_rub_raw) if premium_price_rub_raw.isdigit() else DEFAULT_PREMIUM_PRICE_RUB
+    )
+
+    premium_price_usd_raw = os.getenv("PREMIUM_PRICE_USD", str(DEFAULT_PREMIUM_PRICE_USD_CENTS)).strip()
+    premium_price_usd_cents = (
+        int(premium_price_usd_raw)
+        if premium_price_usd_raw.isdigit()
+        else DEFAULT_PREMIUM_PRICE_USD_CENTS
+    )
 
     return Settings(
         bot_token=bot_token,
@@ -49,5 +80,9 @@ def load_settings() -> Settings:
         admin_ids=admin_ids,
         premium_price_stars=premium_price_stars,
         enable_payments=enable_payments,
+        payment_provider_token=payment_provider_token,
+        payment_provider_token_usd=payment_provider_token_usd,
+        premium_price_rub=premium_price_rub,
+        premium_price_usd_cents=premium_price_usd_cents,
         feedback_username=feedback_username,
     )
