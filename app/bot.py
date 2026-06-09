@@ -40,6 +40,7 @@ from app.moon_calendar import (
 from app.natal import build_natal_summary
 from app.states import CompatibilityCheck, MoonDetails, PartnerSetup, PreferencesSetup, ProfileSetup
 from app.states import AdminPanel, DailySetup
+from app.premium_lifecycle import notify_admins_purchase
 from app.payments import (
     PayCurrency,
     available_payment_options,
@@ -309,6 +310,11 @@ TEXTS = {
         "premium_buy_fail": "Не удалось открыть платёж. Проверь, что бот поддерживает Stars.",
         "premium_payment_ok": "Оплата прошла. Premium активен до {until}.",
         "premium_payment_error": "Оплата не прошла, попробуй ещё раз позже.",
+        "premium_trial_granted": (
+            "🎁 Premium на {days} дней в подарок!\n\n"
+            "Попробуй неделю и месяц, полную карту, луну на 30 дней и безлимит совместимости.\n"
+            "Действует до {until}."
+        ),
         "premium_required_full_natal": "Полная натальная карта доступна в Premium.",
         "premium_required_horo_period": "Неделя и месяц доступны в Premium.",
         "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан ({limit}/день).",
@@ -606,6 +612,11 @@ TEXTS = {
         "premium_buy_fail": "Failed to open payment form. Check Stars support for your bot.",
         "premium_payment_ok": "Payment completed. Premium active until {until}.",
         "premium_payment_error": "Payment failed, please try again later.",
+        "premium_trial_granted": (
+            "🎁 {days}-day Premium trial unlocked!\n\n"
+            "Try week/month horoscopes, full chart, 30-day moon, and unlimited compatibility.\n"
+            "Valid until {until}."
+        ),
         "premium_required_full_natal": "Full natal chart is available in Premium.",
         "premium_required_horo_period": "Week and month horoscopes are Premium features.",
         "premium_required_compat_daily_limit": "Free compatibility limit for today is reached ({limit}/day).",
@@ -3526,6 +3537,21 @@ async def _complete_onboarding_with_goal(
 ) -> None:
     await db.update_preferences(user_id, goal=goal)
     await db.log_event(user_id, "profile_completed")
+    trial_until = await db.grant_trial_if_eligible(user_id, settings.premium_trial_days)
+    if trial_until and bot is not None:
+        try:
+            await bot.send_message(
+                user_id,
+                t(
+                    locale,
+                    "premium_trial_granted",
+                    days=str(settings.premium_trial_days),
+                    until=format_premium_until(trial_until, locale),
+                ),
+            )
+            await db.log_event(user_id, "premium_trial_granted")
+        except Exception:
+            pass
     await try_notify_referral_reward(user_id, bot)
 
 
@@ -3819,6 +3845,17 @@ async def successful_payment_handler(message: Message) -> None:
     try:
         until_iso = await db.extend_premium(user.id, PREMIUM_PERIOD_DAYS)
         await db.log_event(user.id, f"premium_paid:{currency.value if currency else 'unknown'}")
+        await notify_admins_purchase(
+            message.bot,
+            admin_ids=settings.admin_ids,
+            buyer_id=user.id,
+            buyer_username=user.username,
+            buyer_first_name=user.first_name,
+            currency=currency,
+            telegram_currency=payment.currency,
+            invoice_amount=payment.total_amount,
+            until_iso=until_iso,
+        )
         await show_panel_from_message(
             message,
             t(locale, "premium_payment_ok", until=format_premium_until(until_iso, locale)),

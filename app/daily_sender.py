@@ -17,9 +17,16 @@ from app.moon_calendar import (
     major_lunar_phase_on,
 )
 from app.premium import is_premium_active
+from app.premium_lifecycle import (
+    days_until_premium_end,
+    premium_expiry_reminder_text,
+    premium_renew_keyboard,
+    premium_until_date_key,
+)
 from app.timezones import user_local_date_key, user_local_hhmm
 
 LUNAR_NOTIFY_TIME = "10:00"
+PREMIUM_REMINDER_TIME = "11:00"
 
 
 def mood_checkin_keyboard() -> InlineKeyboardMarkup:
@@ -203,6 +210,40 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
             )
 
 
+async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: datetime) -> None:
+    recipients = await db.get_users_with_premium()
+    for user in recipients:
+        if user_local_hhmm(now_utc, user.timezone) != PREMIUM_REMINDER_TIME:
+            continue
+        if not user.premium_until:
+            continue
+        days_left = days_until_premium_end(user.premium_until, user.timezone)
+        if days_left not in {1, 3}:
+            continue
+        until_key = premium_until_date_key(user.premium_until, user.timezone)
+        if until_key is None:
+            continue
+        period = f"premium_reminder:{days_left}d"
+        if await db.was_daily_sent(user.user_id, period, until_key):
+            continue
+        locale = user.language or "en"
+        text = premium_expiry_reminder_text(
+            locale,
+            days_left=days_left,
+            until_iso=user.premium_until,
+        )
+        try:
+            await bot.send_message(
+                chat_id=user.user_id,
+                text=text,
+                reply_markup=premium_renew_keyboard(locale),
+            )
+            await db.mark_daily_sent(user.user_id, period, until_key)
+            await db.log_event(user.user_id, f"premium_reminder_{days_left}d_sent")
+        except Exception:
+            await db.log_event(user.user_id, f"premium_reminder_{days_left}d_failed")
+
+
 async def run_daily_loop(db: Database, bot: Bot) -> None:
     logger = logging.getLogger(__name__)
     while True:
@@ -211,6 +252,7 @@ async def run_daily_loop(db: Database, bot: Bot) -> None:
             await _send_due_deliveries(db, bot, now)
             await _send_evening_checkins(db, bot, now)
             await _send_lunar_notifications(db, bot, now)
+            await _send_premium_expiry_reminders(db, bot, now)
         except Exception:
             logger.exception("daily loop tick failed")
         await asyncio.sleep(60)

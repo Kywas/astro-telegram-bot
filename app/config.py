@@ -7,6 +7,7 @@ from app.premium import (
     DEFAULT_PREMIUM_PRICE_RUB,
     DEFAULT_PREMIUM_PRICE_STARS,
     DEFAULT_PREMIUM_PRICE_USD_CENTS,
+    DEFAULT_PREMIUM_TRIAL_DAYS,
 )
 
 
@@ -22,6 +23,7 @@ class Settings:
     payment_provider_token_usd: str | None = None
     premium_price_rub: int = DEFAULT_PREMIUM_PRICE_RUB
     premium_price_usd_cents: int = DEFAULT_PREMIUM_PRICE_USD_CENTS
+    premium_trial_days: int = DEFAULT_PREMIUM_TRIAL_DAYS
     feedback_username: str | None = None
 
 
@@ -74,6 +76,13 @@ def load_settings() -> Settings:
         else DEFAULT_PREMIUM_PRICE_USD_CENTS
     )
 
+    premium_trial_days_raw = os.getenv("PREMIUM_TRIAL_DAYS", str(DEFAULT_PREMIUM_TRIAL_DAYS)).strip()
+    premium_trial_days = (
+        int(premium_trial_days_raw)
+        if premium_trial_days_raw.isdigit()
+        else DEFAULT_PREMIUM_TRIAL_DAYS
+    )
+
     return Settings(
         bot_token=bot_token,
         proxy_url=proxy_url,
@@ -84,5 +93,6 @@ def load_settings() -> Settings:
         payment_provider_token_usd=payment_provider_token_usd,
         premium_price_rub=premium_price_rub,
         premium_price_usd_cents=premium_price_usd_cents,
+        premium_trial_days=premium_trial_days,
         feedback_username=feedback_username,
     )

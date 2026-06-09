@@ -34,6 +34,7 @@ class UserProfile:
     last_mood_date: Optional[str]
     lunar_notify_enabled: bool
     premium_until: Optional[str]
+    trial_used: bool
     natal_mode: str
     ref_code: Optional[str]
     referrer_id: Optional[int]
@@ -150,6 +151,7 @@ class Database:
                 "last_mood_date": "TEXT",
                 "lunar_notify_enabled": "INTEGER DEFAULT 1",
                 "premium_until": "TEXT",
+                "trial_used": "INTEGER DEFAULT 0",
                 "natal_mode": "TEXT DEFAULT 'full'",
                 "ref_code": "TEXT",
                 "referrer_id": "INTEGER",
@@ -387,6 +389,7 @@ class Database:
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
                     premium_until=row["premium_until"],
+                    trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
@@ -589,6 +592,7 @@ class Database:
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
                     premium_until=row["premium_until"],
+                    trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
@@ -623,6 +627,47 @@ class Database:
         until_iso = until.isoformat()
         await self.set_premium_until(user_id, until_iso)
         return until_iso
+
+    async def grant_trial_if_eligible(self, user_id: int, days: int) -> str | None:
+        from app.premium import is_premium_active
+
+        if days <= 0:
+            return None
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT trial_used, premium_until FROM users WHERE user_id = ?",
+                (user_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row is None:
+                    return None
+                if bool(row[0]):
+                    return None
+                if is_premium_active(row[1]):
+                    return None
+        until_iso = await self.extend_premium(user_id, days)
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET trial_used = 1 WHERE user_id = ?",
+                (user_id,),
+            )
+            await db.commit()
+        return until_iso
+
+    async def get_users_with_premium(self) -> list[UserProfile]:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM users
+                WHERE premium_until IS NOT NULL
+                  AND premium_until > ?
+                """,
+                (now_iso,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return await self._profiles_from_rows(rows)
 
     async def set_natal_mode(self, user_id: int, mode: str) -> None:
         normalized = "short" if mode == "short" else "full"
