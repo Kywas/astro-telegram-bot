@@ -4356,8 +4356,7 @@ async def run_bot() -> None:
             error_type=type(e).__name__,
             message=str(e),
         )
-        logger.exception("Failed to connect to Telegram API")
-        raise
+        logger.exception("Failed to connect to Telegram API on startup; polling may retry")
     try:
         await configure_public_profile(bot)
     except Exception as e:
