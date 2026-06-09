@@ -22,9 +22,9 @@ jobs:
             source .venv/bin/activate
             pip install -r requirements.txt
             python -m compileall app main.py scripts
-            PYTHONPATH=. python scripts/smoke_test.py
             systemctl restart astrobot
             sleep 5
             systemctl is-active --quiet astrobot
             systemctl status astrobot --no-pager
             journalctl -u astrobot -n 30 --no-pager
+            PYTHONPATH=. python scripts/smoke_test.py
