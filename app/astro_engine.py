@@ -1064,6 +1064,118 @@ def build_natal_chart_data(
         return None
 
 
+SYNODIC_MONTH_DAYS = 29.530588853
+
+
+@dataclass
+class MoonDayData:
+    for_date: date
+    phase_key: str
+    elongation: float
+    age_days: float
+    lunar_day: int
+    illumination: int
+    moon_sign: str
+    next_phase_key: str
+    next_phase_days: int
+
+
+def _date_to_jd_utc_noon(for_date: date) -> float:
+    return swe.julday(for_date.year, for_date.month, for_date.day, 12.0)
+
+
+def _moon_elongation_ahead(julian_day: float) -> float:
+    sun_lon = _planet_longitude(julian_day, swe.SUN)
+    moon_lon = _planet_longitude(julian_day, swe.MOON)
+    return (moon_lon - sun_lon) % 360
+
+
+def _elongation_from_conjunction(julian_day: float) -> float:
+    elongation = _moon_elongation_ahead(julian_day)
+    return elongation if elongation <= 180 else 360 - elongation
+
+
+def _find_last_new_moon_jd(julian_day: float) -> float:
+    start = julian_day - SYNODIC_MONTH_DAYS
+    end = julian_day
+    golden = (5**0.5 - 1) / 2
+    left, right = start, end
+    for _ in range(48):
+        probe_a = right - golden * (right - left)
+        probe_b = left + golden * (right - left)
+        if _elongation_from_conjunction(probe_a) < _elongation_from_conjunction(probe_b):
+            right = probe_b
+        else:
+            left = probe_a
+    return (left + right) / 2
+
+
+def _phase_key_from_elongation(elongation: float) -> str:
+    if elongation < 22.5 or elongation >= 337.5:
+        return "new_moon"
+    if elongation < 67.5:
+        return "waxing_crescent"
+    if elongation < 112.5:
+        return "first_quarter"
+    if elongation < 157.5:
+        return "waxing_gibbous"
+    if elongation < 202.5:
+        return "full_moon"
+    if elongation < 247.5:
+        return "waning_gibbous"
+    if elongation < 292.5:
+        return "last_quarter"
+    return "waning_crescent"
+
+
+def _moon_illumination_percent(julian_day: float) -> int:
+    result = swe.pheno_ut(julian_day, swe.MOON, swe.FLG_SWIEPH)
+    return round(float(result[1]) * 100)
+
+
+def _next_major_phase(elongation: float) -> tuple[str, int]:
+    targets = [
+        ("new_moon", 0.0),
+        ("first_quarter", 90.0),
+        ("full_moon", 180.0),
+        ("last_quarter", 270.0),
+    ]
+    candidates: list[tuple[str, float]] = []
+    for phase_key, target in targets:
+        delta_degrees = (target - elongation) % 360
+        delta_days = delta_degrees / 360.0 * SYNODIC_MONTH_DAYS
+        if delta_days < 0.2:
+            delta_days += SYNODIC_MONTH_DAYS
+        candidates.append((phase_key, delta_days))
+    phase_key, days_left = min(candidates, key=lambda item: item[1])
+    return phase_key, round(days_left)
+
+
+def build_moon_day_data(for_date: date) -> MoonDayData | None:
+    try:
+        julian_day = _date_to_jd_utc_noon(for_date)
+        elongation = _moon_elongation_ahead(julian_day)
+        new_moon_jd = _find_last_new_moon_jd(julian_day)
+        age_days = max(0.0, julian_day - new_moon_jd)
+        lunar_day = int(age_days) + 1
+        moon_lon = _planet_longitude(julian_day, swe.MOON)
+        next_phase_key, next_phase_days = _next_major_phase(elongation)
+        return MoonDayData(
+            for_date=for_date,
+            phase_key=_phase_key_from_elongation(elongation),
+            elongation=elongation,
+            age_days=age_days,
+            lunar_day=lunar_day,
+            illumination=_moon_illumination_percent(julian_day),
+            moon_sign=_longitude_to_sign(moon_lon),
+            next_phase_key=next_phase_key,
+            next_phase_days=next_phase_days,
+        )
+    except Exception:
+        logger.warning("moon day data failed for_date=%s", for_date, exc_info=True)
+        return None
+
+
 SYNASTRY_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
 
 MODE_PLANET_WEIGHT: dict[str, dict[str, float]] = {

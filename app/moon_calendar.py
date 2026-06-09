@@ -1,8 +1,8 @@
-from datetime import date, datetime, time, timedelta, timezone
-from math import cos, pi
+from __future__ import annotations
 
-SYNODIC_MONTH_DAYS = 29.53058867
-KNOWN_NEW_MOON = datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc)
+from datetime import date, timedelta
+
+from app.astro_engine import build_moon_day_data, sign_label
 
 PHASE_NAMES = {
     "ru": {
@@ -50,138 +50,148 @@ SHORT_PHASE = {
     },
 }
 
-DO_RECOMMENDATIONS = {
-    "ru": [
-        "планировать и начинать",
-        "доделывать и упорядочивать",
-        "общаться и договариваться",
-        "учиться и анализировать",
-        "замедлиться и восстановиться",
-    ],
-    "en": [
-        "plan and start",
-        "finish and organize",
-        "communicate and agree",
-        "study and analyze",
-        "slow down and recover",
-    ],
+PHASE_GUIDANCE = {
+    "ru": {
+        "new_moon": {
+            "do": "задумать намерения и начать новое",
+            "avoid": "спешки и перегруза расписания",
+        },
+        "waxing_crescent": {
+            "do": "делать первые шаги и закреплять план",
+            "avoid": "сомнений и откладывания старта",
+        },
+        "first_quarter": {
+            "do": "проявлять решительность и уточнять детали",
+            "avoid": "конфликтов из-за нетерпения",
+        },
+        "waxing_gibbous": {
+            "do": "доводить начатое и корректировать курс",
+            "avoid": "перфекционизма и лишней критики",
+        },
+        "full_moon": {
+            "do": "подводить итоги и завершать важное",
+            "avoid": "эмоциональных крайностей и резких решений",
+        },
+        "waning_gibbous": {
+            "do": "делиться опытом и благодарить за результат",
+            "avoid": "давления на себя и других",
+        },
+        "last_quarter": {
+            "do": "упрощать, отпускать лишнее и пересматривать планы",
+            "avoid": "упрямства и попыток удержать всё как есть",
+        },
+        "waning_crescent": {
+            "do": "отдыхать, восстанавливаться и готовиться к новому циклу",
+            "avoid": "новых крупных запусков и перегруза",
+        },
+    },
+    "en": {
+        "new_moon": {
+            "do": "set intentions and start something new",
+            "avoid": "rush and overloaded schedules",
+        },
+        "waxing_crescent": {
+            "do": "take first steps and anchor your plan",
+            "avoid": "doubting and delaying the start",
+        },
+        "first_quarter": {
+            "do": "act decisively and clarify details",
+            "avoid": "conflicts driven by impatience",
+        },
+        "waxing_gibbous": {
+            "do": "refine what you started and adjust course",
+            "avoid": "perfectionism and harsh self-criticism",
+        },
+        "full_moon": {
+            "do": "review outcomes and finish what matters",
+            "avoid": "emotional extremes and sharp decisions",
+        },
+        "waning_gibbous": {
+            "do": "share results and express gratitude",
+            "avoid": "pressure on yourself and others",
+        },
+        "last_quarter": {
+            "do": "simplify, release excess, and revise plans",
+            "avoid": "stubbornly holding onto what no longer fits",
+        },
+        "waning_crescent": {
+            "do": "rest, recover, and prepare for a new cycle",
+            "avoid": "major launches and overload",
+        },
+    },
 }
 
-AVOID_RECOMMENDATIONS = {
-    "ru": [
-        "спешки и резких решений",
-        "хаоса и перегруза",
-        "конфликтов и критики",
-        "поверхностных выводов",
-        "эмоциональных трат",
-    ],
-    "en": [
-        "rush and sharp decisions",
-        "chaos and overload",
-        "conflicts and criticism",
-        "superficial conclusions",
-        "emotional spending",
-    ],
-}
+
+def _locale(locale: str) -> str:
+    return "ru" if locale == "ru" else "en"
 
 
-def _moon_age_days(for_date: date) -> float:
-    moment = datetime.combine(for_date, time(12, 0), tzinfo=timezone.utc)
-    days_since_known = (moment - KNOWN_NEW_MOON).total_seconds() / 86400.0
-    return days_since_known % SYNODIC_MONTH_DAYS
+def _phase_name(locale: str, phase_key: str) -> str:
+    return PHASE_NAMES[_locale(locale)][phase_key]
 
 
-def _phase_key_by_age(age_days: float) -> str:
-    phase = age_days / SYNODIC_MONTH_DAYS
-    if phase < 0.0625 or phase >= 0.9375:
-        return "new_moon"
-    if phase < 0.1875:
-        return "waxing_crescent"
-    if phase < 0.3125:
-        return "first_quarter"
-    if phase < 0.4375:
-        return "waxing_gibbous"
-    if phase < 0.5625:
-        return "full_moon"
-    if phase < 0.6875:
-        return "waning_gibbous"
-    if phase < 0.8125:
-        return "last_quarter"
-    return "waning_crescent"
+def _short_phase(locale: str, phase_key: str) -> str:
+    return SHORT_PHASE[_locale(locale)][phase_key]
 
 
-def _illumination_percent(age_days: float) -> int:
-    phase = age_days / SYNODIC_MONTH_DAYS
-    illum = (1 - cos(2 * pi * phase)) / 2
-    return round(illum * 100)
+def _guidance(locale: str, phase_key: str) -> tuple[str, str]:
+    guidance = PHASE_GUIDANCE[_locale(locale)][phase_key]
+    return guidance["do"], guidance["avoid"]
 
 
-def _next_major_phase(age_days: float, locale: str) -> tuple[str, int]:
-    current_fraction = age_days / SYNODIC_MONTH_DAYS
-    targets = [
-        ("new_moon", 0.0),
-        ("first_quarter", 0.25),
-        ("full_moon", 0.5),
-        ("last_quarter", 0.75),
-    ]
-    candidates: list[tuple[str, float]] = []
-    for phase_key, target in targets:
-        delta_fraction = (target - current_fraction) % 1.0
-        delta_days = delta_fraction * SYNODIC_MONTH_DAYS
-        if delta_days < 0.2:
-            delta_days += SYNODIC_MONTH_DAYS
-        candidates.append((phase_key, delta_days))
-
-    phase_key, days_left = min(candidates, key=lambda item: item[1])
-    phase_name = PHASE_NAMES[locale][phase_key]
-    return phase_name, round(days_left)
-
-
-def _recommendation_pair(locale: str, lunar_day: int) -> tuple[str, str]:
-    idx = (lunar_day - 1) % len(DO_RECOMMENDATIONS[locale])
-    return DO_RECOMMENDATIONS[locale][idx], AVOID_RECOMMENDATIONS[locale][idx]
-
-
-def _moon_snapshot(locale: str, for_date: date) -> dict[str, str | int | float]:
-    age = _moon_age_days(for_date)
-    phase_key = _phase_key_by_age(age)
-    phase_name = PHASE_NAMES[locale][phase_key]
-    short_phase = SHORT_PHASE[locale][phase_key]
-    illumination = _illumination_percent(age)
-    lunar_day = int(age) + 1
-    rec_do, rec_avoid = _recommendation_pair(locale, lunar_day)
+def _moon_snapshot(locale: str, for_date: date) -> dict[str, str | int | float] | None:
+    data = build_moon_day_data(for_date)
+    if data is None:
+        return None
+    rec_do, rec_avoid = _guidance(locale, data.phase_key)
     return {
         "date": for_date,
-        "age": age,
-        "phase_name": phase_name,
-        "short_phase": short_phase,
-        "illumination": illumination,
-        "lunar_day": lunar_day,
+        "age": data.age_days,
+        "phase_key": data.phase_key,
+        "phase_name": _phase_name(locale, data.phase_key),
+        "short_phase": _short_phase(locale, data.phase_key),
+        "illumination": data.illumination,
+        "lunar_day": data.lunar_day,
+        "moon_sign": sign_label(locale, data.moon_sign),
+        "next_phase_key": data.next_phase_key,
+        "next_phase_days": data.next_phase_days,
         "do": rec_do,
         "avoid": rec_avoid,
     }
 
 
+def _fallback_text(locale: str) -> str:
+    if _locale(locale) == "ru":
+        return "Не удалось рассчитать лунные данные. Попробуй позже."
+    return "Could not compute lunar data. Please try again later."
+
+
 def generate_moon_calendar_text(locale: str, for_date: date | None = None) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
+    current_locale = _locale(locale)
     if for_date is None:
         for_date = date.today()
 
-    snap = _moon_snapshot(current_locale, for_date)
+    snap = _moon_snapshot(locale, for_date)
+    if snap is None:
+        return _fallback_text(locale)
+
     age = float(snap["age"])
     phase_name = str(snap["phase_name"])
     illumination = int(snap["illumination"])
     lunar_day = int(snap["lunar_day"])
+    moon_sign = str(snap["moon_sign"])
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
-    next_phase_name, days_left = _next_major_phase(age, current_locale)
+    next_phase_name = _phase_name(locale, str(snap["next_phase_key"]))
+    days_left = int(snap["next_phase_days"])
     next_date = for_date + timedelta(days=days_left)
 
     if current_locale == "ru":
         return (
             f"🌙 Лунный календарь на {for_date.strftime('%d.%m.%Y')}\n\n"
             f"• Фаза Луны: {phase_name}\n"
-            f"• Освещенность диска: {illumination}%\n"
+            f"• Луна в знаке: {moon_sign}\n"
+            f"• Освещённость диска: {illumination}%\n"
             f"• Лунный день: {lunar_day}\n"
             f"• Возраст Луны: {age:.1f} суток\n"
             f"• Следующая ключевая фаза: {next_phase_name} "
@@ -193,6 +203,7 @@ def generate_moon_calendar_text(locale: str, for_date: date | None = None) -> st
     return (
         f"🌙 Moon calendar for {for_date.isoformat()}\n\n"
         f"• Moon phase: {phase_name}\n"
+        f"• Moon sign: {moon_sign}\n"
         f"• Illumination: {illumination}%\n"
         f"• Lunar day: {lunar_day}\n"
         f"• Moon age: {age:.1f} days\n"
@@ -204,7 +215,7 @@ def generate_moon_calendar_text(locale: str, for_date: date | None = None) -> st
 
 
 def generate_moon_table_text(locale: str, days: int, start_date: date | None = None) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
+    current_locale = _locale(locale)
     if start_date is None:
         start_date = date.today()
     total_days = max(1, min(30, days))
@@ -217,22 +228,25 @@ def generate_moon_table_text(locale: str, days: int, start_date: date | None = N
     week_index = 1
     for offset in range(total_days):
         current_date = start_date + timedelta(days=offset)
-        snap = _moon_snapshot(current_locale, current_date)
+        snap = _moon_snapshot(locale, current_date)
+        if snap is None:
+            continue
 
         if offset % 7 == 0:
             if offset > 0:
                 lines.append("")
             if current_locale == "ru":
                 lines.append(f"━━ Неделя {week_index} ━━")
-                lines.append("Дата | День | Фаза | %")
+                lines.append("Дата | День | Знак | Фаза | %")
             else:
                 lines.append(f"━━ Week {week_index} ━━")
-                lines.append("Date | Day | Phase | %")
+                lines.append("Date | Day | Sign | Phase | %")
             week_index += 1
 
         date_str = current_date.strftime("%d.%m")
         lines.append(
-            f"{date_str} | {int(snap['lunar_day']):>2} | {snap['short_phase']} | {int(snap['illumination']):>3}%"
+            f"{date_str} | {int(snap['lunar_day']):>2} | {snap['moon_sign'][:8]:<8} | "
+            f"{snap['short_phase']} | {int(snap['illumination']):>3}%"
         )
         if current_locale == "ru":
             lines.append(f"  ✔ {snap['do']}")
@@ -241,11 +255,13 @@ def generate_moon_table_text(locale: str, days: int, start_date: date | None = N
             lines.append(f"  ✔ {snap['do']}")
             lines.append(f"  ✖ {snap['avoid']}")
 
+    if len(lines) <= 2:
+        return _fallback_text(locale)
     return "\n".join(lines)
 
 
 def generate_moon_compact_table_text(locale: str, days: int, start_date: date | None = None) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
+    current_locale = _locale(locale)
     if start_date is None:
         start_date = date.today()
     total_days = max(1, min(30, days))
@@ -265,12 +281,16 @@ def generate_moon_compact_table_text(locale: str, days: int, start_date: date | 
 
     for offset in range(total_days):
         current_date = start_date + timedelta(days=offset)
-        snap = _moon_snapshot(current_locale, current_date)
+        snap = _moon_snapshot(locale, current_date)
+        if snap is None:
+            continue
         date_str = current_date.strftime("%d.%m")
         lines.append(
             f"{date_str} | {int(snap['lunar_day']):>2} | {snap['short_phase']} | {int(snap['illumination']):>3}%"
         )
 
+    if len(lines) <= 3:
+        return _fallback_text(locale)
     return "\n".join(lines)
 
 
@@ -279,33 +299,38 @@ LUNAR_PREVIEW_DAYS = 7
 
 
 def major_lunar_phase_on(for_date: date) -> str | None:
-    age = _moon_age_days(for_date)
-    phase_key = _phase_key_by_age(age)
-    if phase_key in MAJOR_LUNAR_PHASES:
-        return phase_key
+    data = build_moon_day_data(for_date)
+    if data is None:
+        return None
+    if data.phase_key in MAJOR_LUNAR_PHASES:
+        return data.phase_key
     return None
 
 
 def lunar_event_title(phase_key: str, locale: str) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
-    return PHASE_NAMES[current_locale][phase_key]
+    return _phase_name(locale, phase_key)
 
 
 def format_lunar_day_notification(phase_key: str, locale: str, for_date: date) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
+    current_locale = _locale(locale)
     title = lunar_event_title(phase_key, current_locale)
-    snap = _moon_snapshot(current_locale, for_date)
+    snap = _moon_snapshot(locale, for_date)
+    if snap is None:
+        return _fallback_text(locale)
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
+    moon_sign = str(snap["moon_sign"])
 
     if current_locale == "ru":
         return (
             f"🌑 Сегодня {title.lower()} ({for_date.strftime('%d.%m.%Y')})\n\n"
+            f"• Луна в знаке: {moon_sign}\n"
             f"• Что делать: {rec_do}\n"
             f"• Чего избегать: {rec_avoid}"
         )
     return (
         f"🌑 Today is {title} ({for_date.isoformat()})\n\n"
+        f"• Moon sign: {moon_sign}\n"
         f"• Do: {rec_do}\n"
         f"• Avoid: {rec_avoid}"
     )
@@ -318,18 +343,23 @@ def format_lunar_preview_notification(
     *,
     days_left: int,
 ) -> str:
-    current_locale = "ru" if locale == "ru" else "en"
+    current_locale = _locale(locale)
     title = lunar_event_title(phase_key, current_locale)
-    snap = _moon_snapshot(current_locale, event_date)
+    snap = _moon_snapshot(locale, event_date)
+    if snap is None:
+        return _fallback_text(locale)
     rec_do = str(snap["do"])
+    moon_sign = str(snap["moon_sign"])
 
     if current_locale == "ru":
         return (
             f"🌙 Через {days_left} дн. — {title.lower()} "
             f"({event_date.strftime('%d.%m.%Y')})\n\n"
+            f"• Луна будет в знаке: {moon_sign}\n"
             f"Premium-напоминание: начни готовиться — {rec_do}."
         )
     return (
         f"🌙 In {days_left} days — {title} ({event_date.isoformat()})\n\n"
+        f"• Moon sign: {moon_sign}\n"
         f"Premium reminder: start preparing — {rec_do}."
     )
