@@ -218,7 +218,7 @@ async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: dateti
         if not user.premium_until:
             continue
         days_left = days_until_premium_end(user.premium_until, user.timezone)
-        if days_left not in {1, 3}:
+        if days_left not in {0, 1, 3}:
             continue
         until_key = premium_until_date_key(user.premium_until, user.timezone)
         if until_key is None:

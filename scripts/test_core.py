@@ -1,0 +1,55 @@
+"""Quick offline checks for payment/premium helpers."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from app.config import Settings
+from app.payments import PayCurrency, available_payment_options, parse_premium_payload, premium_payload
+from app.premium import DEFAULT_PREMIUM_TRIAL_DAYS, extend_premium_until, is_premium_active
+from app.premium_lifecycle import days_until_premium_end, format_payment_amount
+
+
+def test_payment_payloads() -> None:
+    assert parse_premium_payload("premium_30d") == PayCurrency.STARS
+    assert parse_premium_payload("premium_30d:rub") == PayCurrency.RUB
+    assert parse_premium_payload("premium_30d:usd") == PayCurrency.USD
+    assert parse_premium_payload("bad") is None
+    assert premium_payload(PayCurrency.RUB) == "premium_30d:rub"
+
+
+def test_payment_options() -> None:
+    settings = Settings(
+        bot_token="x",
+        enable_payments=True,
+        payment_provider_token="prov",
+        premium_price_stars=100,
+        premium_price_rub=199,
+        premium_price_usd_cents=300,
+    )
+    options = available_payment_options(settings)
+    currencies = {opt.currency for opt in options}
+    assert currencies == {PayCurrency.STARS, PayCurrency.RUB, PayCurrency.USD}
+    assert format_payment_amount(PayCurrency.RUB, 19900, "RUB") == "199 ₽"
+    assert format_payment_amount(PayCurrency.USD, 300, "USD") == "$3.00"
+
+
+def test_premium_dates() -> None:
+    until = extend_premium_until(None, 7)
+    assert is_premium_active(until.isoformat())
+    left = days_until_premium_end(until.isoformat(), "Europe/Moscow")
+    assert left is not None and 5 <= left <= 7
+
+
+def main() -> None:
+    test_payment_payloads()
+    test_payment_options()
+    test_premium_dates()
+    print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
+
+
+if __name__ == "__main__":
+    main()

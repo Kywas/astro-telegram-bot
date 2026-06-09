@@ -59,6 +59,11 @@ def premium_renew_keyboard(locale: str) -> InlineKeyboardMarkup:
 def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str) -> str:
     until = format_premium_until(until_iso, locale)
     if locale == "ru":
+        if days_left == 0:
+            return (
+                f"⏳ Premium заканчивается сегодня ({until}).\n\n"
+                "Продли сейчас — неделя/месяц, полная карта и луна на 30 дней."
+            )
         if days_left == 1:
             return (
                 f"⏳ Premium заканчивается завтра ({until}).\n\n"
@@ -71,6 +76,11 @@ def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str)
     if days_left == 1:
         return (
             f"⏳ Premium expires tomorrow ({until}).\n\n"
+            "Renew now to keep week/month horoscopes, full chart, and 30-day moon."
+        )
+    if days_left == 0:
+        return (
+            f"⏳ Premium expires today ({until}).\n\n"
             "Renew now to keep week/month horoscopes, full chart, and 30-day moon."
         )
     return (

@@ -615,14 +615,16 @@ class Database:
             )
             await db.commit()
 
-    async def extend_premium(self, user_id: int, days: int) -> str:
+    async def extend_premium(self, user_id: int, days: int) -> str | None:
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute(
                 "SELECT premium_until FROM users WHERE user_id = ?",
                 (user_id,),
             ) as cursor:
                 row = await cursor.fetchone()
-                current_until = row[0] if row else None
+                if row is None:
+                    return None
+                current_until = row[0]
         until = extend_premium_until(current_until, days)
         until_iso = until.isoformat()
         await self.set_premium_until(user_id, until_iso)
@@ -819,6 +821,29 @@ class Database:
                 (user_id, event_name, now_iso),
             )
             await db.commit()
+
+    async def has_event(self, user_id: int, event_name: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT 1 FROM events WHERE user_id = ? AND event_name = ? LIMIT 1",
+                (user_id, event_name),
+            ) as cursor:
+                return await cursor.fetchone() is not None
+
+    async def has_payment_charge(self, charge_id: str) -> bool:
+        if not charge_id:
+            return False
+        event_name = f"premium_charge:{charge_id}"
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT 1 FROM events WHERE event_name = ? LIMIT 1",
+                (event_name,),
+            ) as cursor:
+                return await cursor.fetchone() is not None
+
+    async def record_payment_charge(self, charge_id: str, user_id: int) -> None:
+        if charge_id:
+            await self.log_event(user_id, f"premium_charge:{charge_id}")
 
     async def count_events_for_day(self, user_id: int, event_name: str, date_key: str) -> int:
         async with aiosqlite.connect(self._db_path) as db:

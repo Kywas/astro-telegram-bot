@@ -17,6 +17,7 @@ from aiogram.types import (
     Message,
 )
 
+from app.auth import is_admin
 from app.config import load_settings
 from app.admin_middleware import AdminOnlyMiddleware
 from app.ui_cleanup_middleware import DeleteUserInputMiddleware
@@ -2470,6 +2471,8 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "goal":
+        if await resume_onboarding_if_needed(user.id, locale, state, callback=callback):
+            return
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_goal'))}\n\n{t(locale, 'choose_goal_menu')}",
@@ -2477,6 +2480,8 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "relationship":
+        if await resume_onboarding_if_needed(user.id, locale, state, callback=callback):
+            return
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_relationship'))}\n\n{t(locale, 'choose_relationship_menu')}",
@@ -2528,6 +2533,9 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
         return
     if action == "admin":
+        if not is_admin(user.id, settings.admin_ids):
+            await callback.answer(t(locale, "admin_only"), show_alert=True)
+            return
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'admin_panel')}",
@@ -3555,6 +3563,16 @@ async def _complete_onboarding_with_goal(
     await try_notify_referral_reward(user_id, bot)
 
 
+async def _try_finish_profile_if_ready(user_id: int, locale: str, bot: Bot | None) -> bool:
+    if await db.has_event(user_id, "profile_completed"):
+        return False
+    profile = await db.get_user(user_id)
+    if not profile or not profile.sign or not profile.relationship_status or not profile.goal:
+        return False
+    await _complete_onboarding_with_goal(user_id, locale, profile.goal, bot)
+    return True
+
+
 @router.callback_query(F.data.startswith("rel:set:"))
 async def home_relationship_set_callback(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
@@ -3584,9 +3602,15 @@ async def home_relationship_set_callback(callback: CallbackQuery, state: FSMCont
         )
         return
 
+    finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
+    home_text = await build_home_panel_text(
+        user.id,
+        locale,
+        variant="start" if finished else "menu",
+    )
     await edit_or_send(
         callback,
-        await build_home_panel_text(user.id, locale),
+        home_text,
         inline_keyboard=home_panel_keyboard(locale),
     )
 
@@ -3620,9 +3644,15 @@ async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> 
     await db.log_event(user.id, "goal_updated")
     await try_notify_referral_reward(user.id, callback.bot)
     await callback.answer(t(locale, "goal_saved_toast", goal=label))
+    finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
+    home_text = await build_home_panel_text(
+        user.id,
+        locale,
+        variant="start" if finished else "menu",
+    )
     await edit_or_send(
         callback,
-        await build_home_panel_text(user.id, locale),
+        home_text,
         inline_keyboard=home_panel_keyboard(locale),
     )
 
@@ -3842,9 +3872,29 @@ async def successful_payment_handler(message: Message) -> None:
     if payment.currency != option.telegram_currency or payment.total_amount != option.invoice_amount:
         await db.log_event(user.id, "premium_paid_invalid_amount")
         return
+    charge_id = payment.telegram_payment_charge_id
+    if charge_id and await db.has_payment_charge(charge_id):
+        profile = await db.get_user(user.id)
+        if profile and profile.premium_until:
+            await show_panel_from_message(
+                message,
+                t(locale, "premium_payment_ok", until=format_premium_until(profile.premium_until, locale)),
+                reply_markup=home_panel_keyboard(locale),
+            )
+        return
+    until_iso = await db.extend_premium(user.id, PREMIUM_PERIOD_DAYS)
+    if until_iso is None:
+        await db.log_event(user.id, "premium_paid_no_user_row")
+        await show_panel_from_message(
+            message,
+            t(locale, "profile_not_found"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+    await db.log_event(user.id, f"premium_paid:{currency.value if currency else 'unknown'}")
+    if charge_id:
+        await db.record_payment_charge(charge_id, user.id)
     try:
-        until_iso = await db.extend_premium(user.id, PREMIUM_PERIOD_DAYS)
-        await db.log_event(user.id, f"premium_paid:{currency.value if currency else 'unknown'}")
         await notify_admins_purchase(
             message.bot,
             admin_ids=settings.admin_ids,
@@ -3856,18 +3906,16 @@ async def successful_payment_handler(message: Message) -> None:
             invoice_amount=payment.total_amount,
             until_iso=until_iso,
         )
+    except Exception:
+        await db.log_event(user.id, "premium_paid_admin_notify_failed")
+    try:
         await show_panel_from_message(
             message,
             t(locale, "premium_payment_ok", until=format_premium_until(until_iso, locale)),
             reply_markup=home_panel_keyboard(locale),
         )
     except Exception:
-        await db.log_event(user.id, "premium_paid_error")
-        await show_panel_from_message(
-            message,
-            t(locale, "premium_payment_error"),
-            reply_markup=home_panel_keyboard(locale),
-        )
+        await db.log_event(user.id, "premium_paid_ui_failed")
 
 
 def _format_tx_datetime(value: datetime | int | float | None) -> str:
@@ -3949,6 +3997,12 @@ async def grant_premium_handler(message: Message) -> None:
     target_user_id = int(parts[1])
     days = int(parts[2])
     until_iso = await db.extend_premium(target_user_id, max(1, days))
+    if until_iso is None:
+        await message.answer(
+            t(locale, "profile_not_found"),
+            reply_markup=admin_panel_keyboard(locale),
+        )
+        return
     await db.log_event(user.id, "grantpremium")
     await message.answer(
         t(
@@ -4206,6 +4260,12 @@ async def admin_grant_input_handler(message: Message, state: FSMContext) -> None
     target_user_id = int(parts[0])
     days = int(parts[1])
     until_iso = await db.extend_premium(target_user_id, max(1, days))
+    if until_iso is None:
+        await message.answer(
+            t(locale, "profile_not_found"),
+            reply_markup=admin_panel_keyboard(locale),
+        )
+        return
     await db.log_event(user.id, "grantpremium_panel")
     await state.clear()
     await message.answer(
@@ -4933,6 +4993,12 @@ async def run_bot() -> None:
     router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(
+        AdminOnlyMiddleware(
+            admin_ids=settings.admin_ids,
+            deny_text=TEXTS["en"]["admin_only"],
+        )
+    )
+    admin_router.callback_query.middleware(
         AdminOnlyMiddleware(
             admin_ids=settings.admin_ids,
             deny_text=TEXTS["en"]["admin_only"],
