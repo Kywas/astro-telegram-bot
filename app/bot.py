@@ -1465,7 +1465,13 @@ def get_locale(profile_language: str | None) -> str:
 
 def t(locale: str, key: str, **kwargs: str) -> str:
     template = TEXTS[locale][key]
-    return template.format(**kwargs) if kwargs else template
+    if not kwargs:
+        return template
+    safe_kwargs = {
+        name: value.replace("{", "{{").replace("}", "}}")
+        for name, value in kwargs.items()
+    }
+    return template.format(**safe_kwargs)
 
 
 def _normalize_menu_text(text: str) -> str:
@@ -3426,27 +3432,37 @@ async def successful_payment_handler(message: Message) -> None:
 
 async def build_stars_report_text(bot: Bot, locale: str) -> str:
     try:
-        balance = await bot.get_my_star_balance()
-        tx_data = await bot.get_star_transactions(limit=10)
+        if hasattr(bot, "get_my_star_balance"):
+            balance = await bot.get_my_star_balance()
+        else:
+            from aiogram.methods import GetMyStarBalance
+
+            balance = await bot(GetMyStarBalance())
+        if hasattr(bot, "get_star_transactions"):
+            tx_data = await bot.get_star_transactions(limit=10)
+        else:
+            from aiogram.methods import GetStarTransactions
+
+            tx_data = await bot(GetStarTransactions(limit=10))
+
+        lines = [
+            t(locale, "stars_title"),
+            t(locale, "stars_balance", amount=str(balance.amount)),
+            t(locale, "stars_withdraw_hint"),
+            "",
+            t(locale, "stars_recent_title"),
+        ]
+        transactions = tx_data.transactions or []
+        if not transactions:
+            lines.append(t(locale, "stars_empty_tx"))
+        else:
+            for tx in reversed(transactions[-5:]):
+                sign = "+" if tx.amount > 0 else ""
+                when = datetime.fromtimestamp(tx.date, tz=timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+                lines.append(f"• {when}: {sign}{tx.amount} ⭐")
+        return "\n".join(lines)
     except Exception as exc:
         return t(locale, "stars_error", error=str(exc))
-
-    lines = [
-        t(locale, "stars_title"),
-        t(locale, "stars_balance", amount=str(balance.amount)),
-        t(locale, "stars_withdraw_hint"),
-        "",
-        t(locale, "stars_recent_title"),
-    ]
-    transactions = tx_data.transactions or []
-    if not transactions:
-        lines.append(t(locale, "stars_empty_tx"))
-    else:
-        for tx in reversed(transactions[-5:]):
-            sign = "+" if tx.amount > 0 else ""
-            when = datetime.fromtimestamp(tx.date, tz=timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
-            lines.append(f"• {when}: {sign}{tx.amount} ⭐")
-    return "\n".join(lines)
 
 
 @admin_router.message(Command("stats"))
@@ -3599,7 +3615,11 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
         return
     if action == "stars":
         report = await build_stars_report_text(callback.bot, locale)
-        await render_inline_panel(callback, report, admin_panel_keyboard(locale))
+        try:
+            await render_inline_panel(callback, report, admin_panel_keyboard(locale))
+        except Exception:
+            if callback.message is not None:
+                await callback.message.answer(report, reply_markup=admin_panel_keyboard(locale))
         return
     if action == "ping":
         utc_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
