@@ -158,11 +158,13 @@ def _resolve_birth_fields(
     birth_time: time | None,
     city: str | None,
     timezone_name: str | None,
-) -> tuple[date | None, time | None, str | None, str, int | None]:
+) -> tuple[date | None, time | None, str | None, str, int | None, float | None, float | None]:
     resolved_birth_date = birth_date
     resolved_birth_time = birth_time
     resolved_city = city
     resolved_timezone = timezone_name or "UTC"
+    resolved_lat = None
+    resolved_lon = None
     user_id = None
     if profile is not None:
         user_id = getattr(profile, "user_id", None)
@@ -172,9 +174,21 @@ def _resolve_birth_fields(
             resolved_birth_time = getattr(profile, "birth_time", None)
         if resolved_city is None:
             resolved_city = getattr(profile, "city", None)
-        if timezone_name is None and getattr(profile, "timezone", None):
+        resolved_lat = getattr(profile, "birth_lat", None)
+        resolved_lon = getattr(profile, "birth_lon", None)
+        if getattr(profile, "birth_timezone", None):
+            resolved_timezone = profile.birth_timezone
+        elif timezone_name is None and getattr(profile, "timezone", None):
             resolved_timezone = profile.timezone
-    return resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id
+    return (
+        resolved_birth_date,
+        resolved_birth_time,
+        resolved_city,
+        resolved_timezone,
+        user_id,
+        resolved_lat,
+        resolved_lon,
+    )
 
 
 def _format_forecast(
@@ -242,7 +256,7 @@ def generate_home_teaser(
         for_date = date.today()
 
     current_locale = "ru" if locale == "ru" else "en"
-    resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id = _resolve_birth_fields(
+    resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id, resolved_lat, resolved_lon = _resolve_birth_fields(
         profile,
         birth_date,
         birth_time,
@@ -264,6 +278,9 @@ def generate_home_teaser(
         sign=sign,
         relationship_status=relationship_status,
         user_id=user_id,
+        lat=resolved_lat,
+        lon=resolved_lon,
+        birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
     )
 
     prefix = f"{sign_emoji} " if sign_emoji else ""
@@ -315,7 +332,7 @@ def generate_horoscope(
     ctx_goal = personalization.goal if personalization else goal
     ctx_rel = personalization.relationship_status if personalization else relationship_status
 
-    resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id = _resolve_birth_fields(
+    resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id, resolved_lat, resolved_lon = _resolve_birth_fields(
         profile,
         birth_date,
         birth_time,
@@ -334,6 +351,9 @@ def generate_horoscope(
         sign=sign,
         relationship_status=ctx_rel,
         user_id=user_id,
+        lat=resolved_lat,
+        lon=resolved_lon,
+        birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
     )
 
     labels = SECTION_TEMPLATES[current_locale]

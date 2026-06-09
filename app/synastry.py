@@ -29,6 +29,12 @@ def build_synastry(
     partner_birth_time: time | None = None,
     partner_city: str | None = None,
     partner_timezone: str | None = None,
+    user_lat: float | None = None,
+    user_lon: float | None = None,
+    user_birth_timezone: str | None = None,
+    partner_lat: float | None = None,
+    partner_lon: float | None = None,
+    partner_birth_timezone: str | None = None,
     partner_name: str | None = None,
 ) -> SynastryResult:
     if user_birth_date is None:
@@ -58,6 +64,12 @@ def build_synastry(
         relation_mode=relation_mode,
         locale=locale,
         user_id=user_id,
+        user_lat=user_lat,
+        user_lon=user_lon,
+        user_birth_timezone=user_birth_timezone,
+        partner_lat=partner_lat,
+        partner_lon=partner_lon,
+        partner_birth_timezone=partner_birth_timezone,
     )
     if analysis is None:
         partner_sign = zodiac_sign(partner_birth_date)
@@ -100,8 +112,14 @@ def build_synastry_for_partner_profile(
         user_city=user_profile.city,
         user_timezone=user_profile.timezone or "UTC",
         user_id=user_profile.user_id,
+        user_lat=user_profile.birth_lat,
+        user_lon=user_profile.birth_lon,
+        user_birth_timezone=user_profile.birth_timezone,
         partner_birth_time=partner.birth_time,
         partner_city=partner.city,
-        partner_timezone=partner.timezone or user_profile.timezone or "UTC",
+        partner_timezone=partner.timezone or user_profile.birth_timezone or user_profile.timezone or "UTC",
+        partner_lat=partner.lat,
+        partner_lon=partner.lon,
+        partner_birth_timezone=partner.timezone,
         partner_name=partner.name,
     )

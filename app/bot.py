@@ -22,6 +22,7 @@ from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
 from app.evening_checkin import build_evening_response
+from app.geo import resolve_city
 from app.horoscope import generate_home_teaser, generate_horoscope, personalization_from_profile
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
@@ -320,6 +321,8 @@ TEXTS = {
         "invalid_time": "Неверный формат времени. Используйте ЧЧ:ММ, например: 09:30, или '-' если не знаете.",
         "ask_city": "Введите город рождения:",
         "city_short": "Название города слишком короткое, попробуйте еще раз.",
+        "city_not_found": "Город не найден. Укажи полное название, например: Казань, Россия",
+        "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Сессия истекла. Начните заново командой /start.",
         "profile_saved": (
             "Профиль сохранен.\n"
@@ -579,6 +582,8 @@ TEXTS = {
         "invalid_time": "Invalid time format. Use HH:MM, for example: 09:30, or '-' if unknown.",
         "ask_city": "Enter your birth city:",
         "city_short": "City name looks too short, please try again.",
+        "city_not_found": "City not found. Try the full name, e.g. Kazan, Russia",
+        "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Session expired. Please restart with /start.",
         "profile_saved": (
             "Profile saved.\n"
@@ -3579,7 +3584,6 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
     birth_time_iso = data.get("partner_birth_time")
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
     sign = zodiac_sign(birth_date)
-    user_tz = profile.timezone if profile and profile.timezone else "UTC"
 
     count = await db.count_partners(user.id)
     limit = partner_profile_limit(profile)
@@ -3592,13 +3596,26 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
+    location = await resolve_city(city, db)
+    if location is None:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_not_found')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+
     await db.add_partner(
         user.id,
         name=name,
         birth_date=birth_date,
         birth_time=birth_time,
         city=city,
-        timezone=user_tz,
+        timezone=location.timezone,
+        lat=location.lat,
+        lon=location.lon,
         sign=sign,
     )
     await state.clear()
@@ -3606,6 +3623,7 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
     await show_panel_from_message(
         message,
         f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+        f"{t(locale, 'city_resolved', city=location.display_name, timezone=location.timezone)}\n"
         f"{t(locale, 'compat_partner_saved', name=name)}\n\n"
         f"{t(locale, 'compat_choose_partner')}",
         reply_markup=compat_menu_keyboard(locale, partners),
@@ -3693,15 +3711,34 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
     sign = zodiac_sign(birth_date)
 
+    location = await resolve_city(city, db)
+    if location is None:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_not_found')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]]
+            ),
+        )
+        return
+
     await db.update_profile(
         user_id=user.id,
         birth_date=birth_date,
         birth_time=birth_time,
         city=city,
         sign=sign,
+        birth_lat=location.lat,
+        birth_lon=location.lon,
+        birth_timezone=location.timezone,
     )
     await state.set_state(ProfileSetup.waiting_relationship)
-    await show_relationship_onboarding_panel(locale, message=message)
+    await show_panel_from_message(
+        message,
+        f"{t(locale, 'city_resolved', city=location.display_name, timezone=location.timezone)}\n\n"
+        f"{t(locale, 'choose_relationship_onboarding')}",
+        reply_markup=onboarding_relationship_keyboard(locale),
+    )
 
 
 @router.message(ProfileSetup.waiting_relationship)

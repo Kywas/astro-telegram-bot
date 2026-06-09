@@ -20,9 +20,15 @@ VALID_TIMEZONES = {tz for tz, _ in TIMEZONE_OPTIONS}
 
 
 def normalize_timezone(tz_name: str | None) -> str:
+    if not tz_name:
+        return "UTC"
     if tz_name in VALID_TIMEZONES:
         return tz_name
-    return "UTC"
+    try:
+        ZoneInfo(tz_name)
+        return tz_name
+    except Exception:
+        return "UTC"
 
 
 def timezone_label(locale: str, tz_name: str) -> str:

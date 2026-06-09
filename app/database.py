@@ -13,6 +13,9 @@ class UserProfile:
     birth_date: Optional[date]
     birth_time: Optional[time]
     city: Optional[str]
+    birth_lat: Optional[float]
+    birth_lon: Optional[float]
+    birth_timezone: Optional[str]
     sign: Optional[str]
     language: str
     gender: Optional[str]
@@ -44,6 +47,8 @@ class PartnerProfile:
     birth_time: Optional[time]
     city: Optional[str]
     timezone: Optional[str]
+    lat: Optional[float]
+    lon: Optional[float]
     sign: str
     created_at: str
 
@@ -192,6 +197,34 @@ class Database:
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_partner_profiles_user ON partner_profiles(user_id)"
             )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS city_geocache (
+                    query_key TEXT PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    lat REAL NOT NULL,
+                    lon REAL NOT NULL,
+                    timezone TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            async with db.execute("PRAGMA table_info(users)") as cursor:
+                columns = await cursor.fetchall()
+                column_names = {row[1] for row in columns}
+            user_geo_columns: dict[str, str] = {
+                "birth_lat": "REAL",
+                "birth_lon": "REAL",
+                "birth_timezone": "TEXT",
+            }
+            for col_name, col_def in user_geo_columns.items():
+                if col_name not in column_names:
+                    await db.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            async with db.execute("PRAGMA table_info(partner_profiles)") as cursor:
+                partner_columns = {row[1] for row in await cursor.fetchall()}
+            for col_name, col_def in {"lat": "REAL", "lon": "REAL"}.items():
+                if col_name not in partner_columns:
+                    await db.execute(f"ALTER TABLE partner_profiles ADD COLUMN {col_name} {col_def}")
             await db.commit()
 
     async def upsert_user_identity(
@@ -216,17 +249,36 @@ class Database:
             await db.commit()
 
     async def update_profile(
-        self, user_id: int, birth_date: date, birth_time: Optional[time], city: str, sign: str
+        self,
+        user_id: int,
+        birth_date: date,
+        birth_time: Optional[time],
+        city: str,
+        sign: str,
+        *,
+        birth_lat: Optional[float] = None,
+        birth_lon: Optional[float] = None,
+        birth_timezone: Optional[str] = None,
     ) -> None:
         birth_time_str = birth_time.isoformat(timespec="minutes") if birth_time else None
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
                 UPDATE users
-                SET birth_date = ?, birth_time = ?, city = ?, sign = ?
+                SET birth_date = ?, birth_time = ?, city = ?, sign = ?,
+                    birth_lat = ?, birth_lon = ?, birth_timezone = ?
                 WHERE user_id = ?
                 """,
-                (birth_date.isoformat(), birth_time_str, city, sign, user_id),
+                (
+                    birth_date.isoformat(),
+                    birth_time_str,
+                    city,
+                    sign,
+                    birth_lat,
+                    birth_lon,
+                    birth_timezone,
+                    user_id,
+                ),
             )
             await db.commit()
 
@@ -250,6 +302,9 @@ class Database:
                     birth_date=birth_date,
                     birth_time=birth_time,
                     city=row["city"],
+                    birth_lat=row["birth_lat"],
+                    birth_lon=row["birth_lon"],
+                    birth_timezone=row["birth_timezone"],
                     sign=row["sign"],
                     language=row["language"] or "en",
                     gender=row["gender"],
@@ -448,6 +503,9 @@ class Database:
                     birth_date=birth_date,
                     birth_time=birth_time,
                     city=row["city"],
+                    birth_lat=row["birth_lat"],
+                    birth_lon=row["birth_lon"],
+                    birth_timezone=row["birth_timezone"],
                     sign=row["sign"],
                     language=row["language"] or "en",
                     gender=row["gender"],
@@ -713,6 +771,8 @@ class Database:
             birth_time=birth_time,
             city=row["city"],
             timezone=row["timezone"],
+            lat=row["lat"],
+            lon=row["lon"],
             sign=row["sign"],
             created_at=row["created_at"],
         )
@@ -760,6 +820,8 @@ class Database:
         city: Optional[str],
         timezone: Optional[str],
         sign: str,
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
     ) -> int:
         now_iso = datetime.now(timezone.utc).isoformat()
         birth_time_str = birth_time.isoformat(timespec="minutes") if birth_time else None
@@ -767,8 +829,8 @@ class Database:
             cursor = await db.execute(
                 """
                 INSERT INTO partner_profiles (
-                    user_id, name, birth_date, birth_time, city, timezone, sign, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    user_id, name, birth_date, birth_time, city, timezone, lat, lon, sign, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
@@ -777,6 +839,8 @@ class Database:
                     birth_time_str,
                     city,
                     timezone,
+                    lat,
+                    lon,
                     sign,
                     now_iso,
                 ),
@@ -792,6 +856,51 @@ class Database:
             )
             await db.commit()
             return cursor.rowcount > 0
+
+    async def get_city_geocache(self, query_key: str):
+        from app.geo import GeocodedLocation
+
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM city_geocache WHERE query_key = ?",
+                (query_key,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        if row is None:
+            return None
+        return GeocodedLocation(
+            display_name=row["display_name"],
+            lat=float(row["lat"]),
+            lon=float(row["lon"]),
+            timezone=row["timezone"],
+            source="cache",
+        )
+
+    async def save_city_geocache(self, query_key: str, location) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO city_geocache (query_key, display_name, lat, lon, timezone, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(query_key) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    lat = excluded.lat,
+                    lon = excluded.lon,
+                    timezone = excluded.timezone,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    query_key,
+                    location.display_name,
+                    location.lat,
+                    location.lon,
+                    location.timezone,
+                    now_iso,
+                ),
+            )
+            await db.commit()
 
     async def log_error(
         self,

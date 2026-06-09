@@ -799,10 +799,19 @@ def build_astro_forecast(
     sign: str | None = None,
     relationship_status: str | None = None,
     user_id: int | None = None,
+    lat: float | None = None,
+    lon: float | None = None,
+    birth_timezone: str | None = None,
 ) -> AstroForecast | None:
     try:
-        tz = normalize_timezone(timezone_name)
-        _lat, _lon, resolved_tz = resolve_birth_location(city, tz)
+        tz = normalize_timezone(birth_timezone or timezone_name)
+        _lat, _lon, resolved_tz = resolve_birth_location(
+            city,
+            tz,
+            lat=lat,
+            lon=lon,
+            birth_timezone=birth_timezone,
+        )
         period_key = period if period in {"day", "week", "month"} else "day"
         period_dates = _period_dates(period_key, for_date)
 
@@ -965,9 +974,19 @@ def _natal_chart(
     birth_time: time | None,
     city: str | None,
     timezone_name: str,
+    *,
+    lat: float | None = None,
+    lon: float | None = None,
+    birth_timezone: str | None = None,
 ) -> tuple[dict[str, float], str]:
-    tz = normalize_timezone(timezone_name)
-    _lat, _lon, resolved_tz = resolve_birth_location(city, tz)
+    tz = normalize_timezone(birth_timezone or timezone_name)
+    _lat, _lon, resolved_tz = resolve_birth_location(
+        city,
+        tz,
+        lat=lat,
+        lon=lon,
+        birth_timezone=birth_timezone,
+    )
     natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
     keys = SYNASTRY_POINTS if birth_time is not None else tuple(k for k in SYNASTRY_POINTS if k != "MOON")
     longitudes = _collect_longitudes(natal_jd, keys)
@@ -1108,17 +1127,35 @@ def build_synastry_analysis(
     relation_mode: str,
     locale: str,
     user_id: int | None = None,
+    user_lat: float | None = None,
+    user_lon: float | None = None,
+    user_birth_timezone: str | None = None,
+    partner_lat: float | None = None,
+    partner_lon: float | None = None,
+    partner_birth_timezone: str | None = None,
 ) -> SynastryAnalysis | None:
     try:
         mode = relation_mode if relation_mode in MODE_PLANET_WEIGHT else "love"
         lang = _lang(locale)
-        partner_tz = partner_timezone or user_timezone
+        partner_tz = partner_birth_timezone or partner_timezone or user_birth_timezone or user_timezone
 
         user_chart, _user_sign = _natal_chart(
-            user_birth_date, user_birth_time, user_city, user_timezone
+            user_birth_date,
+            user_birth_time,
+            user_city,
+            user_birth_timezone or user_timezone,
+            lat=user_lat,
+            lon=user_lon,
+            birth_timezone=user_birth_timezone,
         )
         partner_chart, partner_sign = _natal_chart(
-            partner_birth_date, partner_birth_time, partner_city, partner_tz
+            partner_birth_date,
+            partner_birth_time,
+            partner_city,
+            partner_tz,
+            lat=partner_lat,
+            lon=partner_lon,
+            birth_timezone=partner_birth_timezone,
         )
         hits = _collect_synastry_hits(user_chart, partner_chart)
         score = _synastry_score(hits, mode)
