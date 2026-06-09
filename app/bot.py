@@ -738,7 +738,8 @@ def public_description_ru() -> str:
         "⭐ Premium — Telegram Stars\n"
         "   · неделя и месяц\n"
         "   · полная карта и луна на 30 дней\n"
-        "   · безлимит совместимости\n\n"
+        "   · безлимит совместимости\n"
+        "   · оплата: Stars / ₽ / $\n\n"
         "🔮 /start · RU / EN"
         f"{_feedback_profile_line('ru')}"
     )
@@ -754,7 +755,8 @@ def public_description_en() -> str:
         "⭐ Premium — Telegram Stars\n"
         "   · week and month\n"
         "   · full chart and 30-day moon\n"
-        "   · unlimited compatibility\n\n"
+        "   · unlimited compatibility\n"
+        "   · pay with Stars / ₽ / $\n\n"
         "🔮 /start · RU / EN"
         f"{_feedback_profile_line('en')}"
     )
@@ -1454,9 +1456,16 @@ def breadcrumb(locale: str, *parts: str) -> str:
 
 def premium_menu_keyboard(locale: str, *, active: bool = False) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
-    if available_payment_options(settings):
-        label = t(locale, "premium_renew_button") if active else t(locale, "premium_buy_button")
-        rows.append([InlineKeyboardButton(text=label, callback_data="premium:buy")])
+    for option in available_payment_options(settings):
+        label = option.button_ru if locale == "ru" else option.button_en
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=f"premium:pay:{option.currency.value}",
+                )
+            ]
+        )
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -2259,9 +2268,9 @@ async def _premium_panel_text(user_id: int, locale: str) -> str:
         )
     else:
         status_text = t(locale, "premium_inactive")
-        prices_text = _premium_prices_text(locale)
-        if prices_text:
-            status_text = f"{status_text}\n{prices_text}"
+    prices_text = _premium_prices_text(locale)
+    if prices_text:
+        status_text = f"{status_text}\n\n{prices_text}"
     return (
         f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
         f"{status_text}\n\n"
