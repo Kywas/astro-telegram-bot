@@ -2,9 +2,10 @@
 import logging
 
 from aiogram import Bot
-from aiogram.types import FSInputFile, InputProfilePhotoStatic
+from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, InputProfilePhotoStatic
 
 from app.bot_context import BOT_ICON_PATH, settings
+from app.i18n import t
 
 def _feedback_contact_handle() -> str | None:
     return settings.feedback_username

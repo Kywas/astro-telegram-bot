@@ -26,6 +26,9 @@ async def offline_checks() -> None:
 
         home_goal_keyboard("ru")
         home_panel_keyboard("ru")
+        from app.profile_public import feedback_keyboard
+
+        feedback_keyboard("ru")
         await render_daily_panel(1, "ru")
         await onboarding_step_needed(1)
 
