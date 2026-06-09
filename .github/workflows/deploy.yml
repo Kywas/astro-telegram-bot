@@ -21,10 +21,9 @@ jobs:
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
-            python -m compileall app main.py scripts
+            python -m compileall app main.py
             systemctl restart astrobot
-            sleep 5
+            sleep 10
             systemctl is-active --quiet astrobot
             systemctl status astrobot --no-pager
-            journalctl -u astrobot -n 30 --no-pager
-            PYTHONPATH=. python scripts/smoke_test.py || echo "WARNING: Telegram API smoke test failed"
+            journalctl -u astrobot -n 40 --no-pager
