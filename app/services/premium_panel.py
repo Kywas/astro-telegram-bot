@@ -4,8 +4,10 @@ from aiogram.types import LabeledPrice, Message
 
 from app.bot_context import db, settings
 from app.i18n import t
+from app.keyboards import breadcrumb
 from app.payments import (
     PayCurrency,
+    available_payment_options,
     get_payment_option,
     parse_premium_payload,
     premium_payload,

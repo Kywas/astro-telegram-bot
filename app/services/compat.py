@@ -1,16 +1,17 @@
 """Compatibility flow helpers."""
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.bot_context import FREE_PARTNER_LIMIT, PREMIUM_PARTNER_LIMIT, SIGN_EN, SIGN_RU, db
 from app.geo import resolve_city
 from app.i18n import t
-from app.keyboards import premium_upsell_keyboard
+from app.keyboards import breadcrumb, premium_upsell_keyboard
 from app.premium import is_premium_active
 from app.synastry import build_synastry, build_synastry_for_partner_profile
 from app.timezones import user_local_date_key
-from app.ui import show_panel_from_message
+from app.ui import edit_or_send, render_inline_panel, show_panel_from_message, show_ui_panel
 from app.zodiac import resolve_sun_sign
 
 def get_sign_name(sign: str | None, locale: str) -> str:

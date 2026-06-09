@@ -1,4 +1,6 @@
 """Referral links and start payload attachment."""
+from urllib.parse import quote
+
 from aiogram import Bot
 
 from app.bot_context import db
