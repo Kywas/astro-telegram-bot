@@ -67,10 +67,3 @@ def _menu_action_from_text(text: str) -> str | None:
     return None
 
 
-def get_sign_name(sign: str | None, locale: str) -> str:
-    if not sign:
-        return "Unknown" if locale == "en" else "Неизвестно"
-    sign_map = SIGN_RU if locale == "ru" else SIGN_EN
-    return sign_map.get(sign, sign)
-
-

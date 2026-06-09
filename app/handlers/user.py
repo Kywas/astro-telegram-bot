@@ -57,7 +57,16 @@ from app.keyboards import (
     referral_panel_keyboard,
     settings_keyboard,
 )
-from app.profile_public import feedback_keyboard
+from app.profile_public import configure_public_profile, feedback_keyboard
+from app.moon_calendar import (
+    generate_moon_calendar_text,
+    generate_moon_compact_table_text,
+    generate_moon_table_text,
+)
+from app.natal import build_natal_summary
+from app.payments import PayCurrency, parse_premium_payload
+from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_active
+from app.premium_lifecycle import notify_admins_purchase
 from app.services.compat import (
     compat_daily_limit_reached,
     compat_menu_text,
@@ -72,16 +81,6 @@ from app.services.compat import (
     show_compat_menu,
     show_compat_mode_panel,
 )
-from app.moon_calendar import (
-    generate_moon_calendar_text,
-    generate_moon_compact_table_text,
-    generate_moon_table_text,
-)
-from app.natal import build_natal_summary
-from app.payments import PayCurrency, parse_premium_payload
-from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_active
-from app.premium_lifecycle import notify_admins_purchase
-from app.profile_public import configure_public_profile
 from app.services.daily_panels import (
     render_daily_panel,
     render_daily_timezone_panel,
@@ -90,6 +89,7 @@ from app.services.daily_panels import (
     show_daily_panel,
     show_daily_panel_callback,
 )
+from app.services.dates import target_date_from_day_month
 from app.services.home import build_home_panel_text
 from app.services.locale_users import detect_locale_for_user, get_user_locale
 from app.services.menu import _menu_action_from_text
@@ -1263,7 +1263,7 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
-    target = _target_date_from_day_month(raw_text, datetime.now())
+    target = target_date_from_day_month(raw_text, datetime.now())
     if target is None:
         await show_panel_from_message(
             message,

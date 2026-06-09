@@ -12,7 +12,9 @@ if str(ROOT) not in sys.path:
 
 
 async def offline_checks() -> None:
+    from app.bot import configure_public_profile, run_bot  # noqa: F401
     from app.bot_context import db
+    from app.handlers import admin as _admin  # noqa: F401
     from app.keyboards import home_goal_keyboard, home_panel_keyboard
     from app.services.daily_panels import render_daily_panel
     from app.services.onboarding import onboarding_step_needed

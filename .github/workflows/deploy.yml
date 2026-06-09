@@ -29,7 +29,7 @@ jobs:
             systemctl enable astrobot.service
             systemctl restart astrobot
             sleep 10
-            PYTHONPATH=. python scripts/update_profile.py
+            PYTHONPATH=. python scripts/update_profile.py || echo "WARN: update_profile failed, bot already restarted"
             systemctl is-active --quiet astrobot
             systemctl status astrobot --no-pager
             journalctl -u astrobot -n 40 --no-pager
