@@ -2,7 +2,7 @@ import asyncio
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 import re
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -395,6 +395,7 @@ TEXTS = {
         ),
         "ref_invalid": "Некорректный реферальный код.",
         "ref_attached": "Реферал привязан. Заверши профиль, чтобы начислить бонус пригласившему.",
+        "ref_share_button": "📤 Открыть реферальную ссылку",
         "ref_reward_inviter": "🎉 По твоей ссылке пришел новый пользователь. +7 дней premium.",
     },
     "en": {
@@ -680,6 +681,7 @@ TEXTS = {
         ),
         "ref_invalid": "Invalid referral code.",
         "ref_attached": "Referral linked. Complete profile to reward your inviter.",
+        "ref_share_button": "📤 Open referral link",
         "ref_reward_inviter": "🎉 A new user joined via your link. +7 premium days.",
     },
 }
@@ -791,6 +793,55 @@ async def build_referral_link(bot: Bot, user_id: int) -> str:
     if username:
         return f"https://t.me/{username}?start=ref_{ref_code}"
     return f"ref_{ref_code}"
+
+
+def parse_ref_code_from_start(payload: str) -> str | None:
+    raw = unquote(payload.strip())
+    if not raw.lower().startswith("ref_"):
+        return None
+    code = raw[4:].strip()
+    return code or None
+
+
+async def try_notify_referral_reward(user_id: int, bot: Bot | None) -> None:
+    inviter_id = await db.reward_referral(user_id, bonus_days=7)
+    if inviter_id is None or bot is None:
+        return
+    try:
+        inviter_locale = await get_user_locale(inviter_id)
+        await bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
+    except Exception:
+        pass
+
+
+async def attach_referrer_from_start(
+    *,
+    invited_user_id: int,
+    payload: str,
+    locale: str,
+    bot: Bot,
+) -> None:
+    ref_code = parse_ref_code_from_start(payload)
+    if not ref_code:
+        return
+    inviter_id = await db.get_user_id_by_ref_code(ref_code)
+    if inviter_id is None:
+        await bot.send_message(invited_user_id, t(locale, "ref_invalid"))
+        return
+    linked = await db.set_referrer_if_empty(invited_user_id, inviter_id)
+    if not linked:
+        return
+    await db.log_event(invited_user_id, "ref_linked")
+    await bot.send_message(invited_user_id, t(locale, "ref_attached"))
+    await try_notify_referral_reward(invited_user_id, bot)
+
+
+def referral_panel_keyboard(locale: str, link: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if link.startswith("https://"):
+        rows.append([InlineKeyboardButton(text=t(locale, "ref_share_button"), url=link)])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def build_telegram_share_url(*, text: str, url: str) -> str:
@@ -1909,15 +1960,13 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             language=default_lang,
         )
         await db.ensure_ref_code(user.id)
-        if payload.startswith("ref_"):
-            ref_code = payload[4:]
-            inviter_id = await db.get_user_id_by_ref_code(ref_code)
-            if inviter_id is None:
-                await message.answer(t(default_lang, "ref_invalid"))
-            else:
-                linked = await db.set_referrer_if_empty(user.id, inviter_id)
-                if linked:
-                    await message.answer(t(default_lang, "ref_attached"))
+        if payload:
+            await attach_referrer_from_start(
+                invited_user_id=user.id,
+                payload=payload,
+                locale=default_lang,
+                bot=message.bot,
+            )
         await state.clear()
         lang_sent = await message.answer(
             "Выбери язык / Choose language:",
@@ -1934,15 +1983,13 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         language=language,
     )
     await db.ensure_ref_code(user.id)
-    if payload.startswith("ref_"):
-        ref_code = payload[4:]
-        inviter_id = await db.get_user_id_by_ref_code(ref_code)
-        if inviter_id is None:
-            await message.answer(t(language, "ref_invalid"))
-        else:
-            linked = await db.set_referrer_if_empty(user.id, inviter_id)
-            if linked:
-                await message.answer(t(language, "ref_attached"))
+    if payload:
+        await attach_referrer_from_start(
+            invited_user_id=user.id,
+            payload=payload,
+            locale=language,
+            bot=message.bot,
+        )
     await state.clear()
     try:
         if existing_profile.birth_date is None:
@@ -2062,20 +2109,13 @@ async def ref_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    ref_code = await db.ensure_ref_code(user.id)
+    link = await build_referral_link(message.bot, user.id)
     count = await db.get_referral_count(user.id)
-    me = await message.bot.get_me()
-    username = me.username or ""
-    link = f"https://t.me/{username}?start=ref_{ref_code}" if username else f"ref_{ref_code}"
     await show_panel_from_message(
         message,
         f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
         f"{t(locale, 'ref_text', link=link, count=str(count))}",
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
-            ]
-        ),
+        reply_markup=referral_panel_keyboard(locale, link),
     )
 
 
@@ -2309,20 +2349,13 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "ref":
-        ref_code = await db.ensure_ref_code(user.id)
+        link = await build_referral_link(callback.bot, user.id)
         count = await db.get_referral_count(user.id)
-        me = await callback.bot.get_me()
-        username = me.username or ""
-        link = f"https://t.me/{username}?start=ref_{ref_code}" if username else f"ref_{ref_code}"
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
             f"{t(locale, 'ref_text', link=link, count=str(count))}",
-            InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
-                ]
-            ),
+            referral_panel_keyboard(locale, link),
         )
         return
     if action == "premium":
@@ -3311,13 +3344,7 @@ async def _complete_onboarding_with_goal(
 ) -> None:
     await db.update_preferences(user_id, goal=goal)
     await db.log_event(user_id, "profile_completed")
-    inviter_id = await db.reward_referral(user_id, bonus_days=7, min_events=2)
-    if inviter_id is not None and bot is not None:
-        try:
-            inviter_locale = await get_user_locale(inviter_id)
-            await bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
-        except Exception:
-            pass
+    await try_notify_referral_reward(user_id, bot)
 
 
 @router.callback_query(F.data.startswith("rel:set:"))
@@ -3383,6 +3410,7 @@ async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> 
     await state.clear()
     await db.update_preferences(user.id, goal=goal)
     await db.log_event(user.id, "goal_updated")
+    await try_notify_referral_reward(user.id, callback.bot)
     await callback.answer(t(locale, "goal_saved_toast", goal=label))
     await edit_or_send(
         callback,
@@ -3412,6 +3440,7 @@ async def prefs_goal_callback(callback: CallbackQuery, state: FSMContext) -> Non
         goal=goal,
     )
     await db.log_event(user.id, "prefs_wizard_done")
+    await try_notify_referral_reward(user.id, callback.bot)
     await edit_or_send(
         callback,
         t(
@@ -3447,6 +3476,7 @@ async def setprefs_handler(message: Message) -> None:
         goal=goal.lower(),
     )
     await db.log_event(user.id, "prefs_updated")
+    await try_notify_referral_reward(user.id, message.bot)
     await message.answer(
         t(
             locale,

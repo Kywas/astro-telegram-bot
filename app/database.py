@@ -649,6 +649,11 @@ class Database:
                 return row[0] if row and row[0] else code
 
     async def get_user_id_by_ref_code(self, ref_code: str) -> Optional[int]:
+        ref_code = ref_code.strip()
+        if ref_code.startswith("u") and ref_code[1:].isdigit():
+            return int(ref_code[1:])
+        if ref_code.isdigit():
+            return int(ref_code)
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute(
                 "SELECT user_id FROM users WHERE ref_code = ?",
@@ -690,8 +695,11 @@ class Database:
         self,
         invited_user_id: int,
         bonus_days: int = 7,
-        min_events: int = 2,
     ) -> Optional[int]:
+        profile = await self.get_user(invited_user_id)
+        if profile is None or profile.birth_date is None or not profile.sign or not profile.goal:
+            return None
+
         now = datetime.now(timezone.utc)
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute(
@@ -711,15 +719,6 @@ class Database:
             ) as c:
                 exists = await c.fetchone()
                 if exists is not None:
-                    return None
-
-            async with db.execute(
-                "SELECT COUNT(*) FROM events WHERE user_id = ?",
-                (invited_user_id,),
-            ) as c:
-                event_row = await c.fetchone()
-                total_events = int(event_row[0] if event_row else 0)
-                if total_events < max(1, min_events):
                     return None
 
             async with db.execute(
