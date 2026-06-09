@@ -137,11 +137,14 @@ TEXTS = {
         "home_streak": "🔥 Серия настроения: {streak} дн. подряд",
         "home_goal": "🎯 Цель: {goal}",
         "home_goal_unset": "🎯 Цель не выбрана — нажми «Цель» ниже",
+        "home_relationship": "💞 Статус: {status}",
         "choose_goal_menu": "Выбери фокус прогноза — от него зависят акценты в текстах:",
-        "choose_goal_onboarding": (
-            "✨ Последний шаг\n\n"
-            "Выбери фокус — от него зависят акценты в прогнозах:"
+        "choose_goal_onboarding": "🎯 Выбери фокус — от него зависят акценты в прогнозах:",
+        "choose_relationship_onboarding": (
+            "💞 Какой у тебя статус отношений?\n\n"
+            "От этого зависят акценты в прогнозе про отношения."
         ),
+        "relationship_saved_toast": "Статус: {status}",
         "goal_saved_toast": "Цель: {goal}",
         "profile_not_found": "Профиль не найден. Сначала используйте /start.",
         "profile_incomplete": "Профиль заполнен не полностью. Используйте /start.",
@@ -377,11 +380,14 @@ TEXTS = {
         "home_streak": "🔥 Mood streak: {streak} days in a row",
         "home_goal": "🎯 Focus: {goal}",
         "home_goal_unset": "🎯 No focus selected — tap Focus below",
+        "home_relationship": "💞 Status: {status}",
         "choose_goal_menu": "Choose your forecast focus — it shapes the highlights in your texts:",
-        "choose_goal_onboarding": (
-            "✨ Last step\n\n"
-            "Choose your focus — it shapes the highlights in your forecasts:"
+        "choose_goal_onboarding": "🎯 Choose your focus — it shapes the highlights in your forecasts:",
+        "choose_relationship_onboarding": (
+            "💞 What is your relationship status?\n\n"
+            "It shapes the relationship highlights in your forecast."
         ),
+        "relationship_saved_toast": "Status: {status}",
         "goal_saved_toast": "Focus: {goal}",
         "profile_not_found": "Profile not found. Use /start first.",
         "profile_incomplete": "Profile is incomplete. Use /start to continue.",
@@ -718,6 +724,23 @@ def prefs_goal_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
+def onboarding_relationship_keyboard(locale: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "rel_single"),
+                    callback_data="onboard:rel:single",
+                ),
+                InlineKeyboardButton(
+                    text=t(locale, "rel_relationship"),
+                    callback_data="onboard:rel:relationship",
+                ),
+            ],
+        ]
+    )
+
+
 def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for goal_key, text_key in GOAL_TEXT_KEYS.items():
@@ -734,6 +757,20 @@ def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+async def show_relationship_onboarding_panel(
+    locale: str,
+    *,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+) -> None:
+    text = t(locale, "choose_relationship_onboarding")
+    keyboard = onboarding_relationship_keyboard(locale)
+    if callback is not None:
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+    elif message is not None:
+        await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
 async def show_goal_onboarding_panel(
     locale: str,
     *,
@@ -748,9 +785,35 @@ async def show_goal_onboarding_panel(
         await show_panel_from_message(message, text, reply_markup=keyboard)
 
 
-async def user_needs_goal_selection(user_id: int) -> bool:
+async def onboarding_step_needed(user_id: int) -> str | None:
     profile = await db.get_user(user_id)
-    return bool(profile and profile.sign and not profile.goal)
+    if not profile or not profile.sign:
+        return None
+    if not profile.relationship_status:
+        return "relationship"
+    if not profile.goal:
+        return "goal"
+    return None
+
+
+async def resume_onboarding_if_needed(
+    user_id: int,
+    locale: str,
+    state: FSMContext,
+    *,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+) -> bool:
+    step = await onboarding_step_needed(user_id)
+    if step == "relationship":
+        await state.set_state(ProfileSetup.waiting_relationship)
+        await show_relationship_onboarding_panel(locale, message=message, callback=callback)
+        return True
+    if step == "goal":
+        await state.set_state(ProfileSetup.waiting_goal)
+        await show_goal_onboarding_panel(locale, message=message, callback=callback)
+        return True
+    return False
 
 
 def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
@@ -835,6 +898,14 @@ GOAL_TEXT_KEYS = {
 }
 
 
+def relationship_display(locale: str, status: str | None) -> str:
+    if status == "single":
+        return t(locale, "rel_single")
+    if status == "relationship":
+        return t(locale, "rel_relationship")
+    return "-"
+
+
 def goal_display(locale: str, goal: str | None) -> str:
     if goal in GOAL_TEXT_KEYS:
         return t(locale, GOAL_TEXT_KEYS[goal])
@@ -857,6 +928,10 @@ async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "me
             personalization=personalization_from_profile(profile),
         ),
     ]
+    if profile.relationship_status:
+        lines.append(
+            t(locale, "home_relationship", status=relationship_display(locale, profile.relationship_status))
+        )
     if profile.goal:
         lines.append(t(locale, "home_goal", goal=goal_display(locale, profile.goal)))
     else:
@@ -1417,9 +1492,13 @@ async def start_handler(message: Message, state: FSMContext) -> None:
                 reply_markup=home_panel_keyboard(language),
                 prefer_new=True,
             )
-        elif not existing_profile.goal:
-            await state.set_state(ProfileSetup.waiting_goal)
-            await show_goal_onboarding_panel(language, message=message)
+        elif await onboarding_step_needed(user.id):
+            await resume_onboarding_if_needed(
+                user.id,
+                language,
+                state,
+                message=message,
+            )
         else:
             panel_text = await build_home_panel_text(user.id, language, variant="start")
             await show_panel_from_message(
@@ -1443,9 +1522,8 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
             sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
-        elif not existing_profile.goal:
-            await state.set_state(ProfileSetup.waiting_goal)
-            await show_goal_onboarding_panel(language, message=message)
+        elif await onboarding_step_needed(user.id):
+            await resume_onboarding_if_needed(user.id, language, state, message=message)
             return
         else:
             sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
@@ -1509,9 +1587,8 @@ async def menu_handler(message: Message, state: FSMContext) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    if await user_needs_goal_selection(user.id):
-        await state.set_state(ProfileSetup.waiting_goal)
-        await show_goal_onboarding_panel(locale, message=message)
+    if await onboarding_step_needed(user.id):
+        await resume_onboarding_if_needed(user.id, locale, state, message=message)
         return
     await show_panel_from_message(
         message,
@@ -1597,9 +1674,7 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         return
 
     if action == "back":
-        if await user_needs_goal_selection(user.id):
-            await state.set_state(ProfileSetup.waiting_goal)
-            await show_goal_onboarding_panel(locale, callback=callback)
+        if await resume_onboarding_if_needed(user.id, locale, state, callback=callback):
             return
         await edit_or_send(
             callback,
@@ -1649,9 +1724,7 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         return
     if action == "home":
         await state.clear()
-        if await user_needs_goal_selection(user.id):
-            await state.set_state(ProfileSetup.waiting_goal)
-            await show_goal_onboarding_panel(locale, callback=callback)
+        if await resume_onboarding_if_needed(user.id, locale, state, callback=callback):
             return
         await edit_or_send(
             callback,
@@ -2564,13 +2637,11 @@ async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> 
     if is_onboarding:
         await state.clear()
         await _complete_onboarding_with_goal(user.id, locale, goal, callback.bot)
-        profile = await db.get_user(user.id)
-        sign_name = get_sign_name(profile.sign, locale) if profile and profile.sign else "-"
         await callback.answer(t(locale, "goal_saved_toast", goal=label))
         home_text = await build_home_panel_text(user.id, locale, variant="start")
         await edit_or_send(
             callback,
-            f"{t(locale, 'profile_saved', sign=sign_name)}\n\n{home_text}",
+            home_text,
             inline_keyboard=home_panel_keyboard(locale),
         )
         return
@@ -3181,11 +3252,41 @@ async def city_handler(message: Message, state: FSMContext) -> None:
         city=city,
         sign=sign,
     )
-    await state.set_state(ProfileSetup.waiting_goal)
-    await show_goal_onboarding_panel(
+    await state.set_state(ProfileSetup.waiting_relationship)
+    await show_relationship_onboarding_panel(locale, message=message)
+
+
+@router.message(ProfileSetup.waiting_relationship)
+async def onboarding_relationship_waiting_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await show_relationship_onboarding_panel(locale, message=message)
+
+
+@router.callback_query(F.data.startswith("onboard:rel:"))
+async def onboarding_relationship_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+    if await state.get_state() != ProfileSetup.waiting_relationship.state:
+        await callback.answer()
+        return
+
+    locale = await get_user_locale(user.id)
+    relationship = (callback.data or "").split(":")[-1]
+    if relationship not in {"single", "relationship"}:
+        relationship = "single"
+    status_label = t(
         locale,
-        message=message,
+        "rel_single" if relationship == "single" else "rel_relationship",
     )
+    await db.update_preferences(user.id, relationship_status=relationship)
+    await db.log_event(user.id, "relationship_set")
+    await callback.answer(t(locale, "relationship_saved_toast", status=status_label))
+    await state.set_state(ProfileSetup.waiting_goal)
+    await show_goal_onboarding_panel(locale, callback=callback)
 
 
 @router.message(ProfileSetup.waiting_goal)
