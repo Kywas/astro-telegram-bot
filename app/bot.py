@@ -2,6 +2,7 @@ import asyncio
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import re
+from urllib.parse import quote
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -24,7 +25,12 @@ from app.daily_sender import run_daily_loop
 from app.evening_checkin import build_evening_response
 from app.fsm_storage import SQLiteFsmStorage
 from app.geo import resolve_city, warm_timezone_finder
-from app.horoscope import generate_home_teaser, generate_horoscope, personalization_from_profile
+from app.horoscope import (
+    build_horoscope_share_text,
+    generate_home_teaser,
+    generate_horoscope,
+    personalization_from_profile,
+)
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
     generate_moon_calendar_text,
@@ -168,6 +174,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Кратко",
         "natal_mode_full": "📚 Подробно",
         "choose_horoscope_period": "Выбери период гороскопа:",
+        "share_horoscope": "📤 Поделиться прогнозом",
         "back": "⬅ Назад",
         "crumb_root": "Главная",
         "crumb_horoscope": "Гороскоп",
@@ -432,6 +439,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Short",
         "natal_mode_full": "📚 Full",
         "choose_horoscope_period": "Choose horoscope period:",
+        "share_horoscope": "📤 Share forecast",
         "back": "⬅ Back",
         "crumb_root": "Home",
         "crumb_horoscope": "Horoscope",
@@ -695,22 +703,40 @@ def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=inline_rows)
 
 
-def horoscope_period_keyboard(locale: str) -> InlineKeyboardMarkup:
+def horoscope_period_keyboard(
+    locale: str,
+    *,
+    share_url: str | None = None,
+) -> InlineKeyboardMarkup:
     if locale == "ru":
         labels = [("Сегодня", "day"), ("Неделя", "week"), ("Месяц", "month")]
     else:
         labels = [("Today", "day"), ("Week", "week"), ("Month", "month")]
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=labels[0][0], callback_data=f"horo:{labels[0][1]}"),
-                InlineKeyboardButton(text=labels[1][0], callback_data=f"horo:{labels[1][1]}"),
-                InlineKeyboardButton(text=labels[2][0], callback_data=f"horo:{labels[2][1]}"),
-            ],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-        ]
-    )
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(text=labels[0][0], callback_data=f"horo:{labels[0][1]}"),
+            InlineKeyboardButton(text=labels[1][0], callback_data=f"horo:{labels[1][1]}"),
+            InlineKeyboardButton(text=labels[2][0], callback_data=f"horo:{labels[2][1]}"),
+        ],
+    ]
+    if share_url:
+        rows.append([InlineKeyboardButton(text=t(locale, "share_horoscope"), url=share_url)])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def build_referral_link(bot: Bot, user_id: int) -> str:
+    ref_code = await db.ensure_ref_code(user_id)
+    me = await bot.get_me()
+    username = me.username or ""
+    if username:
+        return f"https://t.me/{username}?start=ref_{ref_code}"
+    return f"ref_{ref_code}"
+
+
+def build_telegram_share_url(*, text: str, url: str) -> str:
+    return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
 
 
 def moon_period_keyboard(locale: str) -> InlineKeyboardMarkup:
@@ -2224,12 +2250,26 @@ async def _send_period_horoscope(
         personalization=personalization_from_profile(profile),
         profile=profile,
     )
+    share_text = build_horoscope_share_text(
+        sign=sign,
+        sign_name=sign_name,
+        sign_emoji=SIGN_EMOJI.get(sign, ""),
+        locale=locale,
+        period=period,
+        profile=profile,
+        personalization=personalization_from_profile(profile),
+    )
+    share_url = None
+    if share_text:
+        ref_link = await build_referral_link(bot, user_id)
+        share_url = build_telegram_share_url(text=share_text, url=ref_link)
+
     await show_ui_panel(
         bot=bot,
         user_id=user_id,
         chat_id=message.chat.id,
         text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
-        reply_markup=horoscope_period_keyboard(locale),
+        reply_markup=horoscope_period_keyboard(locale, share_url=share_url),
         edit_message=message,
     )
 

@@ -369,6 +369,87 @@ def generate_horoscope(
     )
 
 
+SHARE_PERIOD_LABELS = {
+    "ru": {"day": "сегодня", "week": "неделя", "month": "месяц"},
+    "en": {"day": "today", "week": "week", "month": "month"},
+}
+
+
+def _truncate_share_line(text: str, limit: int = 140) -> str:
+    cleaned = " ".join(text.split())
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "…"
+
+
+def build_horoscope_share_text(
+    *,
+    sign: str,
+    sign_name: str,
+    sign_emoji: str,
+    locale: str,
+    period: str,
+    profile=None,
+    personalization: PersonalizationContext | None = None,
+    for_date: date | None = None,
+) -> str | None:
+    current_locale = "ru" if locale == "ru" else "en"
+    current_period = period if period in {"day", "week", "month"} else "day"
+    ctx_rel = personalization.relationship_status if personalization else None
+
+    resolved_birth_date, resolved_birth_time, resolved_city, resolved_timezone, user_id, resolved_lat, resolved_lon = _resolve_birth_fields(
+        profile,
+        None,
+        None,
+        None,
+        None,
+    )
+
+    forecast = build_astro_forecast(
+        birth_date=resolved_birth_date,
+        birth_time=resolved_birth_time,
+        city=resolved_city,
+        timezone_name=resolved_timezone,
+        for_date=for_date or date.today(),
+        locale=current_locale,
+        period=current_period,
+        sign=sign,
+        relationship_status=ctx_rel,
+        user_id=user_id,
+        lat=resolved_lat,
+        lon=resolved_lon,
+        birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
+    )
+    if forecast is None:
+        return None
+
+    period_label = SHARE_PERIOD_LABELS[current_locale][current_period]
+    sign_prefix = f"{sign_emoji} " if sign_emoji else ""
+    advice = _truncate_share_line(forecast.advice)
+
+    if current_locale == "ru":
+        lines = [
+            f"🔮 Мой астрологический прогноз · {period_label}",
+            "",
+            f"{sign_prefix}{sign_name} · энергия {forecast.energy.score}/10",
+            f"💡 {advice}",
+            f"🕐 Удачное время: {forecast.lucky_time}",
+            "",
+            "Персональный гороскоп в AstroPulse 👇",
+        ]
+    else:
+        lines = [
+            f"🔮 My astrological forecast · {period_label}",
+            "",
+            f"{sign_prefix}{sign_name} · energy {forecast.energy.score}/10",
+            f"💡 {advice}",
+            f"🕐 Lucky time: {forecast.lucky_time}",
+            "",
+            "Get your personal horoscope in AstroPulse 👇",
+        ]
+    return "\n".join(lines)
+
+
 def generate_daily_horoscope(
     sign: str,
     locale: str,
