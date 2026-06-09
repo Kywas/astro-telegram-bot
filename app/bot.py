@@ -95,21 +95,22 @@ TEXTS = {
             "/help - список команд"
         ),
         "about_block": (
-            "AstroPulse — астробот на каждый день.\n\n"
-            "Гороскоп, совместимость, лунный календарь и натальная карта — "
-            "всё под твой профиль и знак зодиака.\n\n"
-            "В Premium: прогнозы на неделю и месяц, полная карта, "
-            "безлимит совместимостей.\n\n"
-            "Языки: RU / EN\n"
-            "Контент для развлечения и саморефлексии."
+            "🌌 AstroPulse\n"
+            "Портал в тайны звёзд и лунных циклов.\n\n"
+            "✨ Гороскоп — сегодня, неделя, месяц\n"
+            "💫 Совместимость — нити судеб и знаков\n"
+            "🌙 Лунный календарь — ритм твоих решений\n"
+            "🪐 Натальная карта — отпечаток неба при рождении\n\n"
+            "⭐ Premium — глубокие видения и полный доступ\n\n"
+            "🌍 RU / EN · космос говорит мягко ✨"
         ),
         "about_show_commands": "Показать все команды",
         "welcome": (
-            "Добро пожаловать в Astro Bot.\n"
-            "Контент носит развлекательный характер.\n\n"
-            "Введите дату рождения в формате ДД.ММ.ГГГГ:"
+            "🌙 Добро пожаловать в AstroPulse.\n"
+            "Звёзды ждут твою дату рождения ✨\n\n"
+            "Введи её в формате ДД.ММ.ГГГГ:"
         ),
-        "start_home": "С возвращением 🌙\nВыбирай раздел — всё в одном месте.",
+        "start_home": "🌙 Снова здесь...\nВыбери путь среди звёзд ✨",
         "profile_not_found": "Профиль не найден. Сначала используйте /start.",
         "profile_incomplete": "Профиль заполнен не полностью. Используйте /start.",
         "profile_title": "Ваш профиль:",
@@ -191,14 +192,14 @@ TEXTS = {
         "premium_required_full_natal": "Полная натальная карта доступна в Premium. В бесплатной версии доступен краткий формат.",
         "premium_required_horo_period": "Неделя и месяц доступны в Premium. В бесплатной версии доступен период 'Сегодня'.",
         "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан. Активируй Premium для безлимита.",
-        "premium_menu_title": "Premium",
+        "premium_menu_title": "⭐ Premium",
         "premium_features": (
-            "С Premium открывается больше:\n\n"
-            "— полная натальная карта\n"
-            "— гороскоп на неделю и месяц\n"
-            "— совместимость без лимита"
+            "🌠 Что откроет Premium:\n\n"
+            "🪐 Полная натальная карта\n"
+            "✨ Гороскоп на неделю и месяц\n"
+            "💫 Совместимость без границ"
         ),
-        "premium_buy_button": "⭐ Premium на 30 дней",
+        "premium_buy_button": "🌟 Открыть Premium",
         "grant_usage": "Используй: /grantpremium <user_id> <days>. Пример: /grantpremium 123456789 30",
         "grant_done": "Premium выдан пользователю {user_id} на {days} дн.",
         "broadcast_usage": "Используй: /broadcast текст сообщения",
@@ -246,7 +247,7 @@ TEXTS = {
         "fallback": "Я не понял сообщение. Используйте /help, чтобы увидеть команды.",
         "choose_language": "Выберите язык:",
         "language_updated": "Язык обновлен. Теперь я говорю по-русски.",
-        "menu_hint": "Что интересует сегодня?",
+        "menu_hint": "🔮 Что шепчут звёзды сегодня?",
         "settings_title": "Настройки",
         "settings_hint": "Выбери раздел настроек:",
         "settings_btn_language": "🌐 Язык",
@@ -295,21 +296,22 @@ TEXTS = {
             "/help - command list"
         ),
         "about_block": (
-            "AstroPulse — your daily astrology companion.\n\n"
-            "Horoscope, compatibility, moon calendar and natal chart — "
-            "all tailored to your profile and zodiac sign.\n\n"
-            "Premium adds weekly and monthly forecasts, full natal chart "
-            "and unlimited compatibility checks.\n\n"
-            "Languages: RU / EN\n"
-            "Content for fun and self-reflection."
+            "🌌 AstroPulse\n"
+            "A portal to starlight and lunar cycles.\n\n"
+            "✨ Horoscope — today, week, month\n"
+            "💫 Compatibility — threads of fate and signs\n"
+            "🌙 Moon calendar — rhythm of your path\n"
+            "🪐 Natal chart — the sky at your birth\n\n"
+            "⭐ Premium — deeper visions and full access\n\n"
+            "🌍 RU / EN · the cosmos speaks softly ✨"
         ),
         "about_show_commands": "Show all commands",
         "welcome": (
-            "Welcome to Astro Bot.\n"
-            "This is entertainment content.\n\n"
-            "Enter your birth date in format DD.MM.YYYY:"
+            "🌙 Welcome to AstroPulse.\n"
+            "The stars await your birth date ✨\n\n"
+            "Enter it as DD.MM.YYYY:"
         ),
-        "start_home": "Welcome back 🌙\nPick a section — everything in one place.",
+        "start_home": "🌙 You're back...\nChoose your path among the stars ✨",
         "profile_not_found": "Profile not found. Use /start first.",
         "profile_incomplete": "Profile is incomplete. Use /start to continue.",
         "profile_title": "Your profile:",
@@ -391,14 +393,14 @@ TEXTS = {
         "premium_required_full_natal": "Full natal chart is available in Premium. Free version has short mode only.",
         "premium_required_horo_period": "Week and month are Premium features. Free version supports 'Today' only.",
         "premium_required_compat_daily_limit": "Free compatibility limit for today is reached. Activate Premium for unlimited usage.",
-        "premium_menu_title": "Premium",
+        "premium_menu_title": "⭐ Premium",
         "premium_features": (
-            "Premium gives you more:\n\n"
-            "— full natal chart\n"
-            "— weekly and monthly horoscope\n"
-            "— unlimited compatibility"
+            "🌠 What Premium unlocks:\n\n"
+            "🪐 Full natal chart\n"
+            "✨ Weekly and monthly horoscope\n"
+            "💫 Unlimited compatibility"
         ),
-        "premium_buy_button": "⭐ Premium for 30 days",
+        "premium_buy_button": "🌟 Unlock Premium",
         "grant_usage": "Use: /grantpremium <user_id> <days>. Example: /grantpremium 123456789 30",
         "grant_done": "Premium granted to user {user_id} for {days} days.",
         "broadcast_usage": "Use: /broadcast message text",
@@ -446,7 +448,7 @@ TEXTS = {
         "fallback": "I did not understand that. Use /help to see commands.",
         "choose_language": "Choose language:",
         "language_updated": "Language updated. I will speak English now.",
-        "menu_hint": "What would you like today?",
+        "menu_hint": "🔮 What do the stars whisper today?",
         "settings_title": "Settings",
         "settings_hint": "Choose a settings section:",
         "settings_btn_language": "🌐 Language",
@@ -479,21 +481,25 @@ TEXTS = {
 
 def public_description_ru() -> str:
     return (
-        "AstroPulse — астробот, который помогает смотреть на день через звёзды и луну.\n\n"
-        "Гороскоп, совместимость, лунный календарь и натальная карта — "
-        "под твой знак и дату рождения.\n\n"
-        "Premium: неделя, месяц, полная карта и безлимит совместимости.\n\n"
-        "RU / EN · нажми /start"
+        "🌌 AstroPulse — там, где звёзды встречаются с твоим путём.\n\n"
+        "✨ Узнай, что готовит небо: сегодня, неделя, месяц\n"
+        "💫 Сверь совместимость душ и знаков\n"
+        "🌙 Следи за лунными фазами и их знаками\n"
+        "🪐 Открой натальную карту — отпечаток рождения\n\n"
+        "⭐ Premium — глубокие прогнозы и безграничные чтения\n\n"
+        "🔮 Нажми /start · RU / EN"
     )
 
 
 def public_description_en() -> str:
     return (
-        "AstroPulse — astrology for your everyday rhythm.\n\n"
-        "Horoscope, compatibility, moon calendar and natal chart — "
-        "based on your sign and birth date.\n\n"
-        "Premium: week, month, full chart and unlimited compatibility.\n\n"
-        "RU / EN · tap /start"
+        "🌌 AstroPulse — where starlight meets your path.\n\n"
+        "✨ Discover what the sky holds: today, week, month\n"
+        "💫 Compare compatibility of souls and signs\n"
+        "🌙 Follow lunar phases and their guidance\n"
+        "🪐 Open your natal chart — imprint of your birth\n\n"
+        "⭐ Premium — deep forecasts and boundless readings\n\n"
+        "🔮 Tap /start · RU / EN"
     )
 
 
@@ -503,11 +509,11 @@ async def configure_public_profile(bot: Bot) -> None:
         await bot.set_my_name(name="AstroPulse", language_code="ru")
         await bot.set_my_name(name="AstroPulse", language_code="en")
     await bot.set_my_short_description(
-        short_description="Звёзды, луна и гороскоп — каждый день в AstroPulse. /start",
+        short_description="🌌 Звёзды шепчут, луна ведёт. AstroPulse · гороскоп · луна · карта · /start",
         language_code="ru",
     )
     await bot.set_my_short_description(
-        short_description="Stars, moon and horoscope — every day in AstroPulse. /start",
+        short_description="🌌 Stars whisper, the moon guides. AstroPulse · horoscope · moon · chart · /start",
         language_code="en",
     )
     await bot.set_my_description(
