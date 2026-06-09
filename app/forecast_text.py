@@ -86,6 +86,48 @@ ASPECT_LABELS = {
 
 Hit = tuple[float, str, str, str]
 
+ASPECT_SYMBOL = {
+    "conjunction": "☌",
+    "sextile": "⚹",
+    "trine": "△",
+    "square": "□",
+    "opposition": "☍",
+}
+
+NATAL_ROLE_SHORT = {
+    "ru": {
+        "SUN": "личные цели",
+        "MOON": "эмоции",
+        "MERCURY": "мысли и речь",
+        "VENUS": "близость и ценности",
+        "MARS": "волю и действия",
+    },
+    "en": {
+        "SUN": "personal goals",
+        "MOON": "emotions",
+        "MERCURY": "thoughts and words",
+        "VENUS": "closeness and values",
+        "MARS": "will and action",
+    },
+}
+
+ASPECT_VERB_SHORT = {
+    "ru": {
+        "conjunction": "усиливает",
+        "sextile": "поддерживает",
+        "trine": "облегчает",
+        "square": "давит на",
+        "opposition": "раскачивает",
+    },
+    "en": {
+        "conjunction": "intensifies",
+        "sextile": "supports",
+        "trine": "eases",
+        "square": "presses on",
+        "opposition": "pulls on",
+    },
+}
+
 DOMAIN_OPENERS = {
     "ru": {
         "energy": "Энергия",
@@ -358,33 +400,31 @@ def _natal_forms(locale: str, natal: str) -> tuple[str, str, str]:
     return entry[0], entry[1], entry[2]
 
 
-def _aspect_link(locale: str, aspect: str, orb: float, *, natal: str) -> str:
+def _natal_role_short(locale: str, natal: str) -> str:
     lang = _lang(locale)
-    tight = orb <= 2.0
-    orb_part = _orb_note(locale, orb)
-    natal_dat, natal_inst, _role = _natal_forms(locale, natal)
-    if lang == "ru":
-        exact = "точный " if tight else ""
-        if aspect == "conjunction":
-            return f"в соединении с натальной {natal_inst}{orb_part}"
-        mapping = {
-            "sextile": f"образует {exact}секстиль к натальному {natal_dat}{orb_part}",
-            "trine": f"образует {exact}трин к натальному {natal_dat}{orb_part}",
-            "square": f"образует {exact}квадрат к натальному {natal_dat}{orb_part}",
-            "opposition": f"образует {exact}оппозицию к натальному {natal_dat}{orb_part}",
-        }
-        return mapping[aspect]
-    exact = "exact " if tight else ""
-    label = ASPECT_LABELS[lang][aspect]
-    if aspect == "conjunction":
-        return f"is conjunct natal {natal_inst}{orb_part}"
-    mapping = {
-        "sextile": f"forms an {exact}{label} to natal {natal_dat}{orb_part}",
-        "trine": f"forms an {exact}{label} to natal {natal_dat}{orb_part}",
-        "square": f"forms an {exact}{label} to natal {natal_dat}{orb_part}",
-        "opposition": f"forms an {exact}{label} to natal {natal_dat}{orb_part}",
-    }
-    return mapping[aspect]
+    return NATAL_ROLE_SHORT[lang].get(natal, _planet_label(locale, natal).lower())
+
+
+def _compact_hit_line(
+    locale: str,
+    transit: str,
+    natal: str,
+    aspect: str,
+    orb: float,
+    *,
+    bullet: str = "▸",
+) -> str:
+    lang = _lang(locale)
+    transit_name = _planet_label(locale, transit)
+    natal_name = _planet_label(locale, natal)
+    symbol = ASPECT_SYMBOL.get(aspect, "•")
+    orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
+    verb = ASPECT_VERB_SHORT[lang][aspect]
+    role = _natal_role_short(locale, natal)
+    core = f"{transit_name} {symbol} {natal_name}{orb_part} — {verb} {role}"
+    if not bullet:
+        return core
+    return f"{bullet} {core}"
 
 
 def _love_suffix(locale: str, domain: str, transit: str, relationship_status: str | None) -> str:
@@ -409,25 +449,9 @@ def format_domain_hit(
     relationship_status: str | None = None,
     include_opener: bool = True,
 ) -> str:
-    lang = _lang(locale)
-    activation = TRANSIT_DOMAIN_VERB[lang].get(
-        (transit, domain),
-        TRANSIT_DOMAIN_VERB[lang].get((transit, "energy"), _planet_label(locale, transit)),
-    )
-    natal_dat, _natal_inst, natal_role = _natal_forms(locale, natal)
-    link = _aspect_link(locale, aspect, orb, natal=natal)
-    suffix = _love_suffix(locale, domain, transit, relationship_status)
-
-    if lang == "ru":
-        body = f"{activation} и {link} ({natal_role})"
-        if include_opener:
-            return f"{DOMAIN_OPENERS[lang][domain]}: {body}.{suffix}"
-        return f"Также {body}.{suffix}"
-
-    body = f"{activation} and {link} ({natal_role})"
-    if include_opener:
-        return f"{DOMAIN_OPENERS[lang][domain]}: {body}.{suffix}"
-    return f"Also {body}.{suffix}"
+    del include_opener
+    line = _compact_hit_line(locale, transit, natal, aspect, orb)
+    return line + _love_suffix(locale, domain, transit, relationship_status)
 
 
 def format_neutral_domain(
@@ -443,14 +467,8 @@ def format_neutral_domain(
     relation = _element_relation(moon_sign, natal_sun_sign)
     relation_line = SUN_MOON_RELATION[lang][relation]
     if lang == "ru":
-        return (
-            f"{DOMAIN_OPENERS[lang][domain]}: точных транзитов к наталу здесь нет. "
-            f"Луна в {moon} — {clause}. {relation_line}"
-        )
-    return (
-        f"{DOMAIN_OPENERS[lang][domain]}: no exact natal transits here. "
-        f"Moon in {moon} — {clause}. {relation_line}"
-    )
+        return f"Луна в {moon}: {clause}.\n{relation_line}"
+    return f"Moon in {moon}: {clause}.\n{relation_line}"
 
 
 def format_domain_section(
@@ -464,32 +482,24 @@ def format_domain_section(
 ) -> str:
     if not hits:
         return format_neutral_domain(locale, domain, moon_sign, natal_sun_sign)
-    parts = []
-    for index, (orb, transit, natal, aspect) in enumerate(hits[:2]):
-        parts.append(
-            format_domain_hit(
-                locale,
-                domain,
-                transit,
-                natal,
-                aspect,
-                orb,
-                relationship_status=relationship_status,
-                include_opener=index == 0,
-            )
+    selected = hits[:2]
+    lines: list[str] = []
+    for index, (orb, transit, natal, aspect) in enumerate(selected):
+        line = format_domain_hit(
+            locale,
+            domain,
+            transit,
+            natal,
+            aspect,
+            orb,
+            relationship_status=relationship_status if domain == "love" and index == len(selected) - 1 else None,
         )
-    return " ".join(parts)
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def format_summary_aspect(locale: str, transit: str, natal: str, aspect: str, orb: float) -> str:
-    lang = _lang(locale)
-    natal_dat, natal_inst, natal_role = _natal_forms(locale, natal)
-    link = _aspect_link(locale, aspect, orb, natal=natal)
-    if lang == "ru":
-        prefix = TRANSIT_PREFIX[lang].get(transit, f"Транзитный {_planet_label(locale, transit)}")
-        return f"{prefix} {link} ({natal_role})."
-    prefix = TRANSIT_PREFIX[lang].get(transit, f"Transit {_planet_label(locale, transit)}")
-    return f"{prefix} {link} ({natal_role})."
+    return _compact_hit_line(locale, transit, natal, aspect, orb, bullet="")
 
 
 def format_avoid(locale: str, hits: list[Hit]) -> str:
@@ -501,26 +511,14 @@ def format_avoid(locale: str, hits: list[Hit]) -> str:
         return "No sharp aspects in the forecast — keep your usual caution."
 
     orb, transit, natal, aspect = challenging[0]
-    natal_dat, natal_inst, natal_role = _natal_forms(locale, natal)
+    role = _natal_role_short(locale, natal)
     if lang == "ru":
         if aspect == "square":
-            return (
-                f"Квадрат {_planet_label(locale, transit)} к {natal_dat} ({natal_role}): "
-                f"не форсируй тему и не принимай резких решений на эмоциях."
-            )
-        return (
-            f"Оппозиция {_planet_label(locale, transit)} к {natal_dat} ({natal_role}): "
-            f"ищи компромисс, а не крайности."
-        )
+            return f"Не форсируй и не спеши — {role} под давлением."
+        return f"Не уходи в крайности — {role} требуют баланса."
     if aspect == "square":
-        return (
-            f"Square of {_planet_label(locale, transit)} to {natal_dat} ({natal_role}): "
-            f"don't force the issue or decide in heat."
-        )
-    return (
-        f"Opposition of {_planet_label(locale, transit)} to {natal_dat} ({natal_role}): "
-        f"seek compromise, not extremes."
-    )
+        return f"Don't force it or rush — {role} are under pressure."
+    return f"Avoid extremes — {role} need balance."
 
 
 def format_advice(locale: str, hits: list[Hit], moon_sign: str) -> str:
@@ -532,47 +530,23 @@ def format_advice(locale: str, hits: list[Hit], moon_sign: str) -> str:
         return f"Few exact aspects — follow the Moon in {moon} and don't force the pace."
 
     orb, transit, natal, aspect = hits[0]
-    natal_dat, natal_inst, natal_role = _natal_forms(locale, natal)
+    role = _natal_role_short(locale, natal)
     if lang == "ru":
         if aspect in {"trine", "sextile"}:
-            return (
-                f"Опирайся на {ASPECT_LABELS[lang][aspect]} {_planet_label(locale, transit)} "
-                f"к {natal_dat}: {natal_role} получает поддержку — используй это осознанно."
-            )
+            return f"Опирайся на поддержку дня — особенно в теме «{role}»."
         if aspect == "conjunction":
-            return (
-                f"Соединение {_planet_label(locale, transit)} с {natal_inst} усиливает тему "
-                f"«{natal_role}» — выбери один конкретный шаг, а не всё сразу."
-            )
+            return f"Выбери один конкретный шаг в теме «{role}», не распыляйся."
         if aspect == "square":
-            return (
-                f"Квадрат {_planet_label(locale, transit)} к {natal_dat} давит на "
-                f"«{natal_role}» — сначала снизь напряжение, потом действуй."
-            )
-        return (
-            f"Оппозиция {_planet_label(locale, transit)} к {natal_dat} тянет "
-            f"«{natal_role}» в разные стороны — ищи середину."
-        )
+            return f"Сначала снизь напряжение, потом действуй — это про {role}."
+        return f"Ищи середину — {role} тянут в разные стороны."
 
     if aspect in {"trine", "sextile"}:
-        return (
-            f"Lean on {_planet_label(locale, transit)} {ASPECT_LABELS[lang][aspect]} "
-            f"to {natal_dat}: {natal_role} is supported — use it deliberately."
-        )
+        return f"Use today's support — especially around {role}."
     if aspect == "conjunction":
-        return (
-            f"{_planet_label(locale, transit)} conjunct {natal_inst} intensifies "
-            f"{natal_role} — pick one concrete step, not everything at once."
-        )
+        return f"Pick one concrete step around {role}; don't scatter your focus."
     if aspect == "square":
-        return (
-            f"{_planet_label(locale, transit)} square {natal_dat} presses on "
-            f"{natal_role} — reduce tension first, then act."
-        )
-    return (
-        f"{_planet_label(locale, transit)} opposite {natal_dat} pulls "
-        f"{natal_role} in two directions — find the middle."
-    )
+        return f"Ease tension first, then act — especially around {role}."
+    return f"Find the middle ground — {role} are pulled in two directions."
 
 
 def format_affirmation(locale: str, hits: list[Hit]) -> str:
@@ -583,21 +557,21 @@ def format_affirmation(locale: str, hits: list[Hit]) -> str:
         return "I keep my rhythm even when the sky sets no strong accents."
 
     orb, transit, natal, aspect = hits[0]
-    natal_dat, natal_inst, natal_role = _natal_forms(locale, natal)
+    role = _natal_role_short(locale, natal)
     if lang == "ru":
         mapping = {
-            "trine": f"Я принимаю поддержку {_planet_label(locale, transit)} к {natal_dat} и укрепляю {natal_role}.",
-            "sextile": f"Я замечаю возможность, которую открывает {_planet_label(locale, transit)} к {natal_dat}.",
-            "conjunction": f"Я осознанно усиливаю {natal_role}, когда {_planet_label(locale, transit)} соединяется с {natal_inst}.",
-            "square": f"Я не форсирую {natal_role}, пока {_planet_label(locale, transit)} создаёт напряжение с {natal_inst}.",
-            "opposition": f"Я ищу баланс между потребностями {natal_role} и влиянием {_planet_label(locale, transit)}.",
+            "trine": f"Я спокойно опираюсь на поддержку дня — {role}.",
+            "sextile": f"Я замечаю возможность и использую её — {role}.",
+            "conjunction": f"Я усиливаю {role} осознанно и без спешки.",
+            "square": f"Я не форсирую {role} и сохраняю ясность.",
+            "opposition": f"Я нахожу баланс — {role}.",
         }
         return mapping[aspect]
     mapping = {
-        "trine": f"I accept {_planet_label(locale, transit)} support to {natal_dat} and strengthen {natal_role}.",
-        "sextile": f"I notice the opening {_planet_label(locale, transit)} to {natal_dat} creates.",
-        "conjunction": f"I consciously strengthen {natal_role} as {_planet_label(locale, transit)} meets {natal_inst}.",
-        "square": f"I do not force {natal_role} while {_planet_label(locale, transit)} squares {natal_inst}.",
-        "opposition": f"I balance {natal_role} with the pull of {_planet_label(locale, transit)}.",
+        "trine": f"I calmly accept today's support in {role}.",
+        "sextile": f"I notice an opening and use it in {role}.",
+        "conjunction": f"I strengthen {role} with intention and without rush.",
+        "square": f"I don't force {role} and keep my clarity.",
+        "opposition": f"I find balance in {role}.",
     }
     return mapping[aspect]
