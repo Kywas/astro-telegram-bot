@@ -4325,7 +4325,7 @@ async def onboarding_goal_waiting_handler(message: Message, state: FSMContext) -
     await show_goal_onboarding_panel(locale, message=message)
 
 
-@router.message(F.text)
+@router.message(F.text & ~F.text.startswith("/"))
 async def fallback_handler(message: Message, state: FSMContext) -> None:
     user = message.from_user
     if user is None:
@@ -4467,8 +4467,8 @@ async def run_bot() -> None:
             deny_text=TEXTS["en"]["admin_only"],
         )
     )
-    dp.include_router(router)
     dp.include_router(admin_router)
+    dp.include_router(router)
     asyncio.create_task(asyncio.to_thread(warm_timezone_finder))
     await bot.delete_webhook(drop_pending_updates=False)
     daily_task = asyncio.create_task(run_daily_loop(db, bot))
