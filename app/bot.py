@@ -125,6 +125,7 @@ TEXTS = {
             "/prefs - персональные настройки\n"
             "/prefssetup - пошаговая настройка профиля\n"
             "/stats - статистика бота (админ)\n"
+            "/stars - баланс Stars бота (админ)\n"
             "/premium - статус Premium\n"
             "/buypremium - оформить Premium (Telegram Stars)\n"
             "/about - что умеет бот\n"
@@ -310,9 +311,16 @@ TEXTS = {
         "ping_text": "Сервис работает. UTC: {utc}",
         "admin_panel": "Админ-панель:",
         "admin_btn_stats": "📊 Stats",
+        "admin_btn_stars": "⭐ Stars",
         "admin_btn_broadcast": "📣 Broadcast",
         "admin_btn_grant": "🎁 Grant Premium",
         "admin_btn_ping": "🩺 Ping",
+        "stars_title": "⭐ Баланс Telegram Stars бота",
+        "stars_balance": "Текущий баланс: {amount} Stars",
+        "stars_withdraw_hint": "Вывод через Fragment: от 1000 ⭐, новые начисления доступны через 21 день.",
+        "stars_recent_title": "Последние операции:",
+        "stars_empty_tx": "Пока нет операций.",
+        "stars_error": "Не удалось получить баланс Stars: {error}",
         "admin_broadcast_prompt": "Введи текст для рассылки:",
         "admin_grant_prompt": "Введи: user_id days (пример: 123456789 30)",
         "broadcast_preview": "Предпросмотр рассылки:\n\n{text}",
@@ -397,6 +405,7 @@ TEXTS = {
             "/prefs - personal preferences\n"
             "/prefssetup - profile setup wizard\n"
             "/stats - bot stats (admin)\n"
+            "/stars - bot Stars balance (admin)\n"
             "/premium - Premium status\n"
             "/buypremium - buy Premium (Telegram Stars)\n"
             "/about - bot capabilities\n"
@@ -582,9 +591,16 @@ TEXTS = {
         "ping_text": "Service is up. UTC: {utc}",
         "admin_panel": "Admin panel:",
         "admin_btn_stats": "📊 Stats",
+        "admin_btn_stars": "⭐ Stars",
         "admin_btn_broadcast": "📣 Broadcast",
         "admin_btn_grant": "🎁 Grant Premium",
         "admin_btn_ping": "🩺 Ping",
+        "stars_title": "⭐ Bot Telegram Stars balance",
+        "stars_balance": "Current balance: {amount} Stars",
+        "stars_withdraw_hint": "Withdraw via Fragment: from 1000 ⭐, new earnings unlock after 21 days.",
+        "stars_recent_title": "Recent transactions:",
+        "stars_empty_tx": "No transactions yet.",
+        "stars_error": "Failed to fetch Stars balance: {error}",
         "admin_broadcast_prompt": "Send broadcast text:",
         "admin_grant_prompt": "Enter: user_id days (example: 123456789 30)",
         "broadcast_preview": "Broadcast preview:\n\n{text}",
@@ -914,12 +930,13 @@ def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text=t(locale, "admin_btn_stats"), callback_data="admin:stats"),
-                InlineKeyboardButton(text=t(locale, "admin_btn_ping"), callback_data="admin:ping"),
+                InlineKeyboardButton(text=t(locale, "admin_btn_stars"), callback_data="admin:stars"),
             ],
             [
                 InlineKeyboardButton(text=t(locale, "admin_btn_broadcast"), callback_data="admin:broadcast"),
                 InlineKeyboardButton(text=t(locale, "admin_btn_grant"), callback_data="admin:grant"),
             ],
+            [InlineKeyboardButton(text=t(locale, "admin_btn_ping"), callback_data="admin:ping")],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
@@ -3407,6 +3424,31 @@ async def successful_payment_handler(message: Message) -> None:
         )
 
 
+async def build_stars_report_text(bot: Bot, locale: str) -> str:
+    try:
+        balance = await bot.get_my_star_balance()
+        tx_data = await bot.get_star_transactions(limit=10)
+    except Exception as exc:
+        return t(locale, "stars_error", error=str(exc))
+
+    lines = [
+        t(locale, "stars_title"),
+        t(locale, "stars_balance", amount=str(balance.amount)),
+        t(locale, "stars_withdraw_hint"),
+        "",
+        t(locale, "stars_recent_title"),
+    ]
+    transactions = tx_data.transactions or []
+    if not transactions:
+        lines.append(t(locale, "stars_empty_tx"))
+    else:
+        for tx in reversed(transactions[-5:]):
+            sign = "+" if tx.amount > 0 else ""
+            when = datetime.fromtimestamp(tx.date, tz=timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
+            lines.append(f"• {when}: {sign}{tx.amount} ⭐")
+    return "\n".join(lines)
+
+
 @admin_router.message(Command("stats"))
 async def stats_handler(message: Message) -> None:
     user = message.from_user
@@ -3498,6 +3540,16 @@ async def ping_handler(message: Message) -> None:
     await message.answer(t(locale, "ping_text", utc=utc_now), reply_markup=admin_panel_keyboard(locale))
 
 
+@admin_router.message(Command("stars"))
+async def stars_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    report = await build_stars_report_text(message.bot, locale)
+    await message.answer(report, reply_markup=admin_panel_keyboard(locale))
+
+
 @admin_router.message(Command("admin"))
 async def admin_panel_handler(message: Message) -> None:
     user = message.from_user
@@ -3544,6 +3596,10 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
             ),
             admin_panel_keyboard(locale),
         )
+        return
+    if action == "stars":
+        report = await build_stars_report_text(callback.bot, locale)
+        await render_inline_panel(callback, report, admin_panel_keyboard(locale))
         return
     if action == "ping":
         utc_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
