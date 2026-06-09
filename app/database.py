@@ -225,6 +225,8 @@ class Database:
             for col_name, col_def in {"lat": "REAL", "lon": "REAL"}.items():
                 if col_name not in partner_columns:
                     await db.execute(f"ALTER TABLE partner_profiles ADD COLUMN {col_name} {col_def}")
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.execute("PRAGMA busy_timeout=5000")
             await db.commit()
 
     async def upsert_user_identity(

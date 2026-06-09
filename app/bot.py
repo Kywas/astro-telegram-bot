@@ -6,7 +6,7 @@ import re
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import ErrorEvent
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import FSInputFile, InputProfilePhotoStatic, LabeledPrice
 from aiogram.types import (
@@ -22,6 +22,7 @@ from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
 from app.evening_checkin import build_evening_response
+from app.fsm_storage import SQLiteFsmStorage
 from app.geo import resolve_city, warm_timezone_finder
 from app.horoscope import generate_home_teaser, generate_horoscope, personalization_from_profile
 from app.http_proxy_session import HttpProxyAiohttpSession
@@ -323,6 +324,8 @@ TEXTS = {
         "city_short": "Название города слишком короткое, попробуйте еще раз.",
         "city_not_found": "Город не найден. Укажи полное название, например: Казань, Россия",
         "city_geocode_error": "Не удалось определить город. Попробуй ещё раз или укажи «Город, страна».",
+        "city_checking": "Проверяю город…",
+        "wizard_save_error": "Не удалось сохранить данные. Попробуй ещё раз.",
         "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Сессия истекла. Начните заново командой /start.",
         "profile_saved": (
@@ -585,6 +588,8 @@ TEXTS = {
         "city_short": "City name looks too short, please try again.",
         "city_not_found": "City not found. Try the full name, e.g. Kazan, Russia",
         "city_geocode_error": "Could not resolve the city. Try again or use “City, country”.",
+        "city_checking": "Looking up the city…",
+        "wizard_save_error": "Could not save your data. Please try again.",
         "city_resolved": "✅ {city} · {timezone}",
         "session_expired": "Session expired. Please restart with /start.",
         "profile_saved": (
@@ -3606,6 +3611,15 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
+    back_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+    )
+    await show_panel_from_message(
+        message,
+        f"⏳ {t(locale, 'city_checking')}\n\n{t(locale, 'ask_city')}",
+        reply_markup=back_keyboard,
+    )
+
     try:
         location = await geocode_city_input(message, city)
     except Exception as e:
@@ -3618,9 +3632,7 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         await show_panel_from_message(
             message,
             f"{t(locale, 'city_geocode_error')}\n\n{t(locale, 'ask_city')}",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
-            ),
+            reply_markup=back_keyboard,
         )
         return
 
@@ -3628,25 +3640,38 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
         await show_panel_from_message(
             message,
             f"{t(locale, 'city_not_found')}\n\n{t(locale, 'ask_city')}",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
-            ),
+            reply_markup=back_keyboard,
         )
         return
 
-    await db.add_partner(
-        user.id,
-        name=name,
-        birth_date=birth_date,
-        birth_time=birth_time,
-        city=city,
-        timezone=location.timezone,
-        lat=location.lat,
-        lon=location.lon,
-        sign=sign,
-    )
-    await state.clear()
-    partners = await db.list_partners(user.id)
+    try:
+        await db.add_partner(
+            user.id,
+            name=name,
+            birth_date=birth_date,
+            birth_time=birth_time,
+            city=city,
+            timezone=location.timezone,
+            lat=location.lat,
+            lon=location.lon,
+            sign=sign,
+        )
+        await state.clear()
+        partners = await db.list_partners(user.id)
+    except Exception as e:
+        await db.log_error(
+            source="partner_city_handler_save",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'wizard_save_error')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=back_keyboard,
+        )
+        return
+
     await show_panel_from_message(
         message,
         f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
@@ -3738,6 +3763,12 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
     sign = zodiac_sign(birth_date)
 
+    await show_panel_from_message(
+        message,
+        f"⏳ {t(locale, 'city_checking')}\n\n{t(locale, 'ask_city')}",
+        reply_markup=home_panel_keyboard(locale),
+    )
+
     try:
         location = await geocode_city_input(message, city)
     except Exception as e:
@@ -3764,16 +3795,31 @@ async def city_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await db.update_profile(
-        user_id=user.id,
-        birth_date=birth_date,
-        birth_time=birth_time,
-        city=city,
-        sign=sign,
-        birth_lat=location.lat,
-        birth_lon=location.lon,
-        birth_timezone=location.timezone,
-    )
+    try:
+        await db.update_profile(
+            user_id=user.id,
+            birth_date=birth_date,
+            birth_time=birth_time,
+            city=city,
+            sign=sign,
+            birth_lat=location.lat,
+            birth_lon=location.lon,
+            birth_timezone=location.timezone,
+        )
+    except Exception as e:
+        await db.log_error(
+            source="city_handler_save",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'wizard_save_error')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
     await state.set_state(ProfileSetup.waiting_relationship)
     await show_panel_from_message(
         message,
@@ -3910,7 +3956,43 @@ async def run_bot() -> None:
             error_type=type(e).__name__,
             message=str(e),
         )
-    dp = Dispatcher(storage=MemoryStorage())
+    storage = SQLiteFsmStorage(settings.database_path)
+    dp = Dispatcher(storage=storage)
+
+    @dp.errors()
+    async def on_error(event: ErrorEvent) -> None:
+        import logging
+
+        exc = event.exception
+        update = event.update
+        user_id = None
+        chat_id = None
+        if update.message and update.message.from_user:
+            user_id = update.message.from_user.id
+            chat_id = update.message.chat.id
+        elif update.callback_query and update.callback_query.from_user:
+            user_id = update.callback_query.from_user.id
+            if update.callback_query.message:
+                chat_id = update.callback_query.message.chat.id
+        await db.log_error(
+            source="dispatcher",
+            error_type=type(exc).__name__,
+            message=str(exc),
+            context=f"user_id={user_id} update={update.update_id}",
+        )
+        logging.getLogger(__name__).exception("Unhandled bot error update_id=%s", update.update_id)
+        if user_id is None or chat_id is None:
+            return
+        locale = await get_user_locale(user_id)
+        try:
+            await bot.send_message(
+                chat_id,
+                t(locale, "wizard_save_error"),
+                reply_markup=home_panel_keyboard(locale),
+            )
+        except Exception:
+            pass
+
     cleanup_middleware = DeleteUserInputMiddleware()
     router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(cleanup_middleware)

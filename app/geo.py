@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import aiohttp
-from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
 
 from app.timezones import normalize_timezone
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "AstroPulseTelegramBot/1.0 (contact: astropulse-bot)"
-_timezone_finder: TimezoneFinder | None = None
+_timezone_finder = None
 
 # lat, lon, timezone
 STATIC_CITIES: dict[str, tuple[float, float, str]] = {
@@ -177,6 +176,8 @@ def _timezone_at_sync(lat: float, lon: float) -> str:
     global _timezone_finder
     try:
         if _timezone_finder is None:
+            from timezonefinder import TimezoneFinder
+
             _timezone_finder = TimezoneFinder(in_memory=True)
         tz_name = _timezone_finder.timezone_at(lat=lat, lng=lon)
         if tz_name:
@@ -250,7 +251,10 @@ async def resolve_city(city: str, db: Database | None = None) -> GeocodedLocatio
     static = lookup_static_city(raw)
     if static is not None:
         if db is not None:
-            await db.save_city_geocache(normalize_city_query(raw), static)
+            try:
+                await db.save_city_geocache(normalize_city_query(raw), static)
+            except Exception:
+                logger.warning("geocache save failed query=%r", raw, exc_info=True)
         return static
 
     cache_key = normalize_city_query(raw)
@@ -263,7 +267,10 @@ async def resolve_city(city: str, db: Database | None = None) -> GeocodedLocatio
         result = await _fetch_nominatim(query)
         if result is not None:
             if db is not None:
-                await db.save_city_geocache(cache_key, result)
+                try:
+                    await db.save_city_geocache(cache_key, result)
+                except Exception:
+                    logger.warning("geocache save failed query=%r", raw, exc_info=True)
             return result
 
     return None
