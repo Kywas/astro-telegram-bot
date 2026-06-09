@@ -3651,7 +3651,7 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
             birth_date=birth_date,
             birth_time=birth_time,
             city=city,
-            timezone=location.timezone,
+            tz_name=location.timezone,
             lat=location.lat,
             lon=location.lon,
             sign=sign,
