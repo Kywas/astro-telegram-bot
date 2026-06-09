@@ -30,7 +30,7 @@ from app.moon_calendar import (
 )
 from app.natal import build_natal_summary
 from app.states import CompatibilityCheck, MoonDetails, PreferencesSetup, ProfileSetup
-from app.states import AdminPanel
+from app.states import AdminPanel, DailySetup
 from app.premium import is_premium_active
 from app.synastry import build_synastry
 from app.zodiac import zodiac_sign
@@ -83,7 +83,7 @@ TEXTS = {
             "/compat - совместимость с другим человеком\n"
             "/moon - лунный календарь\n"
             "/mood 1..10 - трекер настроения\n"
-            "/daily on HH:MM | off - ежедневная рассылка\n"
+            "/daily - настройка ежедневной рассылки\n"
             "/prefs - персональные настройки\n"
             "/prefssetup - пошаговая настройка профиля\n"
             "/stats - статистика бота (админ)\n"
@@ -138,6 +138,7 @@ TEXTS = {
         "crumb_about": "О боте",
         "crumb_admin": "Админка",
         "crumb_profile_setup": "Настройка профиля",
+        "crumb_daily": "Рассылка",
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
         "moon_7_days": "7 дней",
@@ -163,7 +164,16 @@ TEXTS = {
         "mood_invalid": "Укажи число от 1 до 10. Пример: /mood 7",
         "daily_enabled": "Ежедневная рассылка включена на {hhmm} (UTC).",
         "daily_disabled": "Ежедневная рассылка выключена.",
-        "daily_usage": "Используй: /daily on HH:MM или /daily off. Пример: /daily on 09:30",
+        "daily_usage": "Открой ⚙ Настройки → ⏰ Рассылка или используй кнопки ниже.",
+        "daily_menu_intro": "🌙 Гороскоп каждый день в выбранное время (UTC).",
+        "daily_status_on": "✅ Включена · каждый день в {hhmm} UTC",
+        "daily_status_off": "⏸ Сейчас выключена",
+        "daily_choose_time": "Нажми время, чтобы включить или изменить:",
+        "daily_btn_off": "🔕 Выключить рассылку",
+        "daily_btn_custom": "🕐 Своё время",
+        "daily_custom_prompt": "Введи время в формате ЧЧ:ММ (UTC)\nНапример: 09:30",
+        "daily_invalid_time": "Неверное время. Используй формат ЧЧ:ММ, например 09:30",
+        "daily_time_set": "Рассылка включена на {hhmm} UTC",
         "prefs_text": (
             "Персональные настройки:\n"
             "• Пол: {gender}\n"
@@ -284,7 +294,7 @@ TEXTS = {
             "/compat - compatibility with another person\n"
             "/moon - moon calendar\n"
             "/mood 1..10 - mood tracker\n"
-            "/daily on HH:MM | off - daily auto-send\n"
+            "/daily - daily auto-send settings\n"
             "/prefs - personal preferences\n"
             "/prefssetup - profile setup wizard\n"
             "/stats - bot stats (admin)\n"
@@ -339,6 +349,7 @@ TEXTS = {
         "crumb_about": "About",
         "crumb_admin": "Admin",
         "crumb_profile_setup": "Profile setup",
+        "crumb_daily": "Daily delivery",
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
         "moon_7_days": "7 days",
@@ -364,7 +375,16 @@ TEXTS = {
         "mood_invalid": "Use a number from 1 to 10. Example: /mood 7",
         "daily_enabled": "Daily delivery is enabled at {hhmm} (UTC).",
         "daily_disabled": "Daily delivery is disabled.",
-        "daily_usage": "Use: /daily on HH:MM or /daily off. Example: /daily on 09:30",
+        "daily_usage": "Open ⚙ Settings → ⏰ Daily or use the buttons below.",
+        "daily_menu_intro": "🌙 Your horoscope every day at a chosen time (UTC).",
+        "daily_status_on": "✅ Enabled · every day at {hhmm} UTC",
+        "daily_status_off": "⏸ Currently disabled",
+        "daily_choose_time": "Tap a time to enable or change:",
+        "daily_btn_off": "🔕 Turn off delivery",
+        "daily_btn_custom": "🕐 Custom time",
+        "daily_custom_prompt": "Enter time as HH:MM (UTC)\nExample: 09:30",
+        "daily_invalid_time": "Invalid time. Use HH:MM format, e.g. 09:30",
+        "daily_time_set": "Delivery enabled at {hhmm} UTC",
         "prefs_text": (
             "Personal preferences:\n"
             "• Gender: {gender}\n"
@@ -679,6 +699,60 @@ def settings_keyboard(locale: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
+
+
+DAILY_PRESET_TIMES = ("07:00", "08:00", "09:00", "10:00", "12:00", "18:00", "21:00")
+
+
+def daily_menu_keyboard(locale: str, *, enabled: bool, current_time: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for index in range(0, len(DAILY_PRESET_TIMES), 3):
+        row: list[InlineKeyboardButton] = []
+        for hhmm in DAILY_PRESET_TIMES[index : index + 3]:
+            label = f"✓ {hhmm}" if enabled and hhmm == current_time else hhmm
+            row.append(
+                InlineKeyboardButton(text=label, callback_data=f"daily:set:{hhmm}")
+            )
+        rows.append(row)
+    if enabled:
+        rows.append(
+            [InlineKeyboardButton(text=t(locale, "daily_btn_off"), callback_data="daily:off")]
+        )
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "daily_btn_custom"), callback_data="daily:custom")]
+    )
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:settings")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    enabled = bool(profile and profile.daily_enabled)
+    current_time = profile.daily_time if profile else "09:00"
+    status = (
+        t(locale, "daily_status_on", hhmm=current_time)
+        if enabled
+        else t(locale, "daily_status_off")
+    )
+    text = (
+        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
+        f"{t(locale, 'daily_menu_intro')}\n\n"
+        f"{status}\n\n"
+        f"{t(locale, 'daily_choose_time')}"
+    )
+    return text, daily_menu_keyboard(locale, enabled=enabled, current_time=current_time)
+
+
+async def show_daily_panel(message: Message, user_id: int, locale: str) -> None:
+    text, keyboard = await render_daily_panel(user_id, locale)
+    await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+async def show_daily_panel_callback(callback: CallbackQuery, user_id: int, locale: str) -> None:
+    text, keyboard = await render_daily_panel(user_id, locale)
+    await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 
 def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
@@ -1219,11 +1293,9 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         )
         return
     if action == "daily":
-        await render_inline_panel(
-            callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_settings'))}\n\n{t(locale, 'daily_usage')}",
-            settings_keyboard(locale),
-        )
+        await state.clear()
+        text, keyboard = await render_daily_panel(user.id, locale)
+        await render_inline_panel(callback, text, keyboard)
         return
     if action == "help":
         await render_inline_panel(
@@ -1350,7 +1422,8 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
 
 
     if action == "daily":
-        await edit_or_send(callback, t(locale, "daily_usage"), inline_keyboard=settings_keyboard(locale))
+        await state.clear()
+        await show_daily_panel_callback(callback, user.id, locale)
         return
     if action == "help":
         await edit_or_send(callback, t(locale, "help"), inline_keyboard=settings_keyboard(locale))
@@ -1799,29 +1872,103 @@ async def mood_handler(message: Message) -> None:
     await message.answer(t(locale, "mood_saved", score=str(score)), reply_markup=settings_keyboard(locale))
 
 
+@router.callback_query(F.data.startswith("daily:"))
+async def daily_settings_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+    locale = await get_user_locale(user.id)
+    parts = (callback.data or "").split(":")
+    action = parts[1] if len(parts) > 1 else ""
+
+    if action == "off":
+        await db.set_daily_subscription(user.id, enabled=False)
+        await db.log_event(user.id, "daily_off")
+        await callback.answer(t(locale, "daily_disabled"))
+        await show_daily_panel_callback(callback, user.id, locale)
+        return
+
+    if action == "set" and len(parts) >= 4:
+        hhmm = f"{parts[2]}:{parts[3]}"
+        await db.set_daily_subscription(user.id, enabled=True, daily_time=hhmm, timezone_name="UTC")
+        await db.log_event(user.id, "daily_on")
+        await callback.answer(t(locale, "daily_time_set", hhmm=hhmm))
+        await show_daily_panel_callback(callback, user.id, locale)
+        return
+
+    if action == "custom":
+        await state.set_state(DailySetup.waiting_custom_time)
+        await callback.answer()
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
+            f"{t(locale, 'daily_custom_prompt')}",
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t(locale, "back"), callback_data="daily:panel")]
+                ]
+            ),
+        )
+        return
+
+    if action == "panel":
+        await state.clear()
+        await callback.answer()
+        await show_daily_panel_callback(callback, user.id, locale)
+        return
+
+
+@router.message(DailySetup.waiting_custom_time)
+async def daily_custom_time_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw = (message.text or "").strip()
+    if not re.match(r"^\d{2}:\d{2}$", raw):
+        invalid = True
+    else:
+        hour_str, minute_str = raw.split(":")
+        invalid = int(hour_str) > 23 or int(minute_str) > 59
+    if invalid:
+        await show_panel_from_message(
+            message,
+            f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
+            f"{t(locale, 'daily_custom_prompt')}\n\n"
+            f"{t(locale, 'daily_invalid_time')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text=t(locale, "back"), callback_data="daily:panel")]
+                ]
+            ),
+        )
+        return
+    await state.clear()
+    await db.set_daily_subscription(user.id, enabled=True, daily_time=raw, timezone_name="UTC")
+    await db.log_event(user.id, "daily_on")
+    await show_daily_panel(message, user.id, locale)
+
+
 @router.message(Command("daily"))
-async def daily_handler(message: Message) -> None:
+async def daily_handler(message: Message, state: FSMContext) -> None:
     user = message.from_user
     if user is None:
         return
     locale = await get_user_locale(user.id)
     parts = (message.text or "").strip().split()
-    if len(parts) < 2:
-        await message.answer(t(locale, "daily_usage"), reply_markup=settings_keyboard(locale))
-        return
-    action = parts[1].lower()
-    if action == "off":
+    if len(parts) >= 3 and parts[1].lower() == "on" and re.match(r"^\d{2}:\d{2}$", parts[2]):
+        await db.set_daily_subscription(
+            user.id,
+            enabled=True,
+            daily_time=parts[2],
+            timezone_name="UTC",
+        )
+        await db.log_event(user.id, "daily_on")
+    elif len(parts) >= 2 and parts[1].lower() == "off":
         await db.set_daily_subscription(user.id, enabled=False)
         await db.log_event(user.id, "daily_off")
-        await message.answer(t(locale, "daily_disabled"), reply_markup=settings_keyboard(locale))
-        return
-    if action == "on" and len(parts) == 3 and re.match(r"^\d{2}:\d{2}$", parts[2]):
-        hhmm = parts[2]
-        await db.set_daily_subscription(user.id, enabled=True, daily_time=hhmm, timezone_name="UTC")
-        await db.log_event(user.id, "daily_on")
-        await message.answer(t(locale, "daily_enabled", hhmm=hhmm), reply_markup=settings_keyboard(locale))
-        return
-    await message.answer(t(locale, "daily_usage"), reply_markup=settings_keyboard(locale))
+    await state.clear()
+    await show_daily_panel(message, user.id, locale)
 
 
 @router.message(Command("prefs"))

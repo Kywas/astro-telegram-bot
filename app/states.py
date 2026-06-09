@@ -25,3 +25,7 @@ class AdminPanel(StatesGroup):
     waiting_broadcast_text = State()
     waiting_broadcast_confirm = State()
     waiting_grant_input = State()
+
+
+class DailySetup(StatesGroup):
+    waiting_custom_time = State()

@@ -3,7 +3,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, TelegramObject
 
-from app.states import AdminPanel, CompatibilityCheck, MoonDetails, ProfileSetup
+from app.states import AdminPanel, CompatibilityCheck, DailySetup, MoonDetails, ProfileSetup
 
 _DELETE_AFTER_TEXT_STATES = {
     ProfileSetup.waiting_birth_date.state,
@@ -11,6 +11,7 @@ _DELETE_AFTER_TEXT_STATES = {
     ProfileSetup.waiting_city.state,
     CompatibilityCheck.waiting_partner_birth_date.state,
     MoonDetails.waiting_day_month.state,
+    DailySetup.waiting_custom_time.state,
     AdminPanel.waiting_broadcast_text.state,
     AdminPanel.waiting_grant_input.state,
 }
