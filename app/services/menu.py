@@ -54,6 +54,10 @@ def _menu_action_from_text(text: str) -> str | None:
             "natal",
             "natal chart",
         },
+        "premium": {
+            "premium",
+            "премиум",
+        },
         "restart": {
             "заполнить профиль заново",
             "refill profile",

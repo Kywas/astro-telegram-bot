@@ -64,7 +64,7 @@ from app.moon_calendar import (
     generate_moon_table_text,
 )
 from app.natal import build_natal_summary
-from app.payments import PayCurrency, parse_premium_payload
+from app.payments import PayCurrency, available_payment_options, get_payment_option, parse_premium_payload
 from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_active
 from app.premium_lifecycle import notify_admins_purchase
 from app.services.compat import (
@@ -101,7 +101,6 @@ from app.services.onboarding import (
 )
 from app.services.premium_panel import (
     _parse_pay_currency,
-    _premium_invoice_copy,
     _premium_panel_text,
     _premium_prices_text,
     _send_premium_invoice,
@@ -335,110 +334,6 @@ async def ref_handler(message: Message) -> None:
         f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
         f"{t(locale, 'ref_text', link=link, count=str(count))}",
         reply_markup=referral_panel_keyboard(locale, link),
-    )
-
-
-async def _premium_panel_text(user_id: int, locale: str) -> str:
-    profile = await db.get_user(user_id)
-    active = bool(profile and is_premium_active(profile.premium_until))
-    if active and profile:
-        status_text = t(
-            locale,
-            "premium_active",
-            until=format_premium_until(profile.premium_until, locale),
-        )
-    else:
-        status_text = t(locale, "premium_inactive")
-    prices_text = _premium_prices_text(locale)
-    if prices_text:
-        status_text = f"{status_text}\n\n{prices_text}"
-    return (
-        f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
-        f"{status_text}\n\n"
-        f"{t(locale, 'premium_features')}"
-    )
-
-
-def _premium_prices_text(locale: str) -> str:
-    options = available_payment_options(settings)
-    if not options:
-        return ""
-    lines = [t(locale, "premium_prices_header", days=str(PREMIUM_PERIOD_DAYS))]
-    for option in options:
-        lines.append(option.panel_ru if locale == "ru" else option.panel_en)
-    return "\n".join(lines)
-
-
-def _parse_pay_currency(raw: str) -> PayCurrency | None:
-    try:
-        return PayCurrency(raw)
-    except ValueError:
-        return None
-
-
-async def _send_premium_invoice(
-    *,
-    bot: Bot,
-    chat_id: int,
-    user_id: int,
-    locale: str,
-    currency: PayCurrency,
-) -> bool:
-    option = get_payment_option(settings, currency)
-    if option is None:
-        return False
-    title, description = _premium_invoice_copy(locale)
-    try:
-        await bot.send_invoice(
-            chat_id=chat_id,
-            title=title,
-            description=description,
-            payload=premium_payload(currency),
-            provider_token=option.provider_token,
-            currency=option.telegram_currency,
-            prices=[LabeledPrice(label=f"Premium {PREMIUM_PERIOD_DAYS}d", amount=option.invoice_amount)],
-        )
-        await db.log_event(user_id, f"premium_invoice_sent:{currency.value}")
-        return True
-    except Exception:
-        await db.log_event(user_id, f"premium_invoice_failed:{currency.value}")
-        return False
-
-
-async def _start_premium_checkout(
-    *,
-    bot: Bot,
-    chat_id: int,
-    user_id: int,
-    locale: str,
-    currency: PayCurrency | None = None,
-) -> bool | None:
-    options = available_payment_options(settings)
-    if not options:
-        return None
-    if currency is None:
-        if len(options) == 1:
-            currency = options[0].currency
-        else:
-            return False
-    return await _send_premium_invoice(
-        bot=bot,
-        chat_id=chat_id,
-        user_id=user_id,
-        locale=locale,
-        currency=currency,
-    )
-
-
-def _premium_invoice_copy(locale: str) -> tuple[str, str]:
-    if locale == "ru":
-        return (
-            f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} дн.",
-            "Натальная карта, неделя/месяц, совместимость, луна на 30 дней, напоминания за 7 дней.",
-        )
-    return (
-        f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} days",
-        "Full natal chart, week/month horoscope, compatibility, 30-day moon, 7-day lunar alerts.",
     )
 
 
@@ -2613,6 +2508,9 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
         return
     if text == t(locale, "btn_natal") or action == "natal":
         await natal_handler(message)
+        return
+    if text == t(locale, "btn_premium") or action == "premium":
+        await premium_handler(message)
         return
     if text == t(locale, "btn_restart") or action == "restart":
         await start_handler(message, state)
