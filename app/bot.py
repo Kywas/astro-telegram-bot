@@ -712,8 +712,8 @@ def _feedback_profile_line(locale: str) -> str:
     if not handle:
         return ""
     if locale == "ru":
-        return f"\n\n💬 Обратная связь: @{handle}"
-    return f"\n\n💬 Feedback: @{handle}"
+        return f"\n\n💬 Обратная связь\n@{handle}\n\n/help · /feedback"
+    return f"\n\n💬 Feedback\n@{handle}\n\n/help · /feedback"
 
 
 def public_description_ru() -> str:
@@ -723,8 +723,10 @@ def public_description_ru() -> str:
         "💞 Совместимость с полным профилем партнёра\n"
         "🌙 Лунный календарь и ежедневные напоминания\n"
         "🪐 Натальная карта по Swiss Ephemeris\n\n"
-        "⭐ Premium: неделя и месяц, полная карта, луна на 30 дней, "
-        "безлимит совместимости — Telegram Stars\n\n"
+        "⭐ Premium — Telegram Stars\n"
+        "   · неделя и месяц\n"
+        "   · полная карта и луна на 30 дней\n"
+        "   · безлимит совместимости\n\n"
         "🔮 /start · RU / EN"
         f"{_feedback_profile_line('ru')}"
     )
@@ -737,31 +739,21 @@ def public_description_en() -> str:
         "💞 Compatibility with full partner profile\n"
         "🌙 Moon calendar and daily lunar reminders\n"
         "🪐 Natal chart via Swiss Ephemeris\n\n"
-        "⭐ Premium: week and month, full chart, 30-day moon, "
-        "unlimited compatibility — Telegram Stars\n\n"
+        "⭐ Premium — Telegram Stars\n"
+        "   · week and month\n"
+        "   · full chart and 30-day moon\n"
+        "   · unlimited compatibility\n\n"
         "🔮 /start · RU / EN"
         f"{_feedback_profile_line('en')}"
     )
 
 
 def public_short_description_ru() -> str:
-    base = "🌌 AstroPulse · гороскоп · луна · Premium · /start"
-    handle = _feedback_contact_handle()
-    if handle:
-        extended = f"{base} · 💬 @{handle}"
-        if len(extended) <= 120:
-            return extended
-    return base[:120]
+    return "🌌 AstroPulse — гороскоп · луна · карта · Premium"[:120]
 
 
 def public_short_description_en() -> str:
-    base = "🌌 AstroPulse · horoscope · moon · Premium · /start"
-    handle = _feedback_contact_handle()
-    if handle:
-        extended = f"{base} · 💬 @{handle}"
-        if len(extended) <= 120:
-            return extended
-    return base[:120]
+    return "🌌 AstroPulse — horoscope · moon · chart · Premium"[:120]
 
 
 def feedback_keyboard(locale: str) -> InlineKeyboardMarkup:
