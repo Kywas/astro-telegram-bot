@@ -2500,7 +2500,7 @@ async def _send_period_horoscope(
         bot=bot,
         user_id=user_id,
         chat_id=message.chat.id,
-        text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
+        text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{intro}{header}\n{horoscope_text}",
         reply_markup=horoscope_period_keyboard(locale, premium_active=premium_active, share_url=share_url),
         edit_message=message,
     )
