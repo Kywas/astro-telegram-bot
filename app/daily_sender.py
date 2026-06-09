@@ -54,6 +54,7 @@ async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> Non
             locale=locale,
             period=period,
             personalization=personalization_from_profile(user),
+            profile=user,
         )
         try:
             await bot.send_message(chat_id=user.user_id, text=text)

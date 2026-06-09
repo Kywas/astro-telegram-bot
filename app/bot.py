@@ -1961,6 +1961,7 @@ async def _send_period_horoscope(
         locale=locale,
         period=period,
         personalization=personalization_from_profile(profile),
+        profile=profile,
     )
     await show_ui_panel(
         bot=bot,

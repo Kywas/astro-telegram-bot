@@ -1,6 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from dataclasses import dataclass
 from random import Random
+
+from app.astro_engine import build_astro_horoscope_context
 
 SECTION_TEMPLATES = {
     "ru": {
@@ -524,6 +526,11 @@ def generate_horoscope(
     relationship_status: str | None = None,
     mood_score: int | None = None,
     gender: str | None = None,
+    profile=None,
+    birth_date: date | None = None,
+    birth_time: time | None = None,
+    city: str | None = None,
+    timezone_name: str | None = None,
 ) -> str:
     if personalization is None and any(v is not None for v in (goal, relationship_status, mood_score, gender)):
         personalization = PersonalizationContext(
@@ -537,6 +544,34 @@ def generate_horoscope(
 
     current_locale = "ru" if locale == "ru" else "en"
     current_period = period if period in {"day", "week", "month"} else "day"
+
+    resolved_birth_date = birth_date
+    resolved_birth_time = birth_time
+    resolved_city = city
+    resolved_timezone = timezone_name or "UTC"
+    if profile is not None:
+        if resolved_birth_date is None and getattr(profile, "birth_date", None):
+            resolved_birth_date = profile.birth_date
+        if resolved_birth_time is None:
+            resolved_birth_time = getattr(profile, "birth_time", None)
+        if resolved_city is None:
+            resolved_city = getattr(profile, "city", None)
+        if timezone_name is None and getattr(profile, "timezone", None):
+            resolved_timezone = profile.timezone
+
+    astro_ctx = None
+    user_id = getattr(profile, "user_id", None) if profile is not None else None
+    if resolved_birth_date is not None:
+        astro_ctx = build_astro_horoscope_context(
+            birth_date=resolved_birth_date,
+            birth_time=resolved_birth_time,
+            city=resolved_city,
+            timezone_name=resolved_timezone,
+            for_date=for_date,
+            locale=current_locale,
+            user_id=user_id,
+        )
+
     seed_key = _period_seed_key(current_period, for_date)
     suffix = personalization.seed_suffix() if personalization else "-"
     seed = f"{sign}-{seed_key}-{current_locale}-{current_period}-{suffix}"
@@ -566,7 +601,17 @@ def generate_horoscope(
     love_score = _section_score(rnd, ctx_mood, boost=boosts["love"])
     health_score = _section_score(rnd, ctx_mood, boost=boosts["health"])
 
+    if astro_ctx:
+        adjustments = astro_ctx.score_adjustments
+        energy_score = max(1, min(10, energy_score + adjustments.get("energy", 0)))
+        work_score = max(1, min(10, work_score + adjustments.get("work", 0)))
+        finance_score = max(1, min(10, finance_score + adjustments.get("finance", 0)))
+        love_score = max(1, min(10, love_score + adjustments.get("love", 0)))
+        health_score = max(1, min(10, health_score + adjustments.get("health", 0)))
+
     lines = [f"✨ {labels['header']} ({period_text})"]
+    if astro_ctx:
+        lines.extend(astro_ctx.summary_lines)
     if personalization and personalization.has_data():
         banner = _personalization_banner(current_locale, personalization)
         if banner:
