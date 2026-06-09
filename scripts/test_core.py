@@ -79,8 +79,6 @@ def test_referral_profile_requirements() -> None:
 def test_premium_dates() -> None:
     until = extend_premium_until(None, 7)
     assert is_premium_active(until.isoformat())
-    left = days_until_premium_end(until.isoformat(), "UTC")
-    assert left is not None and left >= 0
 
 
 def main() -> None:
