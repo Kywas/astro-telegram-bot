@@ -42,6 +42,18 @@ class UserProfile:
 
 
 @dataclass
+class UserListRow:
+    user_id: int
+    username: Optional[str]
+    first_name: Optional[str]
+    sign: Optional[str]
+    language: str
+    premium_until: Optional[str]
+    start_source: Optional[str]
+    created_at: Optional[str]
+
+
+@dataclass
 class PartnerProfile:
     id: int
     user_id: int
@@ -1032,6 +1044,40 @@ class Database:
             async with db.execute("SELECT user_id FROM users") as c:
                 rows = await c.fetchall()
         return [int(row[0]) for row in rows]
+
+    async def count_users(self) -> int:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM users") as c:
+                row = await c.fetchone()
+        return int(row[0]) if row else 0
+
+    async def list_users_page(self, *, offset: int, limit: int) -> list[UserListRow]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT user_id, username, first_name, sign, language,
+                       premium_until, start_source, created_at
+                FROM users
+                ORDER BY created_at DESC, user_id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [
+            UserListRow(
+                user_id=int(row["user_id"]),
+                username=row["username"],
+                first_name=row["first_name"],
+                sign=row["sign"],
+                language=row["language"] or "en",
+                premium_until=row["premium_until"],
+                start_source=row["start_source"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
 
     def _row_to_partner(self, row: aiosqlite.Row) -> PartnerProfile:
         birth_date = date.fromisoformat(row["birth_date"])

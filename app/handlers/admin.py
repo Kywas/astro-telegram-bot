@@ -9,8 +9,9 @@ from aiogram.types import CallbackQuery, Message
 from app.admin_alerts import notify_admins
 from app.bot_context import admin_router, db, settings
 from app.i18n import t
-from app.keyboards import admin_panel_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
+from app.keyboards import admin_panel_keyboard, admin_users_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
 from app.premium import format_premium_until
+from app.services.admin_users import build_admin_users_page
 from app.services.home import build_admin_stats_text, build_home_panel_text
 from app.services.locale_users import get_user_locale
 from app.states import AdminPanel
@@ -83,6 +84,30 @@ async def build_stars_report_text(bot: Bot, locale: str) -> str:
         return "\n".join(lines)
     except Exception as exc:
         return t(locale, "stars_error", error=str(exc))
+
+
+async def _send_admin_users(
+    *,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+    locale: str,
+    page: int,
+) -> None:
+    text, page, total_pages = await build_admin_users_page(locale, page)
+    keyboard = admin_users_keyboard(locale, page=page, total_pages=total_pages)
+    if callback is not None:
+        await render_inline_panel(callback, text, keyboard)
+    elif message is not None:
+        await message.answer(text, reply_markup=keyboard)
+
+
+@admin_router.message(Command("users"))
+async def users_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await _send_admin_users(message=message, locale=locale, page=0)
 
 
 @admin_router.message(Command("stats"))
@@ -214,6 +239,32 @@ async def admin_panel_handler(message: Message) -> None:
     await message.answer(
         f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'admin_panel')}",
         reply_markup=admin_panel_keyboard(locale),
+    )
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:users:\d+$"))
+async def admin_users_page_callback(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    page = int((callback.data or "admin:users:0").rsplit(":", 1)[-1])
+    await callback.answer()
+    await _send_admin_users(callback=callback, locale=locale, page=page)
+
+
+@admin_router.callback_query(F.data == "admin:panel")
+async def admin_panel_back_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await state.clear()
+    await callback.answer()
+    await render_inline_panel(
+        callback,
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'admin_panel')}",
+        admin_panel_keyboard(locale),
     )
 
 

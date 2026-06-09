@@ -179,7 +179,10 @@ def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(locale, "admin_btn_broadcast"), callback_data="admin:broadcast"),
                 InlineKeyboardButton(text=t(locale, "admin_btn_grant"), callback_data="admin:grant"),
             ],
-            [InlineKeyboardButton(text=t(locale, "admin_btn_ping"), callback_data="admin:ping")],
+            [
+                InlineKeyboardButton(text=t(locale, "admin_btn_users"), callback_data="admin:users:0"),
+                InlineKeyboardButton(text=t(locale, "admin_btn_ping"), callback_data="admin:ping"),
+            ],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
@@ -192,6 +195,30 @@ def about_commands_keyboard(locale: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
+
+
+def admin_users_keyboard(locale: str, *, page: int, total_pages: int) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if total_pages > 1:
+        nav: list[InlineKeyboardButton] = []
+        if page > 0:
+            nav.append(
+                InlineKeyboardButton(
+                    text=t(locale, "admin_users_prev"),
+                    callback_data=f"admin:users:{page - 1}",
+                )
+            )
+        if page < total_pages - 1:
+            nav.append(
+                InlineKeyboardButton(
+                    text=t(locale, "admin_users_next"),
+                    callback_data=f"admin:users:{page + 1}",
+                )
+            )
+        if nav:
+            rows.append(nav)
+    rows.append([InlineKeyboardButton(text=t(locale, "admin_users_back"), callback_data="admin:panel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def broadcast_confirm_keyboard(locale: str) -> InlineKeyboardMarkup:

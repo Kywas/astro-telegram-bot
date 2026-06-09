@@ -16,6 +16,7 @@ MODULES = (
     "app.handlers.user",
     "app.keyboards",
     "app.profile_public",
+    "app.services.admin_users",
     "app.services.compat",
     "app.services.daily_panels",
     "app.services.dates",
