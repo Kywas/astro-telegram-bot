@@ -23,6 +23,11 @@ class UserProfile:
     daily_enabled: bool
     daily_time: str
     timezone: str
+    evening_enabled: bool
+    evening_time: str
+    mood_streak: int
+    last_mood_date: Optional[str]
+    lunar_notify_enabled: bool
     premium_until: Optional[str]
     natal_mode: str
     ref_code: Optional[str]
@@ -119,6 +124,11 @@ class Database:
                 "daily_enabled": "INTEGER DEFAULT 0",
                 "daily_time": "TEXT DEFAULT '09:00'",
                 "timezone": "TEXT DEFAULT 'UTC'",
+                "evening_enabled": "INTEGER DEFAULT 0",
+                "evening_time": "TEXT DEFAULT '21:00'",
+                "mood_streak": "INTEGER DEFAULT 0",
+                "last_mood_date": "TEXT",
+                "lunar_notify_enabled": "INTEGER DEFAULT 1",
                 "premium_until": "TEXT",
                 "natal_mode": "TEXT DEFAULT 'full'",
                 "ref_code": "TEXT",
@@ -199,6 +209,11 @@ class Database:
                     daily_enabled=bool(row["daily_enabled"]),
                     daily_time=row["daily_time"] or "09:00",
                     timezone=row["timezone"] or "UTC",
+                    evening_enabled=bool(row["evening_enabled"]),
+                    evening_time=row["evening_time"] or "21:00",
+                    mood_streak=row["mood_streak"] or 0,
+                    last_mood_date=row["last_mood_date"],
+                    lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
                     premium_until=row["premium_until"],
                     natal_mode=row["natal_mode"] or "full",
                     ref_code=row["ref_code"],
@@ -235,18 +250,94 @@ class Database:
             )
             await db.commit()
 
-    async def update_mood(self, user_id: int, mood_score: int) -> None:
+    async def update_mood(self, user_id: int, mood_score: int, *, local_date_key: str | None = None) -> int:
+        profile = await self.get_user(user_id)
         now_iso = datetime.now(timezone.utc).isoformat()
+        streak = profile.mood_streak if profile else 0
+        last_date = profile.last_mood_date if profile else None
+
+        if local_date_key:
+            if last_date == local_date_key:
+                streak = streak or 1
+            else:
+                try:
+                    current = date.fromisoformat(local_date_key)
+                    yesterday = (current - timedelta(days=1)).isoformat()
+                except ValueError:
+                    yesterday = ""
+                if last_date == yesterday and streak > 0:
+                    streak += 1
+                else:
+                    streak = 1
+                last_date = local_date_key
+
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
                 UPDATE users
-                SET mood_score = ?, mood_updated_at = ?
+                SET mood_score = ?,
+                    mood_updated_at = ?,
+                    mood_streak = ?,
+                    last_mood_date = COALESCE(?, last_mood_date)
                 WHERE user_id = ?
                 """,
-                (mood_score, now_iso, user_id),
+                (mood_score, now_iso, streak, last_date, user_id),
             )
             await db.commit()
+        return streak
+
+    async def set_evening_checkin(
+        self,
+        user_id: int,
+        *,
+        enabled: bool,
+        evening_time: Optional[str] = None,
+    ) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """
+                UPDATE users
+                SET evening_enabled = ?,
+                    evening_time = COALESCE(?, evening_time)
+                WHERE user_id = ?
+                """,
+                (1 if enabled else 0, evening_time, user_id),
+            )
+            await db.commit()
+
+    async def set_lunar_notify(self, user_id: int, enabled: bool) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET lunar_notify_enabled = ? WHERE user_id = ?",
+                (1 if enabled else 0, user_id),
+            )
+            await db.commit()
+
+    async def get_evening_subscribers(self) -> list[UserProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM users
+                WHERE evening_enabled = 1
+                  AND sign IS NOT NULL
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return self._rows_to_profiles(rows)
+
+    async def get_lunar_notify_subscribers(self) -> list[UserProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM users
+                WHERE sign IS NOT NULL
+                  AND lunar_notify_enabled = 1
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return self._rows_to_profiles(rows)
 
     async def set_daily_subscription(
         self,
@@ -314,6 +405,11 @@ class Database:
                     daily_enabled=bool(row["daily_enabled"]),
                     daily_time=row["daily_time"] or "09:00",
                     timezone=row["timezone"] or "UTC",
+                    evening_enabled=bool(row["evening_enabled"]),
+                    evening_time=row["evening_time"] or "21:00",
+                    mood_streak=row["mood_streak"] or 0,
+                    last_mood_date=row["last_mood_date"],
+                    lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
                     premium_until=row["premium_until"],
                     natal_mode=row["natal_mode"] or "full",
                     ref_code=row["ref_code"],

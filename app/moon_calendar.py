@@ -272,3 +272,64 @@ def generate_moon_compact_table_text(locale: str, days: int, start_date: date | 
         )
 
     return "\n".join(lines)
+
+
+MAJOR_LUNAR_PHASES = ("new_moon", "full_moon")
+LUNAR_PREVIEW_DAYS = 7
+
+
+def major_lunar_phase_on(for_date: date) -> str | None:
+    age = _moon_age_days(for_date)
+    phase_key = _phase_key_by_age(age)
+    if phase_key in MAJOR_LUNAR_PHASES:
+        return phase_key
+    return None
+
+
+def lunar_event_title(phase_key: str, locale: str) -> str:
+    current_locale = "ru" if locale == "ru" else "en"
+    return PHASE_NAMES[current_locale][phase_key]
+
+
+def format_lunar_day_notification(phase_key: str, locale: str, for_date: date) -> str:
+    current_locale = "ru" if locale == "ru" else "en"
+    title = lunar_event_title(phase_key, current_locale)
+    snap = _moon_snapshot(current_locale, for_date)
+    rec_do = str(snap["do"])
+    rec_avoid = str(snap["avoid"])
+
+    if current_locale == "ru":
+        return (
+            f"🌑 Сегодня {title.lower()} ({for_date.strftime('%d.%m.%Y')})\n\n"
+            f"• Что делать: {rec_do}\n"
+            f"• Чего избегать: {rec_avoid}"
+        )
+    return (
+        f"🌑 Today is {title} ({for_date.isoformat()})\n\n"
+        f"• Do: {rec_do}\n"
+        f"• Avoid: {rec_avoid}"
+    )
+
+
+def format_lunar_preview_notification(
+    phase_key: str,
+    locale: str,
+    event_date: date,
+    *,
+    days_left: int,
+) -> str:
+    current_locale = "ru" if locale == "ru" else "en"
+    title = lunar_event_title(phase_key, current_locale)
+    snap = _moon_snapshot(current_locale, event_date)
+    rec_do = str(snap["do"])
+
+    if current_locale == "ru":
+        return (
+            f"🌙 Через {days_left} дн. — {title.lower()} "
+            f"({event_date.strftime('%d.%m.%Y')})\n\n"
+            f"Premium-напоминание: начни готовиться — {rec_do}."
+        )
+    return (
+        f"🌙 In {days_left} days — {title} ({event_date.isoformat()})\n\n"
+        f"Premium reminder: start preparing — {rec_do}."
+    )

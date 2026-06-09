@@ -21,7 +21,8 @@ from app.admin_middleware import AdminOnlyMiddleware
 from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
-from app.horoscope import generate_horoscope
+from app.evening_checkin import build_evening_response
+from app.horoscope import generate_home_teaser, generate_horoscope
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
     generate_moon_calendar_text,
@@ -38,6 +39,7 @@ from app.timezones import (
     default_timezone_for_locale,
     normalize_timezone,
     timezone_label_with_offset,
+    user_local_date_key,
 )
 from app.zodiac import zodiac_sign
 
@@ -79,6 +81,21 @@ SIGN_EN = {
     "Pisces": "Pisces",
 }
 
+SIGN_EMOJI = {
+    "Aries": "♈",
+    "Taurus": "♉",
+    "Gemini": "♊",
+    "Cancer": "♋",
+    "Leo": "♌",
+    "Virgo": "♍",
+    "Libra": "♎",
+    "Scorpio": "♏",
+    "Sagittarius": "♐",
+    "Capricorn": "♑",
+    "Aquarius": "♒",
+    "Pisces": "♓",
+}
+
 TEXTS = {
     "ru": {
         "help": (
@@ -117,6 +134,7 @@ TEXTS = {
             "Введи её в формате ДД.ММ.ГГГГ:"
         ),
         "start_home": "🌙 Снова здесь...\nВыбери путь среди звёзд ✨",
+        "home_streak": "🔥 Серия настроения: {streak} дн. подряд",
         "profile_not_found": "Профиль не найден. Сначала используйте /start.",
         "profile_incomplete": "Профиль заполнен не полностью. Используйте /start.",
         "profile_title": "Ваш профиль:",
@@ -166,7 +184,7 @@ TEXTS = {
             "Оценка: {score}%\n\n"
             "{details}"
         ),
-        "mood_saved": "Настроение сохранено: {score}/10. Следующие прогнозы станут точнее.",
+        "mood_saved": "Настроение сохранено: {score}/10. Серия: {streak} дн.",
         "mood_invalid": "Укажи число от 1 до 10. Пример: /mood 7",
         "daily_enabled": "Ежедневная рассылка включена на {hhmm} ({tz}).",
         "daily_disabled": "Ежедневная рассылка выключена.",
@@ -183,6 +201,21 @@ TEXTS = {
         "daily_custom_prompt": "Введи время в формате ЧЧ:ММ\nНапример: 09:30",
         "daily_invalid_time": "Неверное время. Используй формат ЧЧ:ММ, например 09:30",
         "daily_time_set": "Рассылка включена на {hhmm} ({tz})",
+        "daily_retention_header": "🌙 Удержание и привычки",
+        "evening_status_on": "🌆 Вечерний чек-ин · {hhmm} ({tz})",
+        "evening_status_off": "🌆 Вечерний чек-ин выключен",
+        "evening_streak_line": "🔥 Серия: {streak} дн. подряд",
+        "evening_choose_time": "Выбери время вечернего чек-ина:",
+        "evening_btn_setup": "🌆 Вечерний чек-ин",
+        "evening_btn_off": "🔕 Выключить вечерний чек-ин",
+        "evening_time_set": "Вечерний чек-ин включён на {hhmm} ({tz})",
+        "evening_disabled": "Вечерний чек-ин выключен.",
+        "lunar_status_on": "🌑 Лунные напоминания: вкл (новолуние/полнолуние)",
+        "lunar_status_off": "🌑 Лунные напоминания: выкл",
+        "lunar_btn_on": "🌑 Включить лунные напоминания",
+        "lunar_btn_off": "🔕 Выключить лунные напоминания",
+        "lunar_enabled_toast": "Лунные напоминания включены",
+        "lunar_disabled_toast": "Лунные напоминания выключены",
         "prefs_text": (
             "Персональные настройки:\n"
             "• Пол: {gender}\n"
@@ -331,6 +364,7 @@ TEXTS = {
             "Enter it as DD.MM.YYYY:"
         ),
         "start_home": "🌙 You're back...\nChoose your path among the stars ✨",
+        "home_streak": "🔥 Mood streak: {streak} days in a row",
         "profile_not_found": "Profile not found. Use /start first.",
         "profile_incomplete": "Profile is incomplete. Use /start to continue.",
         "profile_title": "Your profile:",
@@ -380,7 +414,7 @@ TEXTS = {
             "Score: {score}%\n\n"
             "{details}"
         ),
-        "mood_saved": "Mood saved: {score}/10. Upcoming forecasts will be more personalized.",
+        "mood_saved": "Mood saved: {score}/10. Streak: {streak} days.",
         "mood_invalid": "Use a number from 1 to 10. Example: /mood 7",
         "daily_enabled": "Daily delivery is enabled at {hhmm} ({tz}).",
         "daily_disabled": "Daily delivery is disabled.",
@@ -397,6 +431,21 @@ TEXTS = {
         "daily_custom_prompt": "Enter time as HH:MM\nExample: 09:30",
         "daily_invalid_time": "Invalid time. Use HH:MM format, e.g. 09:30",
         "daily_time_set": "Delivery enabled at {hhmm} ({tz})",
+        "daily_retention_header": "🌙 Retention & habits",
+        "evening_status_on": "🌆 Evening check-in · {hhmm} ({tz})",
+        "evening_status_off": "🌆 Evening check-in disabled",
+        "evening_streak_line": "🔥 Streak: {streak} days in a row",
+        "evening_choose_time": "Choose your evening check-in time:",
+        "evening_btn_setup": "🌆 Evening check-in",
+        "evening_btn_off": "🔕 Turn off evening check-in",
+        "evening_time_set": "Evening check-in enabled at {hhmm} ({tz})",
+        "evening_disabled": "Evening check-in disabled.",
+        "lunar_status_on": "🌑 Lunar reminders: on (new/full moon)",
+        "lunar_status_off": "🌑 Lunar reminders: off",
+        "lunar_btn_on": "🌑 Enable lunar reminders",
+        "lunar_btn_off": "🔕 Disable lunar reminders",
+        "lunar_enabled_toast": "Lunar reminders enabled",
+        "lunar_disabled_toast": "Lunar reminders disabled",
         "prefs_text": (
             "Personal preferences:\n"
             "• Gender: {gender}\n"
@@ -714,6 +763,33 @@ def settings_keyboard(locale: str) -> InlineKeyboardMarkup:
 
 
 DAILY_PRESET_TIMES = ("07:00", "08:00", "09:00", "10:00", "12:00", "18:00", "21:00")
+EVENING_PRESET_TIMES = ("19:00", "20:00", "21:00", "22:00")
+
+
+def sign_display(locale: str, sign: str) -> str:
+    if locale == "ru":
+        return SIGN_RU.get(sign, sign)
+    return SIGN_EN.get(sign, sign)
+
+
+async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "menu") -> str:
+    base = t(locale, "start_home" if variant == "start" else "menu_hint")
+    profile = await db.get_user(user_id)
+    if not profile or not profile.sign:
+        return base
+
+    lines = [
+        base,
+        generate_home_teaser(
+            profile.sign,
+            locale,
+            sign_label=sign_display(locale, profile.sign),
+            sign_emoji=SIGN_EMOJI.get(profile.sign, ""),
+        ),
+    ]
+    if profile.mood_streak > 0:
+        lines.append(t(locale, "home_streak", streak=str(profile.mood_streak)))
+    return "\n\n".join(lines)
 
 
 def resolve_user_timezone(profile, locale: str) -> str:
@@ -727,6 +803,7 @@ def daily_menu_keyboard(
     *,
     enabled: bool,
     current_time: str,
+    lunar_enabled: bool,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for index in range(0, len(DAILY_PRESET_TIMES), 3):
@@ -753,8 +830,51 @@ def daily_menu_keyboard(
         [InlineKeyboardButton(text=t(locale, "daily_btn_custom"), callback_data="daily:custom")]
     )
     rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "evening_btn_setup"),
+                callback_data="evening:panel",
+            )
+        ]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=(
+                    t(locale, "lunar_btn_off")
+                    if lunar_enabled
+                    else t(locale, "lunar_btn_on")
+                ),
+                callback_data="daily:lunar:toggle",
+            )
+        ]
+    )
+    rows.append(
         [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:settings")]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def evening_menu_keyboard(
+    locale: str,
+    *,
+    enabled: bool,
+    current_time: str,
+) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for index in range(0, len(EVENING_PRESET_TIMES), 2):
+        row: list[InlineKeyboardButton] = []
+        for hhmm in EVENING_PRESET_TIMES[index : index + 2]:
+            label = f"✓ {hhmm}" if enabled and hhmm == current_time else hhmm
+            row.append(
+                InlineKeyboardButton(text=label, callback_data=f"evening:set:{hhmm}")
+            )
+        rows.append(row)
+    if enabled:
+        rows.append(
+            [InlineKeyboardButton(text=t(locale, "evening_btn_off"), callback_data="evening:off")]
+        )
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="daily:panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -787,13 +907,62 @@ async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyb
         if enabled
         else t(locale, "daily_status_off", tz=tz_label)
     )
+    evening_enabled = bool(profile and profile.evening_enabled)
+    evening_time = profile.evening_time if profile else "21:00"
+    evening_status = (
+        t(locale, "evening_status_on", hhmm=evening_time, tz=tz_label)
+        if evening_enabled
+        else t(locale, "evening_status_off")
+    )
+    lunar_enabled = bool(profile.lunar_notify_enabled) if profile else True
+    lunar_status = (
+        t(locale, "lunar_status_on") if lunar_enabled else t(locale, "lunar_status_off")
+    )
+    extra_lines = [
+        "",
+        t(locale, "daily_retention_header"),
+        evening_status,
+        lunar_status,
+    ]
+    if profile and profile.mood_streak > 0:
+        extra_lines.append(
+            t(locale, "evening_streak_line", streak=str(profile.mood_streak))
+        )
     text = (
         f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
         f"{t(locale, 'daily_menu_intro')}\n\n"
         f"{status}\n\n"
-        f"{t(locale, 'daily_choose_time')}"
+        f"{t(locale, 'daily_choose_time')}\n"
+        f"{chr(10).join(extra_lines)}"
     )
-    return text, daily_menu_keyboard(locale, enabled=enabled, current_time=current_time)
+    return text, daily_menu_keyboard(
+        locale,
+        enabled=enabled,
+        current_time=current_time,
+        lunar_enabled=lunar_enabled,
+    )
+
+
+async def render_evening_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    enabled = bool(profile and profile.evening_enabled)
+    current_time = profile.evening_time if profile else "21:00"
+    current_tz = resolve_user_timezone(profile, locale)
+    tz_label = timezone_label_with_offset(locale, current_tz)
+    status = (
+        t(locale, "evening_status_on", hhmm=current_time, tz=tz_label)
+        if enabled
+        else t(locale, "evening_status_off")
+    )
+    streak_line = ""
+    if profile and profile.mood_streak > 0:
+        streak_line = f"\n{t(locale, 'evening_streak_line', streak=str(profile.mood_streak))}\n"
+    text = (
+        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
+        f"{status}{streak_line}\n"
+        f"{t(locale, 'evening_choose_time')}"
+    )
+    return text, evening_menu_keyboard(locale, enabled=enabled, current_time=current_time)
 
 
 async def render_daily_timezone_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
@@ -1169,7 +1338,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             await state.set_state(ProfileSetup.waiting_birth_date)
             panel_text = t(language, "welcome")
         else:
-            panel_text = t(language, "start_home")
+            panel_text = await build_home_panel_text(user.id, language, variant="start")
         await show_panel_from_message(
             message,
             panel_text,
@@ -1186,7 +1355,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         fallback_text = (
             t(language, "welcome")
             if existing_profile.birth_date is None
-            else t(language, "start_home")
+            else await build_home_panel_text(user.id, language, variant="start")
         )
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
@@ -1253,7 +1422,7 @@ async def menu_handler(message: Message) -> None:
     locale = await get_user_locale(user.id)
     await show_panel_from_message(
         message,
-        t(locale, "menu_hint"),
+        await build_home_panel_text(user.id, locale),
         reply_markup=home_panel_keyboard(locale),
         prefer_new=True,
     )
@@ -1335,7 +1504,11 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         return
 
     if action == "back":
-        await edit_or_send(callback, t(locale, "menu_hint"), inline_keyboard=home_panel_keyboard(locale))
+        await edit_or_send(
+            callback,
+            await build_home_panel_text(user.id, locale),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
         return
     if action == "language":
         await render_inline_panel(
@@ -1379,7 +1552,11 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         return
     if action == "home":
         await state.clear()
-        await edit_or_send(callback, t(locale, "menu_hint"), inline_keyboard=home_panel_keyboard(locale))
+        await edit_or_send(
+            callback,
+            await build_home_panel_text(user.id, locale),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
         return
     if action == "settings":
         await render_inline_panel(
@@ -1682,7 +1859,11 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
     period = (callback.data or "").split(":")[-1]
     if period == "back":
         await callback.answer()
-        await edit_or_send(callback, t(locale, "menu_hint"), inline_keyboard=home_panel_keyboard(locale))
+        await edit_or_send(
+            callback,
+            await build_home_panel_text(user.id, locale),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
         return
 
     if period not in {"day", "week", "month"}:
@@ -1841,7 +2022,11 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
 
     if action == "back":
         await state.clear()
-        await edit_or_send(callback, t(locale, "menu_hint"), inline_keyboard=home_panel_keyboard(locale))
+        await edit_or_send(
+            callback,
+            await build_home_panel_text(user.id, locale),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
         return
 
     if action == "7":
@@ -1916,6 +2101,13 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
     )
 
 
+async def save_user_mood(user_id: int, locale: str, score: int) -> int:
+    profile = await db.get_user(user_id)
+    tz = resolve_user_timezone(profile, locale)
+    local_date = user_local_date_key(datetime.now(timezone.utc), tz)
+    return await db.update_mood(user_id, score, local_date_key=local_date)
+
+
 @router.message(Command("mood"))
 async def mood_handler(message: Message) -> None:
     user = message.from_user
@@ -1930,9 +2122,74 @@ async def mood_handler(message: Message) -> None:
     if score < 1 or score > 10:
         await message.answer(t(locale, "mood_invalid"), reply_markup=settings_keyboard(locale))
         return
-    await db.update_mood(user.id, score)
+    streak = await save_user_mood(user.id, locale, score)
     await db.log_event(user.id, "mood_updated")
-    await message.answer(t(locale, "mood_saved", score=str(score)), reply_markup=settings_keyboard(locale))
+    await message.answer(
+        t(locale, "mood_saved", score=str(score), streak=str(streak)),
+        reply_markup=settings_keyboard(locale),
+    )
+
+
+@router.callback_query(F.data.startswith("checkin:mood:"))
+async def checkin_mood_callback_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3 or not parts[2].isdigit():
+        await callback.answer()
+        return
+    score = int(parts[2])
+    if score < 1 or score > 10:
+        await callback.answer(t(locale, "mood_invalid"))
+        return
+
+    streak = await save_user_mood(user.id, locale, score)
+    await db.log_event(user.id, "evening_checkin_done")
+    response_text = build_evening_response(locale, score, streak)
+    await callback.answer()
+    if callback.message:
+        await callback.message.edit_text(response_text)
+
+
+@router.callback_query(F.data.startswith("evening:"))
+async def evening_settings_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+    locale = await get_user_locale(user.id)
+    parts = (callback.data or "").split(":")
+    action = parts[1] if len(parts) > 1 else ""
+
+    if action == "panel":
+        await state.clear()
+        await callback.answer()
+        text, keyboard = await render_evening_panel(user.id, locale)
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+        return
+
+    if action == "off":
+        await db.set_evening_checkin(user.id, enabled=False)
+        await db.log_event(user.id, "evening_off")
+        await callback.answer(t(locale, "evening_disabled"))
+        text, keyboard = await render_evening_panel(user.id, locale)
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+        return
+
+    if action == "set" and len(parts) >= 4:
+        hhmm = f"{parts[2]}:{parts[3]}"
+        profile = await db.get_user(user.id)
+        tz = resolve_user_timezone(profile, locale)
+        await db.set_evening_checkin(user.id, enabled=True, evening_time=hhmm)
+        await db.log_event(user.id, "evening_on")
+        tz_label = timezone_label_with_offset(locale, tz)
+        await callback.answer(t(locale, "evening_time_set", hhmm=hhmm, tz=tz_label))
+        text, keyboard = await render_evening_panel(user.id, locale)
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+        return
+
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("daily:"))
@@ -1996,6 +2253,20 @@ async def daily_settings_callback_handler(callback: CallbackQuery, state: FSMCon
                 ]
             ),
         )
+        return
+
+    if action == "lunar" and len(parts) >= 3 and parts[2] == "toggle":
+        profile = await db.get_user(user.id)
+        enabled_now = bool(profile.lunar_notify_enabled) if profile else True
+        await db.set_lunar_notify(user.id, enabled=not enabled_now)
+        await db.log_event(user.id, "lunar_notify_toggled")
+        toast = (
+            t(locale, "lunar_disabled_toast")
+            if enabled_now
+            else t(locale, "lunar_enabled_toast")
+        )
+        await callback.answer(toast)
+        await show_daily_panel_callback(callback, user.id, locale)
         return
 
     if action == "panel":
@@ -2430,7 +2701,11 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
 
     if action == "back":
         await state.clear()
-        await edit_or_send(callback, t(locale, "menu_hint"), inline_keyboard=home_panel_keyboard(locale))
+        await edit_or_send(
+            callback,
+            await build_home_panel_text(user.id, locale),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
         return
     if action == "stats":
         stats = await db.get_stats()

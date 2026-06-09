@@ -209,6 +209,40 @@ def _score(rnd: Random, low: int = 5, high: int = 10) -> int:
     return rnd.randint(low, high)
 
 
+def _day_random(sign: str, locale: str, for_date: date) -> Random:
+    current_locale = "ru" if locale == "ru" else "en"
+    seed = f"{sign}-{for_date.isoformat()}-{current_locale}-day"
+    return Random(seed)
+
+
+def generate_home_teaser(
+    sign: str,
+    locale: str,
+    *,
+    sign_label: str,
+    sign_emoji: str = "",
+    for_date: date | None = None,
+) -> str:
+    if for_date is None:
+        for_date = date.today()
+
+    current_locale = "ru" if locale == "ru" else "en"
+    rnd = _day_random(sign, locale, for_date)
+    energy_score = _score(rnd)
+    lucky_time = rnd.choice(LUCKY_TIME_LINES[current_locale])
+    prefix = f"{sign_emoji} " if sign_emoji else ""
+
+    if current_locale == "ru":
+        return (
+            f"{prefix}{sign_label} · энергия {energy_score}/10 · "
+            f"удачное время: {lucky_time}"
+        )
+    return (
+        f"{prefix}{sign_label} · energy {energy_score}/10 · "
+        f"lucky time: {lucky_time}"
+    )
+
+
 def generate_horoscope(
     sign: str,
     locale: str,
