@@ -732,17 +732,100 @@ def premium_menu_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
+_USER_PANELS: dict[int, tuple[int, int]] = {}
+
+
+def _save_user_panel(user_id: int, chat_id: int, message_id: int) -> None:
+    _USER_PANELS[user_id] = (chat_id, message_id)
+
+
+def _get_user_panel(user_id: int) -> tuple[int, int] | None:
+    return _USER_PANELS.get(user_id)
+
+
+def _is_not_modified_error(exc: TelegramBadRequest) -> bool:
+    return "message is not modified" in str(exc).lower()
+
+
+async def show_ui_panel(
+    *,
+    bot: Bot,
+    user_id: int,
+    chat_id: int,
+    text: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    edit_message: Message | None = None,
+) -> None:
+    targets: list[tuple[int, int]] = []
+    if edit_message is not None:
+        targets.append((edit_message.chat.id, edit_message.message_id))
+    stored = _get_user_panel(user_id)
+    if stored and stored not in targets:
+        targets.append(stored)
+
+    for target_chat_id, target_msg_id in targets:
+        try:
+            await bot.edit_message_text(
+                text=text,
+                chat_id=target_chat_id,
+                message_id=target_msg_id,
+                reply_markup=reply_markup,
+            )
+            _save_user_panel(user_id, target_chat_id, target_msg_id)
+            return
+        except TelegramBadRequest as exc:
+            if _is_not_modified_error(exc):
+                _save_user_panel(user_id, target_chat_id, target_msg_id)
+                return
+
+    for target_chat_id, target_msg_id in targets:
+        try:
+            await bot.delete_message(target_chat_id, target_msg_id)
+        except TelegramBadRequest:
+            pass
+    if stored:
+        try:
+            await bot.delete_message(stored[0], stored[1])
+        except TelegramBadRequest:
+            pass
+
+    sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+    _save_user_panel(user_id, sent.chat.id, sent.message_id)
+
+
+async def show_panel_from_message(
+    message: Message,
+    text: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    await show_ui_panel(
+        bot=message.bot,
+        user_id=user.id,
+        chat_id=message.chat.id,
+        text=text,
+        reply_markup=reply_markup,
+    )
+
+
 async def render_inline_panel(
     callback: CallbackQuery,
     text: str,
     keyboard: InlineKeyboardMarkup,
 ) -> None:
-    if callback.message is None:
+    user = callback.from_user
+    if user is None or callback.message is None:
         return
-    try:
-        await callback.message.edit_text(text=text, reply_markup=keyboard)
-    except TelegramBadRequest:
-        await callback.message.answer(text=text, reply_markup=keyboard)
+    await show_ui_panel(
+        bot=callback.bot,
+        user_id=user.id,
+        chat_id=callback.message.chat.id,
+        text=text,
+        reply_markup=keyboard,
+        edit_message=callback.message,
+    )
 
 
 async def edit_or_send(
@@ -751,15 +834,17 @@ async def edit_or_send(
     *,
     inline_keyboard: InlineKeyboardMarkup | None = None,
 ) -> None:
-    if callback.message is None:
+    user = callback.from_user
+    if user is None or callback.message is None:
         return
-    if inline_keyboard is not None:
-        try:
-            await callback.message.edit_text(text=text, reply_markup=inline_keyboard)
-            return
-        except TelegramBadRequest:
-            pass
-    await callback.message.answer(text=text, reply_markup=inline_keyboard)
+    await show_ui_panel(
+        bot=callback.bot,
+        user_id=user.id,
+        chat_id=callback.message.chat.id,
+        text=text,
+        reply_markup=inline_keyboard,
+        edit_message=callback.message,
+    )
 
 
 def get_locale(profile_language: str | None) -> str:
@@ -908,10 +993,11 @@ async def start_handler(message: Message, state: FSMContext) -> None:
                 if linked:
                     await message.answer(t(default_lang, "ref_attached"))
         await state.clear()
-        await message.answer(
+        lang_sent = await message.answer(
             "Выбери язык / Choose language:",
             reply_markup=language_keyboard(prefix="startlang"),
         )
+        _save_user_panel(user.id, lang_sent.chat.id, lang_sent.message_id)
         return
 
     language = await detect_locale_for_user(user.id, user.language_code)
@@ -934,9 +1020,17 @@ async def start_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
     if existing_profile.birth_date is None:
         await state.set_state(ProfileSetup.waiting_birth_date)
-        await message.answer(t(language, "welcome"), reply_markup=home_panel_keyboard(language))
+        await show_panel_from_message(
+            message,
+            t(language, "welcome"),
+            reply_markup=home_panel_keyboard(language),
+        )
     else:
-        await message.answer(t(language, "start_home"), reply_markup=home_panel_keyboard(language))
+        await show_panel_from_message(
+            message,
+            t(language, "start_home"),
+            reply_markup=home_panel_keyboard(language),
+        )
 
 
 @router.callback_query(F.data.startswith("startlang:"))
@@ -964,7 +1058,7 @@ async def help_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(t(locale, "help"), reply_markup=home_panel_keyboard(locale))
+    await show_panel_from_message(message, t(locale, "help"), reply_markup=home_panel_keyboard(locale))
 
 
 @router.message(Command("about"))
@@ -973,7 +1067,8 @@ async def about_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_about'))}\n\n{t(locale, 'about_block')}",
         reply_markup=about_commands_keyboard(locale),
     )
@@ -995,7 +1090,11 @@ async def menu_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(t(locale, "menu_hint"), reply_markup=home_panel_keyboard(locale))
+    await show_panel_from_message(
+        message,
+        t(locale, "menu_hint"),
+        reply_markup=home_panel_keyboard(locale),
+    )
 
 
 @router.message(Command("ref"))
@@ -1009,10 +1108,15 @@ async def ref_handler(message: Message) -> None:
     me = await message.bot.get_me()
     username = me.username or ""
     link = f"https://t.me/{username}?start=ref_{ref_code}" if username else f"ref_{ref_code}"
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'ref_title'))}\n\n"
         f"{t(locale, 'ref_text', link=link, count=str(count))}",
-        reply_markup=home_panel_keyboard(locale),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
+            ]
+        ),
     )
 
 
@@ -1036,7 +1140,8 @@ async def language_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_language'))}\n\n"
         f"{t(locale, 'choose_language')}",
         reply_markup=language_keyboard(prefix="lang"),
@@ -1049,7 +1154,8 @@ async def settings_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_settings'))}\n\n{t(locale, 'settings_hint')}",
         reply_markup=settings_keyboard(locale),
     )
@@ -1251,11 +1357,19 @@ async def profile_handler(message: Message) -> None:
     locale = await get_user_locale(user.id)
     profile = await db.get_user(user.id)
     if profile is None:
-        await message.answer(t(locale, "profile_not_found"), reply_markup=home_panel_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "profile_not_found"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     if not profile.birth_date:
-        await message.answer(t(locale, "profile_incomplete"), reply_markup=home_panel_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "profile_incomplete"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     birth_time = (
@@ -1267,13 +1381,18 @@ async def profile_handler(message: Message) -> None:
     birth_date_text = (
         profile.birth_date.strftime("%d.%m.%Y") if locale == "ru" else profile.birth_date.isoformat()
     )
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{t(locale, 'profile_title')}\n"
         f"{t(locale, 'profile_date')}: {birth_date_text}\n"
         f"{t(locale, 'profile_time')}: {birth_time}\n"
         f"{t(locale, 'profile_city')}: {profile.city}\n"
         f"{t(locale, 'profile_sign')}: {sign_name}",
-        reply_markup=home_panel_keyboard(locale),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
+            ]
+        ),
     )
 
 
@@ -1286,16 +1405,24 @@ async def today_handler(message: Message) -> None:
     locale = await get_user_locale(user.id)
     profile = await db.get_user(user.id)
     if profile is None or not profile.sign:
-        await message.answer(t(locale, "complete_profile_first"), reply_markup=home_panel_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "complete_profile_first"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
         reply_markup=horoscope_period_keyboard(locale),
     )
 
 
 async def _send_period_horoscope(
+    *,
+    bot: Bot,
+    user_id: int,
     message: Message,
     locale: str,
     sign: str,
@@ -1310,9 +1437,13 @@ async def _send_period_horoscope(
         header = t(locale, "today_header", sign=sign_name)
 
     horoscope_text = generate_horoscope(sign=sign, locale=locale, period=period)
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
+    await show_ui_panel(
+        bot=bot,
+        user_id=user_id,
+        chat_id=message.chat.id,
+        text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
         reply_markup=horoscope_period_keyboard(locale),
+        edit_message=message,
     )
 
 
@@ -1402,8 +1533,10 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
         period = "day"
 
     await callback.answer()
-    if callback.message:
+    if callback.message and user:
         await _send_period_horoscope(
+            bot=callback.bot,
+            user_id=user.id,
             message=callback.message,
             locale=locale,
             sign=profile.sign,
@@ -1420,7 +1553,11 @@ async def compat_handler(message: Message, state: FSMContext) -> None:
     locale = await get_user_locale(user.id)
     profile = await db.get_user(user.id)
     if profile is None or not profile.sign:
-        await message.answer(t(locale, "complete_profile_first"), reply_markup=home_panel_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "complete_profile_first"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     premium_active = is_premium_active(profile.premium_until)
@@ -1428,9 +1565,10 @@ async def compat_handler(message: Message, state: FSMContext) -> None:
         date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         used = await db.count_events_for_day(user.id, "compat_result", date_key)
         if used >= 3:
-            await message.answer(
+            await show_panel_from_message(
+                message,
                 t(locale, "premium_required_compat_daily_limit"),
-                reply_markup=settings_keyboard(locale),
+                reply_markup=home_panel_keyboard(locale),
             )
             return
 
@@ -1449,14 +1587,11 @@ async def compat_handler(message: Message, state: FSMContext) -> None:
         ]
     )
     await state.update_data(compat_mode="love")
-    await message.answer(t(locale, "choose_compat_mode"), reply_markup=mode_keyboard)
-    await message.answer(
-        t(locale, "ask_compat_date"),
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-            ]
-        ),
+    await show_panel_from_message(
+        message,
+        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+        f"{t(locale, 'choose_compat_mode')}\n\n{t(locale, 'ask_compat_date')}",
+        reply_markup=mode_keyboard,
     )
 
 
@@ -1471,14 +1606,25 @@ async def compat_mode_callback_handler(callback: CallbackQuery, state: FSMContex
         mode = "love"
     await state.update_data(compat_mode=mode)
     await callback.answer()
+    mode_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t(locale, "compat_mode_love"), callback_data="compatmode:love"),
+                InlineKeyboardButton(
+                    text=t(locale, "compat_mode_friendship"), callback_data="compatmode:friendship"
+                ),
+                InlineKeyboardButton(text=t(locale, "compat_mode_work"), callback_data="compatmode:work"),
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+        ]
+    )
     await edit_or_send(
         callback,
-        t(locale, "compat_mode_saved", mode=mode),
-        inline_keyboard=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-            ]
-        ),
+        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+        f"{t(locale, 'choose_compat_mode')}\n"
+        f"{t(locale, 'compat_mode_saved', mode=mode)}\n\n"
+        f"{t(locale, 'ask_compat_date')}",
+        inline_keyboard=mode_keyboard,
     )
 
 
@@ -1489,7 +1635,8 @@ async def moon_handler(message: Message) -> None:
         return
 
     locale = await get_user_locale(user.id)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n{t(locale, 'choose_moon_period')}",
         reply_markup=moon_period_keyboard(locale),
     )
@@ -1502,7 +1649,7 @@ async def natal_handler(message: Message) -> None:
         return
     locale = await get_user_locale(user.id)
     text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="auto")
-    await message.answer(text, reply_markup=keyboard)
+    await show_panel_from_message(message, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data.startswith("natal:mode:"))
@@ -1583,17 +1730,26 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
     locale = await get_user_locale(user.id)
     raw_text = (message.text or "").strip()
     if not re.match(r"^\d{2}\.\d{2}$", raw_text):
-        await message.answer(t(locale, "invalid_day_month"), reply_markup=moon_period_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'invalid_day_month')}\n\n{t(locale, 'ask_moon_day_month')}",
+            reply_markup=moon_period_keyboard(locale),
+        )
         return
 
     target = _target_date_from_day_month(raw_text, datetime.now())
     if target is None:
-        await message.answer(t(locale, "moon_date_out_of_range"), reply_markup=moon_period_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'moon_date_out_of_range')}\n\n{t(locale, 'ask_moon_day_month')}",
+            reply_markup=moon_period_keyboard(locale),
+        )
         return
 
     text = generate_moon_calendar_text(locale=locale, for_date=target.date())
     await state.clear()
-    await message.answer(
+    await show_panel_from_message(
+        message,
         f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n{t(locale, 'moon_header')}\n\n{text}",
         reply_markup=moon_period_keyboard(locale),
     )
@@ -1795,7 +1951,8 @@ async def premium_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         await _premium_panel_text(user.id, locale),
         reply_markup=premium_menu_keyboard(locale),
     )
@@ -1840,7 +1997,7 @@ async def premium_buy_callback(callback: CallbackQuery) -> None:
     if not settings.enable_payments:
         await render_inline_panel(
             callback,
-            t(locale, "payments_disabled"),
+            f"{await _premium_panel_text(user.id, locale)}\n\n{t(locale, 'payments_disabled')}",
             premium_menu_keyboard(locale),
         )
         return
@@ -1877,10 +2034,18 @@ async def successful_payment_handler(message: Message) -> None:
         until = datetime.now(timezone.utc) + timedelta(days=30)
         await db.set_premium_until(user.id, until.isoformat())
         await db.log_event(user.id, "premium_paid")
-        await message.answer(t(locale, "premium_payment_ok"), reply_markup=settings_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "premium_payment_ok"),
+            reply_markup=home_panel_keyboard(locale),
+        )
     except Exception:
         await db.log_event(user.id, "premium_paid_error")
-        await message.answer(t(locale, "premium_payment_error"), reply_markup=settings_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "premium_payment_error"),
+            reply_markup=home_panel_keyboard(locale),
+        )
 
 
 @admin_router.message(Command("stats"))
@@ -2168,8 +2333,9 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
     try:
         partner_birth_date = datetime.strptime(raw_text, "%d.%m.%Y").date()
     except ValueError:
-        await message.answer(
-            t(locale, "invalid_date"),
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'invalid_date')}\n\n{t(locale, 'ask_compat_date')}",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[
                     [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
@@ -2181,14 +2347,19 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
     profile = await db.get_user(user.id)
     if profile is None or not profile.sign:
         await state.clear()
-        await message.answer(t(locale, "complete_profile_first"), reply_markup=home_panel_keyboard(locale))
+        await show_panel_from_message(
+            message,
+            t(locale, "complete_profile_first"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     data = await state.get_data()
     mode = data.get("compat_mode", "love")
     syn = build_synastry(locale, profile.sign, partner_birth_date, mode)
     await state.clear()
-    await message.answer(
+    await show_panel_from_message(
+        message,
         t(
             locale,
             "compat_result",
@@ -2198,7 +2369,11 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
             score=str(syn.score),
             details=syn.details,
         ),
-        reply_markup=home_panel_keyboard(locale),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
+            ]
+        ),
     )
     await db.log_event(user.id, "compat_result")
 
@@ -2214,12 +2389,16 @@ async def birth_date_handler(message: Message, state: FSMContext) -> None:
     try:
         birth_date = datetime.strptime(raw_text, "%d.%m.%Y").date()
     except ValueError:
-        await message.answer(t(locale, "invalid_date"))
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'invalid_date')}\n\n{t(locale, 'welcome')}",
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     await state.update_data(birth_date=birth_date.isoformat())
     await state.set_state(ProfileSetup.waiting_birth_time)
-    await message.answer(t(locale, "ask_time"))
+    await show_panel_from_message(message, t(locale, "ask_time"), reply_markup=home_panel_keyboard(locale))
 
 
 @router.message(ProfileSetup.waiting_birth_time)
@@ -2236,12 +2415,16 @@ async def birth_time_handler(message: Message, state: FSMContext) -> None:
         try:
             birth_time = datetime.strptime(raw_text, "%H:%M").time()
         except ValueError:
-            await message.answer(t(locale, "invalid_time"))
+            await show_panel_from_message(
+                message,
+                f"{t(locale, 'invalid_time')}\n\n{t(locale, 'ask_time')}",
+                reply_markup=home_panel_keyboard(locale),
+            )
             return
         await state.update_data(birth_time=birth_time.isoformat(timespec="minutes"))
 
     await state.set_state(ProfileSetup.waiting_city)
-    await message.answer(t(locale, "ask_city"))
+    await show_panel_from_message(message, t(locale, "ask_city"), reply_markup=home_panel_keyboard(locale))
 
 
 @router.message(ProfileSetup.waiting_city)
@@ -2253,14 +2436,22 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     locale = await get_user_locale(user.id)
     city = (message.text or "").strip()
     if len(city) < 2:
-        await message.answer(t(locale, "city_short"))
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_short')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     data = await state.get_data()
     birth_date_iso = data.get("birth_date")
     if not birth_date_iso:
         await state.clear()
-        await message.answer(t(locale, "session_expired"))
+        await show_panel_from_message(
+            message,
+            t(locale, "session_expired"),
+            reply_markup=home_panel_keyboard(locale),
+        )
         return
 
     birth_date = datetime.fromisoformat(birth_date_iso).date()
@@ -2285,7 +2476,8 @@ async def city_handler(message: Message, state: FSMContext) -> None:
             pass
     await state.clear()
     sign_name = get_sign_name(sign, locale)
-    await message.answer(
+    await show_panel_from_message(
+        message,
         t(locale, "profile_saved", sign=sign_name),
         reply_markup=home_panel_keyboard(locale),
     )
@@ -2353,7 +2545,11 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
         await menu_handler(message)
         return
 
-    await message.answer(t(locale, "fallback"))
+    await show_panel_from_message(
+        message,
+        t(locale, "fallback"),
+        reply_markup=home_panel_keyboard(locale),
+    )
 
 
 async def run_bot() -> None:
