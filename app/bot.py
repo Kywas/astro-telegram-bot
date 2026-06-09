@@ -2,6 +2,7 @@ import asyncio
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import re
+from urllib.parse import quote
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -10,7 +11,6 @@ from aiogram.types import ErrorEvent
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import FSInputFile, InputProfilePhotoStatic, LabeledPrice
 from aiogram.types import (
-    BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -26,12 +26,11 @@ from app.evening_checkin import build_evening_response
 from app.fsm_storage import SQLiteFsmStorage
 from app.geo import resolve_city, warm_timezone_finder
 from app.horoscope import (
-    build_share_forecast_context,
+    build_horoscope_share_text,
     generate_home_teaser,
     generate_horoscope,
     personalization_from_profile,
 )
-from app.share_card import render_share_card
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
     generate_moon_calendar_text,
@@ -175,10 +174,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Кратко",
         "natal_mode_full": "📚 Подробно",
         "choose_horoscope_period": "Выбери период гороскопа:",
-        "share_horoscope": "📤 Поделиться картинкой",
-        "share_card_sent": "Картинка ниже — перешли её другу 📨",
-        "share_card_caption": "🔮 Персональный гороскоп в AstroPulse\n👉 {link}",
-        "share_card_failed": "Не удалось создать картинку. Проверь профиль.",
+        "share_horoscope": "📤 Поделиться прогнозом",
         "back": "⬅ Назад",
         "crumb_root": "Главная",
         "crumb_horoscope": "Гороскоп",
@@ -443,10 +439,7 @@ TEXTS = {
         "natal_mode_short": "⚡ Short",
         "natal_mode_full": "📚 Full",
         "choose_horoscope_period": "Choose horoscope period:",
-        "share_horoscope": "📤 Share image",
-        "share_card_sent": "Image below — forward it to a friend 📨",
-        "share_card_caption": "🔮 Personal horoscope in AstroPulse\n👉 {link}",
-        "share_card_failed": "Could not create the image. Check your profile.",
+        "share_horoscope": "📤 Share forecast",
         "back": "⬅ Back",
         "crumb_root": "Home",
         "crumb_horoscope": "Horoscope",
@@ -713,7 +706,7 @@ def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
 def horoscope_period_keyboard(
     locale: str,
     *,
-    share_period: str | None = None,
+    share_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     if locale == "ru":
         labels = [("Сегодня", "day"), ("Неделя", "week"), ("Месяц", "month")]
@@ -727,15 +720,8 @@ def horoscope_period_keyboard(
             InlineKeyboardButton(text=labels[2][0], callback_data=f"horo:{labels[2][1]}"),
         ],
     ]
-    if share_period:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=t(locale, "share_horoscope"),
-                    callback_data=f"horo:share:{share_period}",
-                )
-            ]
-        )
+    if share_url:
+        rows.append([InlineKeyboardButton(text=t(locale, "share_horoscope"), url=share_url)])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -747,6 +733,10 @@ async def build_referral_link(bot: Bot, user_id: int) -> str:
     if username:
         return f"https://t.me/{username}?start=ref_{ref_code}"
     return f"ref_{ref_code}"
+
+
+def build_telegram_share_url(*, text: str, url: str) -> str:
+    return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
 
 
 def moon_period_keyboard(locale: str) -> InlineKeyboardMarkup:
@@ -2260,13 +2250,26 @@ async def _send_period_horoscope(
         personalization=personalization_from_profile(profile),
         profile=profile,
     )
+    share_text = build_horoscope_share_text(
+        sign=sign,
+        sign_name=sign_name,
+        sign_emoji=SIGN_EMOJI.get(sign, ""),
+        locale=locale,
+        period=period,
+        profile=profile,
+        personalization=personalization_from_profile(profile),
+    )
+    share_url = None
+    if share_text:
+        ref_link = await build_referral_link(bot, user_id)
+        share_url = build_telegram_share_url(text=share_text, url=ref_link)
 
     await show_ui_panel(
         bot=bot,
         user_id=user_id,
         chat_id=message.chat.id,
         text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{header}\n{horoscope_text}",
-        reply_markup=horoscope_period_keyboard(locale, share_period=period),
+        reply_markup=horoscope_period_keyboard(locale, share_url=share_url),
         edit_message=message,
     )
 
@@ -2325,59 +2328,6 @@ async def render_natal_for_user_mode(
     )
 
 
-@router.callback_query(F.data.startswith("horo:share:"))
-async def horoscope_share_card_callback(callback: CallbackQuery) -> None:
-    user = callback.from_user
-    if user is None or callback.message is None:
-        return
-
-    locale = await get_user_locale(user.id)
-    profile = await db.get_user(user.id)
-    if profile is None or not profile.sign:
-        await callback.answer(t(locale, "share_card_failed"), show_alert=True)
-        return
-
-    period = (callback.data or "").split(":")[-1]
-    if period not in {"day", "week", "month"}:
-        period = "day"
-
-    premium_active = is_premium_active(profile.premium_until)
-    if period in {"week", "month"} and not premium_active:
-        await callback.answer(t(locale, "premium_required_horo_period"), show_alert=True)
-        return
-
-    context = build_share_forecast_context(
-        sign=profile.sign,
-        sign_name=get_sign_name(profile.sign, locale),
-        sign_emoji=SIGN_EMOJI.get(profile.sign, ""),
-        locale=locale,
-        period=period,
-        profile=profile,
-        personalization=personalization_from_profile(profile),
-    )
-    if context is None:
-        await callback.answer(t(locale, "share_card_failed"), show_alert=True)
-        return
-
-    try:
-        png_bytes = render_share_card(context)
-        ref_link = await build_referral_link(callback.bot, user.id)
-        await callback.message.answer_photo(
-            photo=BufferedInputFile(png_bytes, filename="astropulse_forecast.png"),
-            caption=t(locale, "share_card_caption", link=ref_link),
-        )
-        await db.log_event(user.id, f"horoscope_share_card:{period}")
-        await callback.answer(t(locale, "share_card_sent"))
-    except Exception as e:
-        await db.log_error(
-            source="horoscope_share_card_callback",
-            error_type=type(e).__name__,
-            message=str(e),
-            context=f"user_id={user.id} period={period}",
-        )
-        await callback.answer(t(locale, "share_card_failed"), show_alert=True)
-
-
 @router.callback_query(F.data.startswith("horo:"))
 async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
     user = callback.from_user
@@ -2396,8 +2346,6 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
         return
 
     period = (callback.data or "").split(":")[-1]
-    if period == "share":
-        return
     if period == "back":
         await callback.answer()
         await edit_or_send(
