@@ -86,14 +86,6 @@ ASPECT_LABELS = {
 
 Hit = tuple[float, str, str, str]
 
-ASPECT_SYMBOL = {
-    "conjunction": "☌",
-    "sextile": "⚹",
-    "trine": "△",
-    "square": "□",
-    "opposition": "☍",
-}
-
 NATAL_ROLE_SHORT = {
     "ru": {
         "SUN": "личные цели",
@@ -515,6 +507,10 @@ def _natal_forms(locale: str, natal: str) -> tuple[str, str, str]:
     return entry[0], entry[1], entry[2]
 
 
+def _aspect_label(locale: str, aspect: str) -> str:
+    return ASPECT_LABELS[_lang(locale)].get(aspect, aspect)
+
+
 def _natal_role_short(locale: str, natal: str) -> str:
     lang = _lang(locale)
     return NATAL_ROLE_SHORT[lang].get(natal, _planet_label(locale, natal).lower())
@@ -542,17 +538,20 @@ def _domain_hit_line(
     aspect: str,
     orb: float,
     *,
-    bullet: str = "▸",
+    bullet: str = "",
     focus_planet: str | None = None,
 ) -> str:
     lang = _lang(locale)
     transit_name = _planet_label(locale, transit)
     natal_name = _planet_label(locale, natal)
-    symbol = ASPECT_SYMBOL.get(aspect, "•")
+    aspect_label = _aspect_label(locale, aspect)
     orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
     verb = ASPECT_VERB_SHORT[lang][aspect]
     focus = _domain_focus(locale, domain, focus_planet or natal)
-    core = f"{transit_name} {symbol} {natal_name}{orb_part} — {verb} {focus}"
+    if lang == "ru":
+        core = f"{transit_name}, {aspect_label} к {natal_name}{orb_part} — {verb} {focus}"
+    else:
+        core = f"{transit_name} {aspect_label} {natal_name}{orb_part} — {verb} {focus}"
     if not bullet:
         return core
     return f"{bullet} {core}"
@@ -565,16 +564,19 @@ def _compact_hit_line(
     aspect: str,
     orb: float,
     *,
-    bullet: str = "▸",
+    bullet: str = "",
 ) -> str:
     lang = _lang(locale)
     transit_name = _planet_label(locale, transit)
     natal_name = _planet_label(locale, natal)
-    symbol = ASPECT_SYMBOL.get(aspect, "•")
+    aspect_label = _aspect_label(locale, aspect)
     orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
     verb = ASPECT_VERB_SHORT[lang][aspect]
     role = _natal_role_short(locale, natal)
-    core = f"{transit_name} {symbol} {natal_name}{orb_part} — {verb} {role}"
+    if lang == "ru":
+        core = f"{transit_name}, {aspect_label} к {natal_name}{orb_part} — {verb} {role}"
+    else:
+        core = f"{transit_name} {aspect_label} {natal_name}{orb_part} — {verb} {role}"
     if not bullet:
         return core
     return f"{bullet} {core}"

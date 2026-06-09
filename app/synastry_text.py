@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.forecast_text import _aspect_label
+
 SynastryHit = tuple[float, str, str, str]
 
 PLANET_LABELS = {
@@ -17,14 +19,6 @@ PLANET_LABELS = {
         "VENUS": "Venus",
         "MARS": "Mars",
     },
-}
-
-ASPECT_SYMBOL = {
-    "conjunction": "☌",
-    "sextile": "⚹",
-    "trine": "△",
-    "square": "□",
-    "opposition": "☍",
 }
 
 MODE_INTRO = {
@@ -125,18 +119,18 @@ def format_synastry_aspect_line(
     mode: str,
     orb: float,
     *,
-    bullet: str = "▸",
+    bullet: str = "",
 ) -> str:
     user_name = _planet_label(locale, user_planet)
     partner_name = _planet_label(locale, partner_planet)
-    symbol = ASPECT_SYMBOL.get(aspect, "•")
+    aspect_label = _aspect_label(locale, aspect)
     orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
     tone = _aspect_tone(locale, aspect, mode)
     lang = _lang(locale)
     if lang == "ru":
-        core = f"ваше {user_name} {symbol} {partner_name} партнёра{orb_part} — {tone}"
+        core = f"ваше {user_name}, {aspect_label} к {partner_name} партнёра{orb_part} — {tone}"
     else:
-        core = f"your {user_name} {symbol} partner's {partner_name}{orb_part} — {tone}"
+        core = f"your {user_name} {aspect_label} partner's {partner_name}{orb_part} — {tone}"
     if not bullet:
         return core
     return f"{bullet} {core}"
