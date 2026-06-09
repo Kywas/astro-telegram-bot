@@ -124,8 +124,8 @@ class Database:
                 "daily_enabled": "INTEGER DEFAULT 0",
                 "daily_time": "TEXT DEFAULT '09:00'",
                 "timezone": "TEXT DEFAULT 'UTC'",
-                "evening_enabled": "INTEGER DEFAULT 0",
-                "evening_time": "TEXT DEFAULT '21:00'",
+                "evening_enabled": "INTEGER DEFAULT 1",
+                "evening_time": "TEXT DEFAULT '20:00'",
                 "mood_streak": "INTEGER DEFAULT 0",
                 "last_mood_date": "TEXT",
                 "lunar_notify_enabled": "INTEGER DEFAULT 1",
@@ -138,6 +138,26 @@ class Database:
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY)"
+            )
+            async with db.execute(
+                "SELECT 1 FROM schema_migrations WHERE name = ?",
+                ("evening_default_20",),
+            ) as cursor:
+                if await cursor.fetchone() is None:
+                    await db.execute(
+                        """
+                        UPDATE users
+                        SET evening_enabled = 1, evening_time = '20:00'
+                        WHERE evening_enabled = 0
+                          AND (evening_time IS NULL OR evening_time = '21:00')
+                        """
+                    )
+                    await db.execute(
+                        "INSERT INTO schema_migrations (name) VALUES (?)",
+                        ("evening_default_20",),
+                    )
             await db.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)"
             )
@@ -153,8 +173,8 @@ class Database:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
-                INSERT INTO users (user_id, username, first_name, language)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users (user_id, username, first_name, language, evening_enabled, evening_time)
+                VALUES (?, ?, ?, ?, 1, '20:00')
                 ON CONFLICT(user_id) DO UPDATE SET
                     username = excluded.username,
                     first_name = excluded.first_name,
@@ -209,8 +229,10 @@ class Database:
                     daily_enabled=bool(row["daily_enabled"]),
                     daily_time=row["daily_time"] or "09:00",
                     timezone=row["timezone"] or "UTC",
-                    evening_enabled=bool(row["evening_enabled"]),
-                    evening_time=row["evening_time"] or "21:00",
+                    evening_enabled=bool(
+                        row["evening_enabled"] if row["evening_enabled"] is not None else 1
+                    ),
+                    evening_time=row["evening_time"] or "20:00",
                     mood_streak=row["mood_streak"] or 0,
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
@@ -405,8 +427,10 @@ class Database:
                     daily_enabled=bool(row["daily_enabled"]),
                     daily_time=row["daily_time"] or "09:00",
                     timezone=row["timezone"] or "UTC",
-                    evening_enabled=bool(row["evening_enabled"]),
-                    evening_time=row["evening_time"] or "21:00",
+                    evening_enabled=bool(
+                        row["evening_enabled"] if row["evening_enabled"] is not None else 1
+                    ),
+                    evening_time=row["evening_time"] or "20:00",
                     mood_streak=row["mood_streak"] or 0,
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),

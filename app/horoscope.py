@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from dataclasses import dataclass
 from random import Random
 
 SECTION_TEMPLATES = {
@@ -194,6 +195,162 @@ PERIOD_LABELS = {
     },
 }
 
+GOAL_LABELS = {
+    "ru": {
+        "love": "любовь",
+        "career": "карьера",
+        "money": "деньги",
+        "balance": "баланс",
+    },
+    "en": {
+        "love": "love",
+        "career": "career",
+        "money": "money",
+        "balance": "balance",
+    },
+}
+
+RELATIONSHIP_LABELS = {
+    "ru": {
+        "single": "свободен(а)",
+        "relationship": "в отношениях",
+    },
+    "en": {
+        "single": "single",
+        "relationship": "in a relationship",
+    },
+}
+
+MOOD_ENERGY_LINES = {
+    "ru": {
+        "low": [
+            "Энергия ниже обычного — лучше не распыляться и беречь силы.",
+            "День лучше прожить в спокойном темпе, без лишнего давления на себя.",
+        ],
+        "high": [
+            "Сильный подъём сил — хороший день для важных шагов и смелых решений.",
+            "Энергия на пике: используй её для одного значимого дела.",
+        ],
+    },
+    "en": {
+        "low": [
+            "Energy is lower than usual — avoid spreading yourself too thin.",
+            "A calm pace without extra pressure on yourself will work best today.",
+        ],
+        "high": [
+            "Strong energy rise — a good day for meaningful steps and bold choices.",
+            "Peak energy: channel it into one significant task.",
+        ],
+    },
+}
+
+MOOD_HEALTH_LINES = {
+    "ru": {
+        "low": [
+            "Тело просит заботы: сон, вода и короткие паузы важнее скорости.",
+            "Снизь нагрузку и добавь восстановление — это ускорит возвращение сил.",
+        ],
+        "high": [
+            "Хорошее самочувствие поддержит активный день — не забывай про отдых.",
+            "Тонус высокий, но умеренность в нагрузке сохранит баланс.",
+        ],
+    },
+    "en": {
+        "low": [
+            "Your body asks for care: sleep, water, and short breaks beat pushing harder.",
+            "Reduce load and add recovery — it will restore your energy faster.",
+        ],
+        "high": [
+            "Good well-being supports an active day — still leave room for rest.",
+            "High tone is helpful, but moderation keeps your balance.",
+        ],
+    },
+}
+
+GOAL_FOCUS_LINES = {
+    "ru": {
+        "love": [
+            "Сегодня сердце и близость важнее формальных задач — инвестируй внимание в людей.",
+            "Эмоциональная открытость может принести больше, чем суета в делах.",
+        ],
+        "career": [
+            "Профессиональный фокус сегодня особенно уместен — двигай ключевой проект.",
+            "Карьерный импульс сильнее обычного: выбирай задачи с долгосрочным эффектом.",
+        ],
+        "money": [
+            "Финансовая ясность сегодня важнее спешки — планируй и считай спокойно.",
+            "День подходит для аккуратных денежных решений и пересмотра приоритетов.",
+        ],
+        "balance": [
+            "Лучший результат даст равномерный ритм между делами, отдыхом и общением.",
+            "Сегодня выигрывает баланс — не перекачивай одну сферу в ущерб другим.",
+        ],
+    },
+    "en": {
+        "love": [
+            "Heart and closeness matter more than formal tasks today — invest attention in people.",
+            "Emotional openness may bring more than rushing through chores.",
+        ],
+        "career": [
+            "Professional focus is especially useful today — move your key project forward.",
+            "Career momentum is stronger than usual: choose tasks with long-term impact.",
+        ],
+        "money": [
+            "Financial clarity beats rush today — plan and calculate calmly.",
+            "A good day for careful money decisions and priority review.",
+        ],
+        "balance": [
+            "An even rhythm across work, rest, and connection brings the best result.",
+            "Balance wins today — do not overload one area at the expense of others.",
+        ],
+    },
+}
+
+GOAL_ADVICE_LINES = {
+    "ru": {
+        "love": "Сделай один искренний шаг к близости — разговор, сообщение или внимание.",
+        "career": "Выдели 60–90 минут на задачу, которая реально двигает карьеру.",
+        "money": "Проверь один финансовый пункт: подписка, бюджет или отложенный платёж.",
+        "balance": "Распредели день на три блока: дело, отдых, общение — без перегибов.",
+    },
+    "en": {
+        "love": "Take one sincere step toward closeness — a talk, message, or gesture of care.",
+        "career": "Block 60–90 minutes for the task that truly moves your career.",
+        "money": "Review one financial item: subscription, budget, or pending payment.",
+        "balance": "Split the day into three blocks: work, rest, connection — without extremes.",
+    },
+}
+
+
+@dataclass(frozen=True)
+class PersonalizationContext:
+    goal: str | None = None
+    relationship_status: str | None = None
+    mood_score: int | None = None
+    gender: str | None = None
+
+    def seed_suffix(self) -> str:
+        return (
+            f"{self.goal or '-'}|{self.relationship_status or '-'}"
+            f"|{self.mood_score if self.mood_score is not None else '-'}"
+            f"|{self.gender or '-'}"
+        )
+
+    def has_data(self) -> bool:
+        return bool(self.goal or self.relationship_status or self.mood_score is not None)
+
+
+def personalization_from_profile(profile) -> PersonalizationContext | None:
+    if profile is None:
+        return None
+    ctx = PersonalizationContext(
+        goal=profile.goal,
+        relationship_status=profile.relationship_status,
+        mood_score=profile.mood_score,
+        gender=profile.gender,
+    )
+    return ctx if ctx.has_data() else None
+
 
 def _period_seed_key(period: str, for_date: date) -> str:
     if period == "week":
@@ -205,14 +362,124 @@ def _period_seed_key(period: str, for_date: date) -> str:
     return for_date.isoformat()
 
 
-def _score(rnd: Random, low: int = 5, high: int = 10) -> int:
-    return rnd.randint(low, high)
-
-
-def _day_random(sign: str, locale: str, for_date: date) -> Random:
+def _day_random(
+    sign: str,
+    locale: str,
+    for_date: date,
+    personalization: PersonalizationContext | None = None,
+) -> Random:
     current_locale = "ru" if locale == "ru" else "en"
-    seed = f"{sign}-{for_date.isoformat()}-{current_locale}-day"
+    suffix = personalization.seed_suffix() if personalization else "-"
+    seed = f"{sign}-{for_date.isoformat()}-{current_locale}-day-{suffix}"
     return Random(seed)
+
+
+def _mood_bucket(mood_score: int | None) -> str | None:
+    if mood_score is None:
+        return None
+    if mood_score <= 3:
+        return "low"
+    if mood_score >= 8:
+        return "high"
+    return None
+
+
+def _section_score(rnd: Random, mood_score: int | None, *, boost: int = 0) -> int:
+    if mood_score is None:
+        low, high = 5, 10
+    elif mood_score <= 3:
+        low, high = 3, 6
+    elif mood_score <= 6:
+        low, high = 4, 8
+    else:
+        low, high = 6, 10
+    return max(1, min(10, rnd.randint(low, high) + boost))
+
+
+def _goal_boosts(goal: str | None) -> dict[str, int]:
+    boosts = {"energy": 0, "work": 0, "finance": 0, "love": 0, "health": 0}
+    if goal == "love":
+        boosts["love"] = 2
+    elif goal == "career":
+        boosts["work"] = 2
+        boosts["energy"] = 1
+    elif goal == "money":
+        boosts["finance"] = 2
+    elif goal == "balance":
+        boosts["energy"] = 1
+        boosts["health"] = 1
+    return boosts
+
+
+def _pick_love_line(
+    rnd: Random,
+    locale: str,
+    relationship_status: str | None,
+) -> str:
+    lines = LOVE_LINES[locale]
+    if relationship_status == "single":
+        return rnd.choice([lines[3], *lines[:3]])
+    if relationship_status == "relationship":
+        return rnd.choice(lines[:3])
+    return rnd.choice(lines)
+
+
+def _pick_energy_line(
+    rnd: Random,
+    locale: str,
+    mood_score: int | None,
+    goal: str | None,
+) -> str:
+    mood_bucket = _mood_bucket(mood_score)
+    if mood_bucket and rnd.random() < 0.65:
+        return rnd.choice(MOOD_ENERGY_LINES[locale][mood_bucket])
+    if goal and goal in GOAL_FOCUS_LINES[locale] and rnd.random() < 0.5:
+        return rnd.choice(GOAL_FOCUS_LINES[locale][goal])
+    return rnd.choice(ENERGY_LINES[locale])
+
+
+def _pick_health_line(rnd: Random, locale: str, mood_score: int | None) -> str:
+    mood_bucket = _mood_bucket(mood_score)
+    if mood_bucket and rnd.random() < 0.65:
+        return rnd.choice(MOOD_HEALTH_LINES[locale][mood_bucket])
+    return rnd.choice(HEALTH_LINES[locale])
+
+
+def _pick_advice_line(rnd: Random, locale: str, goal: str | None) -> str:
+    if goal and goal in GOAL_ADVICE_LINES[locale] and rnd.random() < 0.7:
+        return GOAL_ADVICE_LINES[locale][goal]
+    return rnd.choice(ADVICE_LINES[locale])
+
+
+def _section_title(labels: dict[str, str], key: str, goal: str | None) -> str:
+    title = labels[key]
+    focus_map = {
+        "love": "love_title",
+        "career": "work_title",
+        "money": "finance_title",
+        "balance": "advice_title",
+    }
+    if goal and focus_map.get(goal) == key:
+        return f"⭐ {title}"
+    return title
+
+
+def _personalization_banner(locale: str, ctx: PersonalizationContext) -> str:
+    parts: list[str] = []
+    if ctx.goal and ctx.goal in GOAL_LABELS[locale]:
+        parts.append(f"фокус: {GOAL_LABELS[locale][ctx.goal]}" if locale == "ru" else f"focus: {GOAL_LABELS[locale][ctx.goal]}")
+    if ctx.mood_score is not None:
+        parts.append(
+            f"настроение: {ctx.mood_score}/10"
+            if locale == "ru"
+            else f"mood: {ctx.mood_score}/10"
+        )
+    if ctx.relationship_status and ctx.relationship_status in RELATIONSHIP_LABELS[locale]:
+        parts.append(RELATIONSHIP_LABELS[locale][ctx.relationship_status])
+    if not parts:
+        return ""
+    prefix = "🎯 Персонально" if locale == "ru" else "🎯 Personalized"
+    return f"{prefix} · " + " · ".join(parts)
 
 
 def generate_home_teaser(
@@ -222,13 +489,16 @@ def generate_home_teaser(
     sign_label: str,
     sign_emoji: str = "",
     for_date: date | None = None,
+    personalization: PersonalizationContext | None = None,
 ) -> str:
     if for_date is None:
         for_date = date.today()
 
     current_locale = "ru" if locale == "ru" else "en"
-    rnd = _day_random(sign, locale, for_date)
-    energy_score = _score(rnd)
+    rnd = _day_random(sign, locale, for_date, personalization)
+    boosts = _goal_boosts(personalization.goal if personalization else None)
+    mood_score = personalization.mood_score if personalization else None
+    energy_score = _section_score(rnd, mood_score, boost=boosts["energy"])
     lucky_time = rnd.choice(LUCKY_TIME_LINES[current_locale])
     prefix = f"{sign_emoji} " if sign_emoji else ""
 
@@ -248,49 +518,88 @@ def generate_horoscope(
     locale: str,
     period: str = "day",
     for_date: date | None = None,
+    *,
+    personalization: PersonalizationContext | None = None,
+    goal: str | None = None,
+    relationship_status: str | None = None,
+    mood_score: int | None = None,
+    gender: str | None = None,
 ) -> str:
+    if personalization is None and any(v is not None for v in (goal, relationship_status, mood_score, gender)):
+        personalization = PersonalizationContext(
+            goal=goal,
+            relationship_status=relationship_status,
+            mood_score=mood_score,
+            gender=gender,
+        )
     if for_date is None:
         for_date = date.today()
 
     current_locale = "ru" if locale == "ru" else "en"
     current_period = period if period in {"day", "week", "month"} else "day"
     seed_key = _period_seed_key(current_period, for_date)
-    seed = f"{sign}-{seed_key}-{current_locale}-{current_period}"
+    suffix = personalization.seed_suffix() if personalization else "-"
+    seed = f"{sign}-{seed_key}-{current_locale}-{current_period}-{suffix}"
     rnd = Random(seed)
     labels = SECTION_TEMPLATES[current_locale]
     period_text = PERIOD_LABELS[current_locale][current_period]
 
-    energy = rnd.choice(ENERGY_LINES[current_locale])
+    ctx_goal = personalization.goal if personalization else None
+    ctx_rel = personalization.relationship_status if personalization else None
+    ctx_mood = personalization.mood_score if personalization else None
+    boosts = _goal_boosts(ctx_goal)
+
+    energy = _pick_energy_line(rnd, current_locale, ctx_mood, ctx_goal)
     work = rnd.choice(WORK_LINES[current_locale])
     finance = rnd.choice(FINANCE_LINES[current_locale])
-    love = rnd.choice(LOVE_LINES[current_locale])
+    love = _pick_love_line(rnd, current_locale, ctx_rel)
     social = rnd.choice(SOCIAL_LINES[current_locale])
-    health = rnd.choice(HEALTH_LINES[current_locale])
+    health = _pick_health_line(rnd, current_locale, ctx_mood)
     lucky_time = rnd.choice(LUCKY_TIME_LINES[current_locale])
     avoid = rnd.choice(AVOID_LINES[current_locale])
     affirmation = rnd.choice(AFFIRMATION_LINES[current_locale])
-    advice = rnd.choice(ADVICE_LINES[current_locale])
+    advice = _pick_advice_line(rnd, current_locale, ctx_goal)
 
-    energy_score = _score(rnd)
-    work_score = _score(rnd)
-    finance_score = _score(rnd)
-    love_score = _score(rnd)
-    health_score = _score(rnd)
+    energy_score = _section_score(rnd, ctx_mood, boost=boosts["energy"])
+    work_score = _section_score(rnd, ctx_mood, boost=boosts["work"])
+    finance_score = _section_score(rnd, ctx_mood, boost=boosts["finance"])
+    love_score = _section_score(rnd, ctx_mood, boost=boosts["love"])
+    health_score = _section_score(rnd, ctx_mood, boost=boosts["health"])
 
-    return (
-        f"✨ {labels['header']} ({period_text})\n\n"
-        f"• {labels['energy_title']} ({energy_score}/10): {energy}\n"
-        f"• {labels['work_title']} ({work_score}/10): {work}\n"
-        f"• {labels['finance_title']} ({finance_score}/10): {finance}\n"
-        f"• {labels['love_title']} ({love_score}/10): {love}\n"
-        f"• {labels['social_title']}: {social}\n"
-        f"• {labels['health_title']} ({health_score}/10): {health}\n"
-        f"• {labels['lucky_time_title']}: {lucky_time}\n"
-        f"• {labels['avoid_title']}: {avoid}\n"
-        f"• {labels['affirmation_title']}: {affirmation}\n"
-        f"• {labels['advice_title']}: {advice}"
+    lines = [f"✨ {labels['header']} ({period_text})"]
+    if personalization and personalization.has_data():
+        banner = _personalization_banner(current_locale, personalization)
+        if banner:
+            lines.append(banner)
+    lines.extend(
+        [
+            "",
+            f"• {_section_title(labels, 'energy_title', ctx_goal)} ({energy_score}/10): {energy}",
+            f"• {_section_title(labels, 'work_title', ctx_goal)} ({work_score}/10): {work}",
+            f"• {_section_title(labels, 'finance_title', ctx_goal)} ({finance_score}/10): {finance}",
+            f"• {_section_title(labels, 'love_title', ctx_goal)} ({love_score}/10): {love}",
+            f"• {labels['social_title']}: {social}",
+            f"• {labels['health_title']} ({health_score}/10): {health}",
+            f"• {labels['lucky_time_title']}: {lucky_time}",
+            f"• {labels['avoid_title']}: {avoid}",
+            f"• {labels['affirmation_title']}: {affirmation}",
+            f"• {_section_title(labels, 'advice_title', ctx_goal)}: {advice}",
+        ]
     )
+    return "\n".join(lines)
 
 
-def generate_daily_horoscope(sign: str, locale: str, for_date: date | None = None) -> str:
-    return generate_horoscope(sign=sign, locale=locale, period="day", for_date=for_date)
+def generate_daily_horoscope(
+    sign: str,
+    locale: str,
+    for_date: date | None = None,
+    *,
+    personalization: PersonalizationContext | None = None,
+) -> str:
+    return generate_horoscope(
+        sign=sign,
+        locale=locale,
+        period="day",
+        for_date=for_date,
+        personalization=personalization,
+    )

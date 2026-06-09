@@ -22,7 +22,7 @@ from app.ui_cleanup_middleware import DeleteUserInputMiddleware
 from app.database import Database
 from app.daily_sender import run_daily_loop
 from app.evening_checkin import build_evening_response
-from app.horoscope import generate_home_teaser, generate_horoscope
+from app.horoscope import generate_home_teaser, generate_horoscope, personalization_from_profile
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.moon_calendar import (
     generate_moon_calendar_text,
@@ -135,6 +135,10 @@ TEXTS = {
         ),
         "start_home": "🌙 Снова здесь...\nВыбери путь среди звёзд ✨",
         "home_streak": "🔥 Серия настроения: {streak} дн. подряд",
+        "home_goal": "🎯 Цель: {goal}",
+        "home_goal_unset": "🎯 Цель не выбрана — нажми «Цель» ниже",
+        "choose_goal_menu": "Выбери фокус прогноза — от него зависят акценты в текстах:",
+        "goal_saved_toast": "Цель: {goal}",
         "profile_not_found": "Профиль не найден. Сначала используйте /start.",
         "profile_incomplete": "Профиль заполнен не полностью. Используйте /start.",
         "profile_title": "Ваш профиль:",
@@ -163,6 +167,7 @@ TEXTS = {
         "crumb_admin": "Админка",
         "crumb_profile_setup": "Настройка профиля",
         "crumb_daily": "Рассылка",
+        "crumb_goal": "Цель",
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
         "moon_7_days": "7 дней",
@@ -314,6 +319,7 @@ TEXTS = {
         "btn_compat": "💞 Совместимость",
         "btn_moon": "🌙 Лунный календарь",
         "btn_prefs": "⚙ Настройки",
+        "btn_goal": "🎯 Цель",
         "btn_about": "ℹ О боте",
         "btn_ref": "👥 Рефералка",
         "btn_premium": "⭐ Premium",
@@ -365,6 +371,10 @@ TEXTS = {
         ),
         "start_home": "🌙 You're back...\nChoose your path among the stars ✨",
         "home_streak": "🔥 Mood streak: {streak} days in a row",
+        "home_goal": "🎯 Focus: {goal}",
+        "home_goal_unset": "🎯 No focus selected — tap Focus below",
+        "choose_goal_menu": "Choose your forecast focus — it shapes the highlights in your texts:",
+        "goal_saved_toast": "Focus: {goal}",
         "profile_not_found": "Profile not found. Use /start first.",
         "profile_incomplete": "Profile is incomplete. Use /start to continue.",
         "profile_title": "Your profile:",
@@ -393,6 +403,7 @@ TEXTS = {
         "crumb_admin": "Admin",
         "crumb_profile_setup": "Profile setup",
         "crumb_daily": "Daily delivery",
+        "crumb_goal": "Focus",
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
         "moon_7_days": "7 days",
@@ -544,6 +555,7 @@ TEXTS = {
         "btn_compat": "💞 Compatibility",
         "btn_moon": "🌙 Moon calendar",
         "btn_prefs": "⚙ Preferences",
+        "btn_goal": "🎯 Focus",
         "btn_about": "ℹ About",
         "btn_ref": "👥 Referral",
         "btn_premium": "⭐ Premium",
@@ -698,6 +710,21 @@ def prefs_goal_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
+def home_goal_keyboard(locale: str, *, back_callback: str = "nav:home") -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for goal_key, text_key in GOAL_TEXT_KEYS.items():
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=t(locale, text_key),
+                    callback_data=f"goal:set:{goal_key}",
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data=back_callback)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -772,6 +799,20 @@ def sign_display(locale: str, sign: str) -> str:
     return SIGN_EN.get(sign, sign)
 
 
+GOAL_TEXT_KEYS = {
+    "love": "goal_love",
+    "career": "goal_career",
+    "money": "goal_money",
+    "balance": "goal_balance",
+}
+
+
+def goal_display(locale: str, goal: str | None) -> str:
+    if goal in GOAL_TEXT_KEYS:
+        return t(locale, GOAL_TEXT_KEYS[goal])
+    return "-"
+
+
 async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "menu") -> str:
     base = t(locale, "start_home" if variant == "start" else "menu_hint")
     profile = await db.get_user(user_id)
@@ -785,8 +826,13 @@ async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "me
             locale,
             sign_label=sign_display(locale, profile.sign),
             sign_emoji=SIGN_EMOJI.get(profile.sign, ""),
+            personalization=personalization_from_profile(profile),
         ),
     ]
+    if profile.goal:
+        lines.append(t(locale, "home_goal", goal=goal_display(locale, profile.goal)))
+    else:
+        lines.append(t(locale, "home_goal_unset"))
     if profile.mood_streak > 0:
         lines.append(t(locale, "home_streak", streak=str(profile.mood_streak)))
     return "\n\n".join(lines)
@@ -908,7 +954,7 @@ async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyb
         else t(locale, "daily_status_off", tz=tz_label)
     )
     evening_enabled = bool(profile and profile.evening_enabled)
-    evening_time = profile.evening_time if profile else "21:00"
+    evening_time = profile.evening_time if profile else "20:00"
     evening_status = (
         t(locale, "evening_status_on", hhmm=evening_time, tz=tz_label)
         if evening_enabled
@@ -946,7 +992,7 @@ async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyb
 async def render_evening_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
     profile = await db.get_user(user_id)
     enabled = bool(profile and profile.evening_enabled)
-    current_time = profile.evening_time if profile else "21:00"
+    current_time = profile.evening_time if profile else "20:00"
     current_tz = resolve_user_timezone(profile, locale)
     tz_label = timezone_label_with_offset(locale, current_tz)
     status = (
@@ -1003,9 +1049,10 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(locale, "btn_premium"), callback_data="nav:premium"),
             ],
             [
+                InlineKeyboardButton(text=t(locale, "btn_goal"), callback_data="nav:goal"),
                 InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings"),
-                InlineKeyboardButton(text=t(locale, "btn_about"), callback_data="nav:about"),
             ],
+            [InlineKeyboardButton(text=t(locale, "btn_about"), callback_data="nav:about")],
         ]
     )
 
@@ -1558,6 +1605,13 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
             inline_keyboard=home_panel_keyboard(locale),
         )
         return
+    if action == "goal":
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_goal'))}\n\n{t(locale, 'choose_goal_menu')}",
+            home_goal_keyboard(locale),
+        )
+        return
     if action == "settings":
         await render_inline_panel(
             callback,
@@ -1765,6 +1819,7 @@ async def _send_period_horoscope(
     locale: str,
     sign: str,
     period: str,
+    profile=None,
 ) -> None:
     sign_name = get_sign_name(sign, locale)
     if period == "week":
@@ -1774,7 +1829,12 @@ async def _send_period_horoscope(
     else:
         header = t(locale, "today_header", sign=sign_name)
 
-    horoscope_text = generate_horoscope(sign=sign, locale=locale, period=period)
+    horoscope_text = generate_horoscope(
+        sign=sign,
+        locale=locale,
+        period=period,
+        personalization=personalization_from_profile(profile),
+    )
     await show_ui_panel(
         bot=bot,
         user_id=user_id,
@@ -1883,6 +1943,7 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
             locale=locale,
             sign=profile.sign,
             period=period,
+            profile=profile,
         )
 
 
@@ -2414,6 +2475,29 @@ async def prefs_relationship_callback(callback: CallbackQuery, state: FSMContext
         f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_profile_setup'))}\n\n"
         f"{t(locale, 'choose_goal')}",
         prefs_goal_keyboard(locale),
+    )
+
+
+@router.callback_query(F.data.startswith("goal:set:"))
+async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    goal = (callback.data or "").split(":")[-1]
+    if goal not in GOAL_TEXT_KEYS:
+        goal = "balance"
+    await state.clear()
+    await db.update_preferences(user.id, goal=goal)
+    await db.log_event(user.id, "goal_updated")
+    label = goal_display(locale, goal)
+    await callback.answer(t(locale, "goal_saved_toast", goal=label))
+    if callback.message is None:
+        return
+    await edit_or_send(
+        callback,
+        await build_home_panel_text(user.id, locale),
+        inline_keyboard=home_panel_keyboard(locale),
     )
 
 

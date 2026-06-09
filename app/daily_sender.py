@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.database import Database
 from app.evening_checkin import build_evening_checkin_prompt
-from app.horoscope import generate_horoscope
+from app.horoscope import generate_horoscope, personalization_from_profile
 from app.moon_calendar import (
     LUNAR_PREVIEW_DAYS,
     format_lunar_day_notification,
@@ -49,7 +49,12 @@ async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> Non
         if await db.was_daily_sent(user.user_id, period, date_key):
             continue
 
-        text = generate_horoscope(sign=sign, locale=locale, period=period)
+        text = generate_horoscope(
+            sign=sign,
+            locale=locale,
+            period=period,
+            personalization=personalization_from_profile(user),
+        )
         try:
             await bot.send_message(chat_id=user.user_id, text=text)
             await db.mark_daily_sent(user.user_id, period, date_key)
