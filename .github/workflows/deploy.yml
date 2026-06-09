@@ -22,6 +22,9 @@ jobs:
             source .venv/bin/activate
             pip install -r requirements.txt
             python -m compileall app main.py
+            cp deploy/astrobot.service /etc/systemd/system/astrobot.service
+            systemctl daemon-reload
+            systemctl enable astrobot.service
             systemctl restart astrobot
             sleep 10
             systemctl is-active --quiet astrobot
