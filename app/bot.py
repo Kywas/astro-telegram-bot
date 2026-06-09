@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import re
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -7,7 +8,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import LabeledPrice
+from aiogram.types import FSInputFile, InputProfilePhotoStatic, LabeledPrice
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -38,6 +39,8 @@ router = Router()
 admin_router = Router()
 settings = load_settings()
 db = Database(settings.database_path)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BOT_ICON_PATH = PROJECT_ROOT / "assets" / "bot_icon.jpg"
 
 SIGN_RU = {
     "Aries": "Овен",
@@ -543,6 +546,10 @@ async def configure_public_profile(bot: Bot) -> None:
         description=public_description_en(),
         language_code="en",
     )
+    if BOT_ICON_PATH.is_file() and hasattr(bot, "set_my_profile_photo"):
+        await bot.set_my_profile_photo(
+            photo=InputProfilePhotoStatic(photo=FSInputFile(BOT_ICON_PATH)),
+        )
 
 
 def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
