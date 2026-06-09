@@ -2305,6 +2305,10 @@ async def render_natal_for_user_mode(
         goal=profile.goal,
         mood_score=profile.mood_score,
         mode=normalized_mode,
+        timezone=profile.timezone,
+        lat=profile.birth_lat,
+        lon=profile.birth_lon,
+        birth_timezone=profile.birth_timezone,
     )
     if notice:
         text = f"{notice}\n\n{text}"

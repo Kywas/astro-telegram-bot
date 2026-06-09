@@ -309,6 +309,18 @@ def _lang(locale: str) -> str:
     return "ru" if locale == "ru" else "en"
 
 
+def planet_label(locale: str, key: str) -> str:
+    return _planet_label(locale, key)
+
+
+def sign_label(locale: str, sign: str) -> str:
+    return _sign_label(locale, sign)
+
+
+def longitude_to_sign(longitude: float) -> str:
+    return _longitude_to_sign(longitude)
+
+
 def _solar_natal_longitudes(sign: str) -> dict[str, float]:
     sun_lon = _sign_index(sign) * 30 + 15
     return {"SUN": sun_lon}
@@ -946,6 +958,110 @@ def build_astro_horoscope_context(
         score_adjustments=adjustments,
         moon_sign=forecast.moon_sign,
     )
+
+
+NATAL_CHART_BODIES = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
+
+
+@dataclass
+class NatalAspectHit:
+    planet_a: str
+    planet_b: str
+    aspect: str
+    orb: float
+
+
+@dataclass
+class NatalChartData:
+    longitudes: dict[str, float]
+    ascendant: float | None
+    aspects: list[NatalAspectHit]
+    has_birth_time: bool
+    moon_included: bool
+    asc_included: bool
+    coordinates_available: bool
+    resolved_timezone: str
+    sun_sign: str
+
+
+def _collect_natal_aspects(
+    longitudes: dict[str, float],
+    ascendant: float | None,
+) -> list[NatalAspectHit]:
+    points: dict[str, float] = dict(longitudes)
+    if ascendant is not None:
+        points["ASC"] = ascendant
+    keys = list(points.keys())
+    hits: list[NatalAspectHit] = []
+    for index, first_key in enumerate(keys):
+        for second_key in keys[index + 1 :]:
+            aspect_info = _find_aspect(points[first_key], points[second_key])
+            if aspect_info is None:
+                continue
+            aspect_name, orb_delta = aspect_info
+            hits.append(NatalAspectHit(first_key, second_key, aspect_name, orb_delta))
+    hits.sort(key=lambda item: item.orb)
+    return hits
+
+
+def build_natal_chart_data(
+    *,
+    birth_date: date,
+    birth_time: time | None,
+    city: str | None,
+    timezone_name: str,
+    lat: float | None = None,
+    lon: float | None = None,
+    birth_timezone: str | None = None,
+) -> NatalChartData | None:
+    try:
+        resolved_lat, resolved_lon, resolved_tz = resolve_birth_location(
+            city,
+            normalize_timezone(birth_timezone or timezone_name),
+            lat=lat,
+            lon=lon,
+            birth_timezone=birth_timezone,
+        )
+        natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
+        has_birth_time = birth_time is not None
+        keys: tuple[str, ...]
+        if has_birth_time:
+            keys = NATAL_CHART_BODIES
+        else:
+            keys = tuple(key for key in NATAL_CHART_BODIES if key != "MOON")
+        longitudes = _collect_longitudes(natal_jd, keys)
+
+        ascendant: float | None = None
+        asc_included = False
+        coordinates_available = resolved_lat is not None and resolved_lon is not None
+        if has_birth_time and coordinates_available:
+            _cusps, ascmc = swe.houses(natal_jd, resolved_lat, resolved_lon, b"P")
+            ascendant = float(ascmc[0])
+            asc_included = True
+
+        aspects = _collect_natal_aspects(longitudes, ascendant)
+        sun_sign = _longitude_to_sign(longitudes["SUN"])
+        return NatalChartData(
+            longitudes=longitudes,
+            ascendant=ascendant,
+            aspects=aspects,
+            has_birth_time=has_birth_time,
+            moon_included="MOON" in longitudes,
+            asc_included=asc_included,
+            coordinates_available=coordinates_available,
+            resolved_timezone=resolved_tz,
+            sun_sign=sun_sign,
+        )
+    except Exception:
+        logger.warning(
+            "natal chart failed birth_date=%s birth_time=%s city=%r timezone=%s",
+            birth_date,
+            birth_time,
+            city,
+            timezone_name,
+            exc_info=True,
+        )
+        return None
 
 
 SYNASTRY_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
