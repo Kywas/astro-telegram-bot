@@ -269,6 +269,60 @@ class Database:
             )
             await db.commit()
 
+    async def set_daily_timezone(self, user_id: int, timezone_name: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET timezone = ? WHERE user_id = ?",
+                (timezone_name, user_id),
+            )
+            await db.commit()
+
+    async def get_daily_subscribers(self) -> list[UserProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM users
+                WHERE daily_enabled = 1
+                  AND sign IS NOT NULL
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+
+        return self._rows_to_profiles(rows)
+
+    def _rows_to_profiles(self, rows: list) -> list[UserProfile]:
+        result: list[UserProfile] = []
+        for row in rows:
+            birth_date = date.fromisoformat(row["birth_date"]) if row["birth_date"] else None
+            birth_time = time.fromisoformat(row["birth_time"]) if row["birth_time"] else None
+            result.append(
+                UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    first_name=row["first_name"],
+                    birth_date=birth_date,
+                    birth_time=birth_time,
+                    city=row["city"],
+                    sign=row["sign"],
+                    language=row["language"] or "en",
+                    gender=row["gender"],
+                    relationship_status=row["relationship_status"],
+                    goal=row["goal"],
+                    mood_score=row["mood_score"],
+                    mood_updated_at=row["mood_updated_at"],
+                    daily_enabled=bool(row["daily_enabled"]),
+                    daily_time=row["daily_time"] or "09:00",
+                    timezone=row["timezone"] or "UTC",
+                    premium_until=row["premium_until"],
+                    natal_mode=row["natal_mode"] or "full",
+                    ref_code=row["ref_code"],
+                    referrer_id=row["referrer_id"],
+                    ref_bonus_count=row["ref_bonus_count"] or 0,
+                )
+            )
+        return result
+
     async def set_premium_until(self, user_id: int, premium_until: Optional[str]) -> None:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
@@ -418,37 +472,7 @@ class Database:
                 (hhmm,),
             ) as cursor:
                 rows = await cursor.fetchall()
-
-        result: list[UserProfile] = []
-        for row in rows:
-            birth_date = date.fromisoformat(row["birth_date"]) if row["birth_date"] else None
-            birth_time = time.fromisoformat(row["birth_time"]) if row["birth_time"] else None
-            result.append(
-                UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    first_name=row["first_name"],
-                    birth_date=birth_date,
-                    birth_time=birth_time,
-                    city=row["city"],
-                    sign=row["sign"],
-                    language=row["language"] or "en",
-                    gender=row["gender"],
-                    relationship_status=row["relationship_status"],
-                    goal=row["goal"],
-                    mood_score=row["mood_score"],
-                    mood_updated_at=row["mood_updated_at"],
-                    daily_enabled=bool(row["daily_enabled"]),
-                    daily_time=row["daily_time"] or "09:00",
-                    timezone=row["timezone"] or "UTC",
-                    premium_until=row["premium_until"],
-                    natal_mode=row["natal_mode"] or "full",
-                    ref_code=row["ref_code"],
-                    referrer_id=row["referrer_id"],
-                    ref_bonus_count=row["ref_bonus_count"] or 0,
-                )
-            )
-        return result
+        return self._rows_to_profiles(rows)
 
     async def log_event(self, user_id: int, event_name: str) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()

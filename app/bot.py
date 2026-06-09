@@ -33,6 +33,12 @@ from app.states import CompatibilityCheck, MoonDetails, PreferencesSetup, Profil
 from app.states import AdminPanel, DailySetup
 from app.premium import is_premium_active
 from app.synastry import build_synastry
+from app.timezones import (
+    TIMEZONE_OPTIONS,
+    default_timezone_for_locale,
+    normalize_timezone,
+    timezone_label_with_offset,
+)
 from app.zodiac import zodiac_sign
 
 
@@ -162,18 +168,21 @@ TEXTS = {
         ),
         "mood_saved": "Настроение сохранено: {score}/10. Следующие прогнозы станут точнее.",
         "mood_invalid": "Укажи число от 1 до 10. Пример: /mood 7",
-        "daily_enabled": "Ежедневная рассылка включена на {hhmm} (UTC).",
+        "daily_enabled": "Ежедневная рассылка включена на {hhmm} ({tz}).",
         "daily_disabled": "Ежедневная рассылка выключена.",
         "daily_usage": "Открой ⚙ Настройки → ⏰ Рассылка или используй кнопки ниже.",
-        "daily_menu_intro": "🌙 Гороскоп каждый день в выбранное время (UTC).",
-        "daily_status_on": "✅ Включена · каждый день в {hhmm} UTC",
-        "daily_status_off": "⏸ Сейчас выключена",
+        "daily_menu_intro": "🌙 Гороскоп каждый день в выбранное локальное время.",
+        "daily_status_on": "✅ Включена · каждый день в {hhmm} ({tz})",
+        "daily_status_off": "⏸ Сейчас выключена · пояс: {tz}",
         "daily_choose_time": "Нажми время, чтобы включить или изменить:",
         "daily_btn_off": "🔕 Выключить рассылку",
         "daily_btn_custom": "🕐 Своё время",
-        "daily_custom_prompt": "Введи время в формате ЧЧ:ММ (UTC)\nНапример: 09:30",
+        "daily_btn_timezone": "🌍 Часовой пояс",
+        "daily_choose_timezone": "Выбери часовой пояс для рассылки:",
+        "daily_timezone_set": "Часовой пояс: {tz}",
+        "daily_custom_prompt": "Введи время в формате ЧЧ:ММ\nНапример: 09:30",
         "daily_invalid_time": "Неверное время. Используй формат ЧЧ:ММ, например 09:30",
-        "daily_time_set": "Рассылка включена на {hhmm} UTC",
+        "daily_time_set": "Рассылка включена на {hhmm} ({tz})",
         "prefs_text": (
             "Персональные настройки:\n"
             "• Пол: {gender}\n"
@@ -373,18 +382,21 @@ TEXTS = {
         ),
         "mood_saved": "Mood saved: {score}/10. Upcoming forecasts will be more personalized.",
         "mood_invalid": "Use a number from 1 to 10. Example: /mood 7",
-        "daily_enabled": "Daily delivery is enabled at {hhmm} (UTC).",
+        "daily_enabled": "Daily delivery is enabled at {hhmm} ({tz}).",
         "daily_disabled": "Daily delivery is disabled.",
         "daily_usage": "Open ⚙ Settings → ⏰ Daily or use the buttons below.",
-        "daily_menu_intro": "🌙 Your horoscope every day at a chosen time (UTC).",
-        "daily_status_on": "✅ Enabled · every day at {hhmm} UTC",
-        "daily_status_off": "⏸ Currently disabled",
+        "daily_menu_intro": "🌙 Your horoscope every day at a chosen local time.",
+        "daily_status_on": "✅ Enabled · every day at {hhmm} ({tz})",
+        "daily_status_off": "⏸ Currently disabled · timezone: {tz}",
         "daily_choose_time": "Tap a time to enable or change:",
         "daily_btn_off": "🔕 Turn off delivery",
         "daily_btn_custom": "🕐 Custom time",
-        "daily_custom_prompt": "Enter time as HH:MM (UTC)\nExample: 09:30",
+        "daily_btn_timezone": "🌍 Timezone",
+        "daily_choose_timezone": "Choose your delivery timezone:",
+        "daily_timezone_set": "Timezone: {tz}",
+        "daily_custom_prompt": "Enter time as HH:MM\nExample: 09:30",
         "daily_invalid_time": "Invalid time. Use HH:MM format, e.g. 09:30",
-        "daily_time_set": "Delivery enabled at {hhmm} UTC",
+        "daily_time_set": "Delivery enabled at {hhmm} ({tz})",
         "prefs_text": (
             "Personal preferences:\n"
             "• Gender: {gender}\n"
@@ -704,7 +716,18 @@ def settings_keyboard(locale: str) -> InlineKeyboardMarkup:
 DAILY_PRESET_TIMES = ("07:00", "08:00", "09:00", "10:00", "12:00", "18:00", "21:00")
 
 
-def daily_menu_keyboard(locale: str, *, enabled: bool, current_time: str) -> InlineKeyboardMarkup:
+def resolve_user_timezone(profile, locale: str) -> str:
+    if profile and profile.timezone:
+        return normalize_timezone(profile.timezone)
+    return default_timezone_for_locale(locale)
+
+
+def daily_menu_keyboard(
+    locale: str,
+    *,
+    enabled: bool,
+    current_time: str,
+) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for index in range(0, len(DAILY_PRESET_TIMES), 3):
         row: list[InlineKeyboardButton] = []
@@ -714,6 +737,14 @@ def daily_menu_keyboard(locale: str, *, enabled: bool, current_time: str) -> Inl
                 InlineKeyboardButton(text=label, callback_data=f"daily:set:{hhmm}")
             )
         rows.append(row)
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "daily_btn_timezone"),
+                callback_data="daily:timezone",
+            )
+        ]
+    )
     if enabled:
         rows.append(
             [InlineKeyboardButton(text=t(locale, "daily_btn_off"), callback_data="daily:off")]
@@ -727,14 +758,34 @@ def daily_menu_keyboard(locale: str, *, enabled: bool, current_time: str) -> Inl
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def daily_timezone_keyboard(locale: str, current_tz: str) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for tz_name, labels in TIMEZONE_OPTIONS:
+        label = labels.get(locale, labels["en"])
+        if tz_name == current_tz:
+            label = f"✓ {label}"
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=f"daily:tz:{tz_name}",
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="daily:panel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
     profile = await db.get_user(user_id)
     enabled = bool(profile and profile.daily_enabled)
     current_time = profile.daily_time if profile else "09:00"
+    current_tz = resolve_user_timezone(profile, locale)
+    tz_label = timezone_label_with_offset(locale, current_tz)
     status = (
-        t(locale, "daily_status_on", hhmm=current_time)
+        t(locale, "daily_status_on", hhmm=current_time, tz=tz_label)
         if enabled
-        else t(locale, "daily_status_off")
+        else t(locale, "daily_status_off", tz=tz_label)
     )
     text = (
         f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
@@ -743,6 +794,18 @@ async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyb
         f"{t(locale, 'daily_choose_time')}"
     )
     return text, daily_menu_keyboard(locale, enabled=enabled, current_time=current_time)
+
+
+async def render_daily_timezone_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    current_tz = resolve_user_timezone(profile, locale)
+    tz_label = timezone_label_with_offset(locale, current_tz)
+    text = (
+        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
+        f"{t(locale, 'daily_choose_timezone')}\n\n"
+        f"{tz_label}"
+    )
+    return text, daily_timezone_keyboard(locale, current_tz)
 
 
 async def show_daily_panel(message: Message, user_id: int, locale: str) -> None:
@@ -1890,9 +1953,33 @@ async def daily_settings_callback_handler(callback: CallbackQuery, state: FSMCon
 
     if action == "set" and len(parts) >= 4:
         hhmm = f"{parts[2]}:{parts[3]}"
-        await db.set_daily_subscription(user.id, enabled=True, daily_time=hhmm, timezone_name="UTC")
+        profile = await db.get_user(user.id)
+        tz = resolve_user_timezone(profile, locale)
+        await db.set_daily_subscription(
+            user.id,
+            enabled=True,
+            daily_time=hhmm,
+            timezone_name=tz,
+        )
         await db.log_event(user.id, "daily_on")
-        await callback.answer(t(locale, "daily_time_set", hhmm=hhmm))
+        tz_label = timezone_label_with_offset(locale, tz)
+        await callback.answer(t(locale, "daily_time_set", hhmm=hhmm, tz=tz_label))
+        await show_daily_panel_callback(callback, user.id, locale)
+        return
+
+    if action == "timezone":
+        await state.clear()
+        await callback.answer()
+        text, keyboard = await render_daily_timezone_panel(user.id, locale)
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+        return
+
+    if action == "tz" and len(parts) >= 3:
+        tz_name = normalize_timezone(parts[2])
+        await db.set_daily_timezone(user.id, tz_name)
+        await db.log_event(user.id, "daily_timezone")
+        tz_label = timezone_label_with_offset(locale, tz_name)
+        await callback.answer(t(locale, "daily_timezone_set", tz=tz_label))
         await show_daily_panel_callback(callback, user.id, locale)
         return
 
@@ -1944,7 +2031,14 @@ async def daily_custom_time_handler(message: Message, state: FSMContext) -> None
         )
         return
     await state.clear()
-    await db.set_daily_subscription(user.id, enabled=True, daily_time=raw, timezone_name="UTC")
+    profile = await db.get_user(user.id)
+    tz = resolve_user_timezone(profile, locale)
+    await db.set_daily_subscription(
+        user.id,
+        enabled=True,
+        daily_time=raw,
+        timezone_name=tz,
+    )
     await db.log_event(user.id, "daily_on")
     await show_daily_panel(message, user.id, locale)
 
@@ -1957,11 +2051,13 @@ async def daily_handler(message: Message, state: FSMContext) -> None:
     locale = await get_user_locale(user.id)
     parts = (message.text or "").strip().split()
     if len(parts) >= 3 and parts[1].lower() == "on" and re.match(r"^\d{2}:\d{2}$", parts[2]):
+        profile = await db.get_user(user.id)
+        tz = resolve_user_timezone(profile, locale)
         await db.set_daily_subscription(
             user.id,
             enabled=True,
             daily_time=parts[2],
-            timezone_name="UTC",
+            timezone_name=tz,
         )
         await db.log_event(user.id, "daily_on")
     elif len(parts) >= 2 and parts[1].lower() == "off":
@@ -1981,7 +2077,8 @@ async def prefs_handler(message: Message) -> None:
     if profile is None:
         await message.answer(t(locale, "profile_not_found"), reply_markup=settings_keyboard(locale))
         return
-    daily_status = f"on {profile.daily_time} UTC" if profile.daily_enabled else "off"
+    tz_label = timezone_label_with_offset(locale, resolve_user_timezone(profile, locale))
+    daily_status = f"on {profile.daily_time} ({tz_label})" if profile.daily_enabled else "off"
     mood = str(profile.mood_score) if profile.mood_score is not None else "-"
     await message.answer(
         t(
