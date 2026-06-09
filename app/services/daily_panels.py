@@ -4,12 +4,18 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 from app.bot_context import db
 from app.i18n import t
 from app.keyboards import (
+    breadcrumb,
     daily_menu_keyboard,
     daily_timezone_keyboard,
     evening_menu_keyboard,
 )
-from app.ui import show_panel_from_message
-from app.timezones import timezone_label_with_offset
+from app.timezones import (
+    default_timezone_for_locale,
+    normalize_timezone,
+    timezone_label_with_offset,
+)
+from app.ui import edit_or_send, show_panel_from_message
+
 
 def resolve_user_timezone(profile, locale: str) -> str:
     if profile and profile.timezone:
@@ -106,4 +112,3 @@ async def show_daily_panel(message: Message, user_id: int, locale: str) -> None:
 async def show_daily_panel_callback(callback: CallbackQuery, user_id: int, locale: str) -> None:
     text, keyboard = await render_daily_panel(user_id, locale)
     await edit_or_send(callback, text, inline_keyboard=keyboard)
-

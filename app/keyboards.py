@@ -3,7 +3,7 @@ from urllib.parse import quote
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.bot_context import DAILY_PRESET_TIMES, EVENING_PRESET_TIMES, settings
+from app.bot_context import DAILY_PRESET_TIMES, EVENING_PRESET_TIMES, GOAL_TEXT_KEYS, settings
 from app.i18n import t
 from app.payments import PayCurrency, available_payment_options
 from app.premium import PREMIUM_PERIOD_DAYS
@@ -168,65 +168,6 @@ def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def show_relationship_onboarding_panel(
-    locale: str,
-    *,
-    message: Message | None = None,
-    callback: CallbackQuery | None = None,
-) -> None:
-    text = t(locale, "choose_relationship_onboarding")
-    keyboard = onboarding_relationship_keyboard(locale)
-    if callback is not None:
-        await edit_or_send(callback, text, inline_keyboard=keyboard)
-    elif message is not None:
-        await show_panel_from_message(message, text, reply_markup=keyboard)
-
-
-async def show_goal_onboarding_panel(
-    locale: str,
-    *,
-    message: Message | None = None,
-    callback: CallbackQuery | None = None,
-) -> None:
-    text = t(locale, "choose_goal_onboarding")
-    keyboard = home_goal_keyboard(locale, back_callback=None)
-    if callback is not None:
-        await edit_or_send(callback, text, inline_keyboard=keyboard)
-    elif message is not None:
-        await show_panel_from_message(message, text, reply_markup=keyboard)
-
-
-async def onboarding_step_needed(user_id: int) -> str | None:
-    profile = await db.get_user(user_id)
-    if not profile or not profile.sign:
-        return None
-    if not profile.relationship_status:
-        return "relationship"
-    if not profile.goal:
-        return "goal"
-    return None
-
-
-async def resume_onboarding_if_needed(
-    user_id: int,
-    locale: str,
-    state: FSMContext,
-    *,
-    message: Message | None = None,
-    callback: CallbackQuery | None = None,
-) -> bool:
-    step = await onboarding_step_needed(user_id)
-    if step == "relationship":
-        await state.set_state(ProfileSetup.waiting_relationship)
-        await show_relationship_onboarding_panel(locale, message=message, callback=callback)
-        return True
-    if step == "goal":
-        await state.set_state(ProfileSetup.waiting_goal)
-        await show_goal_onboarding_panel(locale, message=message, callback=callback)
-        return True
-    return False
-
-
 def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -387,97 +328,6 @@ def daily_timezone_keyboard(locale: str, current_tz: str) -> InlineKeyboardMarku
         )
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="daily:panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
-    profile = await db.get_user(user_id)
-    enabled = bool(profile and profile.daily_enabled)
-    current_time = profile.daily_time if profile else "09:00"
-    current_tz = resolve_user_timezone(profile, locale)
-    tz_label = timezone_label_with_offset(locale, current_tz)
-    status = (
-        t(locale, "daily_status_on", hhmm=current_time, tz=tz_label)
-        if enabled
-        else t(locale, "daily_status_off", tz=tz_label)
-    )
-    evening_enabled = bool(profile and profile.evening_enabled)
-    evening_time = profile.evening_time if profile else "20:00"
-    evening_status = (
-        t(locale, "evening_status_on", hhmm=evening_time, tz=tz_label)
-        if evening_enabled
-        else t(locale, "evening_status_off")
-    )
-    lunar_enabled = bool(profile.lunar_notify_enabled) if profile else True
-    lunar_status = (
-        t(locale, "lunar_status_on") if lunar_enabled else t(locale, "lunar_status_off")
-    )
-    extra_lines = [
-        "",
-        t(locale, "daily_retention_header"),
-        evening_status,
-        lunar_status,
-    ]
-    if profile and profile.mood_streak > 0:
-        extra_lines.append(
-            t(locale, "evening_streak_line", streak=str(profile.mood_streak))
-        )
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{t(locale, 'daily_menu_intro')}\n\n"
-        f"{status}\n\n"
-        f"{t(locale, 'daily_choose_time')}\n"
-        f"{chr(10).join(extra_lines)}"
-    )
-    return text, daily_menu_keyboard(
-        locale,
-        enabled=enabled,
-        current_time=current_time,
-        lunar_enabled=lunar_enabled,
-    )
-
-
-async def render_evening_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
-    profile = await db.get_user(user_id)
-    enabled = bool(profile and profile.evening_enabled)
-    current_time = profile.evening_time if profile else "20:00"
-    current_tz = resolve_user_timezone(profile, locale)
-    tz_label = timezone_label_with_offset(locale, current_tz)
-    status = (
-        t(locale, "evening_status_on", hhmm=current_time, tz=tz_label)
-        if enabled
-        else t(locale, "evening_status_off")
-    )
-    streak_line = ""
-    if profile and profile.mood_streak > 0:
-        streak_line = f"\n{t(locale, 'evening_streak_line', streak=str(profile.mood_streak))}\n"
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{status}{streak_line}\n"
-        f"{t(locale, 'evening_choose_time')}"
-    )
-    return text, evening_menu_keyboard(locale, enabled=enabled, current_time=current_time)
-
-
-async def render_daily_timezone_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
-    profile = await db.get_user(user_id)
-    current_tz = resolve_user_timezone(profile, locale)
-    tz_label = timezone_label_with_offset(locale, current_tz)
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{t(locale, 'daily_choose_timezone')}\n\n"
-        f"{tz_label}"
-    )
-    return text, daily_timezone_keyboard(locale, current_tz)
-
-
-async def show_daily_panel(message: Message, user_id: int, locale: str) -> None:
-    text, keyboard = await render_daily_panel(user_id, locale)
-    await show_panel_from_message(message, text, reply_markup=keyboard)
-
-
-async def show_daily_panel_callback(callback: CallbackQuery, user_id: int, locale: str) -> None:
-    text, keyboard = await render_daily_panel(user_id, locale)
-    await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 
 def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
