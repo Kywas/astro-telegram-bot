@@ -784,23 +784,33 @@ async def configure_public_profile(bot: Bot) -> None:
     import logging
 
     logger = logging.getLogger(__name__)
-    # Telegram shows these texts on the bot card before user presses Start.
-    if hasattr(bot, "set_my_name"):
-        await bot.set_my_name(name="AstroPulse", language_code="ru")
-        await bot.set_my_name(name="AstroPulse", language_code="en")
-
     short_ru = public_short_description_ru()
     short_en = public_short_description_en()
     desc_ru = public_description_ru()
     desc_en = public_description_en()
 
-    # Default (no language_code) overwrites old BotFather text for all locales.
-    await bot.set_my_short_description(short_description=short_ru)
-    await bot.set_my_description(description=desc_ru)
-    await bot.set_my_short_description(short_description=short_ru, language_code="ru")
-    await bot.set_my_short_description(short_description=short_en, language_code="en")
-    await bot.set_my_description(description=desc_ru, language_code="ru")
-    await bot.set_my_description(description=desc_en, language_code="en")
+    profile_steps: tuple[tuple[str, object], ...] = (
+        ("default short description", bot.set_my_short_description(short_description=short_ru)),
+        ("default description", bot.set_my_description(description=desc_ru)),
+        ("ru short description", bot.set_my_short_description(short_description=short_ru, language_code="ru")),
+        ("en short description", bot.set_my_short_description(short_description=short_en, language_code="en")),
+        ("ru description", bot.set_my_description(description=desc_ru, language_code="ru")),
+        ("en description", bot.set_my_description(description=desc_en, language_code="en")),
+    )
+    for label, coro in profile_steps:
+        try:
+            await coro
+            logger.info("Updated bot profile: %s", label)
+        except Exception:
+            logger.exception("Failed to update bot profile: %s", label)
+
+    if hasattr(bot, "set_my_name"):
+        for lang in ("ru", "en"):
+            try:
+                await bot.set_my_name(name="AstroPulse", language_code=lang)
+                logger.info("Updated bot name for %s", lang)
+            except Exception:
+                logger.exception("Failed to update bot name for %s", lang)
 
     handle = _feedback_contact_handle()
     if handle:

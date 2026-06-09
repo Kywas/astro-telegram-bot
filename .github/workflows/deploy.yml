@@ -23,12 +23,12 @@ jobs:
             pip install -r requirements.txt
             python -m compileall app main.py scripts
             PYTHONPATH=. python scripts/check_env.py
-            PYTHONPATH=. python scripts/verify_profile.py
             cp deploy/astrobot.service /etc/systemd/system/astrobot.service
             systemctl daemon-reload
             systemctl enable astrobot.service
             systemctl restart astrobot
             sleep 10
+            PYTHONPATH=. python scripts/update_profile.py
             systemctl is-active --quiet astrobot
             systemctl status astrobot --no-pager
             journalctl -u astrobot -n 40 --no-pager
