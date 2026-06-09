@@ -13,6 +13,13 @@ class CompatibilityCheck(StatesGroup):
     waiting_partner_birth_date = State()
 
 
+class PartnerSetup(StatesGroup):
+    waiting_name = State()
+    waiting_birth_date = State()
+    waiting_birth_time = State()
+    waiting_city = State()
+
+
 class MoonDetails(StatesGroup):
     waiting_day_month = State()
 

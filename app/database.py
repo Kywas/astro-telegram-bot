@@ -35,6 +35,19 @@ class UserProfile:
     ref_bonus_count: int
 
 
+@dataclass
+class PartnerProfile:
+    id: int
+    user_id: int
+    name: str
+    birth_date: date
+    birth_time: Optional[time]
+    city: Optional[str]
+    timezone: Optional[str]
+    sign: str
+    created_at: str
+
+
 class Database:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
@@ -160,6 +173,24 @@ class Database:
                     )
             await db.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)"
+            )
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS partner_profiles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    birth_date TEXT NOT NULL,
+                    birth_time TEXT,
+                    city TEXT,
+                    timezone TEXT,
+                    sign TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_partner_profiles_user ON partner_profiles(user_id)"
             )
             await db.commit()
 
@@ -670,6 +701,97 @@ class Database:
             async with db.execute("SELECT user_id FROM users") as c:
                 rows = await c.fetchall()
         return [int(row[0]) for row in rows]
+
+    def _row_to_partner(self, row: aiosqlite.Row) -> PartnerProfile:
+        birth_date = date.fromisoformat(row["birth_date"])
+        birth_time = time.fromisoformat(row["birth_time"]) if row["birth_time"] else None
+        return PartnerProfile(
+            id=int(row["id"]),
+            user_id=int(row["user_id"]),
+            name=row["name"],
+            birth_date=birth_date,
+            birth_time=birth_time,
+            city=row["city"],
+            timezone=row["timezone"],
+            sign=row["sign"],
+            created_at=row["created_at"],
+        )
+
+    async def list_partners(self, user_id: int) -> list[PartnerProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM partner_profiles
+                WHERE user_id = ?
+                ORDER BY name COLLATE NOCASE ASC, id ASC
+                """,
+                (user_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [self._row_to_partner(row) for row in rows]
+
+    async def get_partner(self, user_id: int, partner_id: int) -> Optional[PartnerProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM partner_profiles WHERE user_id = ? AND id = ?",
+                (user_id, partner_id),
+            ) as cursor:
+                row = await cursor.fetchone()
+        return self._row_to_partner(row) if row else None
+
+    async def count_partners(self, user_id: int) -> int:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT COUNT(*) FROM partner_profiles WHERE user_id = ?",
+                (user_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        return int(row[0] if row else 0)
+
+    async def add_partner(
+        self,
+        user_id: int,
+        *,
+        name: str,
+        birth_date: date,
+        birth_time: Optional[time],
+        city: Optional[str],
+        timezone: Optional[str],
+        sign: str,
+    ) -> int:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        birth_time_str = birth_time.isoformat(timespec="minutes") if birth_time else None
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                """
+                INSERT INTO partner_profiles (
+                    user_id, name, birth_date, birth_time, city, timezone, sign, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    name,
+                    birth_date.isoformat(),
+                    birth_time_str,
+                    city,
+                    timezone,
+                    sign,
+                    now_iso,
+                ),
+            )
+            await db.commit()
+            return int(cursor.lastrowid)
+
+    async def delete_partner(self, user_id: int, partner_id: int) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                "DELETE FROM partner_profiles WHERE user_id = ? AND id = ?",
+                (user_id, partner_id),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
 
     async def log_error(
         self,

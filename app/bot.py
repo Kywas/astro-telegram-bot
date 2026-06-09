@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import re
 
@@ -30,10 +30,10 @@ from app.moon_calendar import (
     generate_moon_table_text,
 )
 from app.natal import build_natal_summary
-from app.states import CompatibilityCheck, MoonDetails, PreferencesSetup, ProfileSetup
+from app.states import CompatibilityCheck, MoonDetails, PartnerSetup, PreferencesSetup, ProfileSetup
 from app.states import AdminPanel, DailySetup
 from app.premium import is_premium_active
-from app.synastry import build_synastry
+from app.synastry import build_synastry, build_synastry_for_partner_profile
 from app.timezones import (
     TIMEZONE_OPTIONS,
     default_timezone_for_locale,
@@ -48,6 +48,8 @@ router = Router()
 admin_router = Router()
 settings = load_settings()
 db = Database(settings.database_path)
+FREE_PARTNER_LIMIT = 2
+PREMIUM_PARTNER_LIMIT = 10
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BOT_ICON_PATH = PROJECT_ROOT / "assets" / "bot_icon.jpg"
 
@@ -190,8 +192,24 @@ TEXTS = {
         "compat_mode_friendship": "Дружба",
         "compat_mode_work": "Работа",
         "compat_mode_saved": "Режим сохранен: {mode}. Теперь введи дату второго человека (ДД.ММ.ГГГГ).",
+        "compat_choose_partner": "Выбери сохранённого партнёра или добавь нового:",
+        "compat_add_partner": "➕ Добавить партнёра",
+        "compat_once": "📅 Разовая проверка по дате",
+        "compat_manage": "🗂 Управление партнёрами",
+        "compat_manage_hint": "Нажми на партнёра, чтобы удалить профиль:",
+        "compat_ask_name": "Как зовут партнёра? (имя или nickname)",
+        "compat_name_short": "Имя слишком короткое. Введи хотя бы 2 символа.",
+        "compat_name_long": "Имя слишком длинное. Максимум 40 символов.",
+        "compat_partner_saved": "Партнёр «{name}» сохранён.",
+        "compat_partner_deleted": "Партнёр «{name}» удалён.",
+        "compat_partner_limit": "Достигнут лимит {limit} партнёров. Удали лишние в управлении.",
+        "compat_partner_limit_free": (
+            "Без Premium можно сохранить до {limit} партнёров. "
+            "Удали лишний профиль или активируй Premium для большего числа."
+        ),
+        "compat_mode_for_partner": "Режим для {name}:",
         "compat_result": (
-            "Совместимость: {sign_a} + {sign_b}\n"
+            "Совместимость: {sign_a} + {partner_name} ({sign_b})\n"
             "Режим: {mode}\n"
             "Оценка: {score}%\n\n"
             "{details}"
@@ -433,8 +451,24 @@ TEXTS = {
         "compat_mode_friendship": "Friendship",
         "compat_mode_work": "Work",
         "compat_mode_saved": "Mode saved: {mode}. Now enter second person's birth date (DD.MM.YYYY).",
+        "compat_choose_partner": "Choose a saved partner or add a new one:",
+        "compat_add_partner": "➕ Add partner",
+        "compat_once": "📅 One-time check by date",
+        "compat_manage": "🗂 Manage partners",
+        "compat_manage_hint": "Tap a partner to delete their profile:",
+        "compat_ask_name": "What is your partner's name?",
+        "compat_name_short": "Name is too short. Enter at least 2 characters.",
+        "compat_name_long": "Name is too long. Maximum 40 characters.",
+        "compat_partner_saved": "Partner \"{name}\" saved.",
+        "compat_partner_deleted": "Partner \"{name}\" deleted.",
+        "compat_partner_limit": "Partner limit reached: {limit}. Remove extras in manage.",
+        "compat_partner_limit_free": (
+            "Without Premium you can save up to {limit} partners. "
+            "Remove one or activate Premium for more profiles."
+        ),
+        "compat_mode_for_partner": "Mode for {name}:",
         "compat_result": (
-            "Compatibility: {sign_a} + {sign_b}\n"
+            "Compatibility: {sign_a} + {partner_name} ({sign_b})\n"
             "Mode: {mode}\n"
             "Score: {score}%\n\n"
             "{details}"
@@ -1394,6 +1428,210 @@ def get_sign_name(sign: str | None, locale: str) -> str:
     return sign_map.get(sign, sign)
 
 
+def compat_mode_label(locale: str, mode: str) -> str:
+    labels = {
+        "ru": {"love": "Любовь", "friendship": "Дружба", "work": "Работа"},
+        "en": {"love": "Love", "friendship": "Friendship", "work": "Work"},
+    }
+    lang = "ru" if locale == "ru" else "en"
+    return labels[lang].get(mode, mode)
+
+
+def partner_profile_limit(profile) -> int:
+    if profile and is_premium_active(profile.premium_until):
+        return PREMIUM_PARTNER_LIMIT
+    return FREE_PARTNER_LIMIT
+
+
+def partner_limit_text(locale: str, profile, limit: int) -> str:
+    if profile and is_premium_active(profile.premium_until):
+        return t(locale, "compat_partner_limit", limit=str(limit))
+    return t(locale, "compat_partner_limit_free", limit=str(limit))
+
+
+def partner_limit_keyboard(locale: str, profile) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if profile is None or not is_premium_active(profile.premium_until):
+        rows.append([InlineKeyboardButton(text=t(locale, "btn_premium"), callback_data="nav:premium")])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def compat_daily_limit_reached(user_id: int, profile) -> bool:
+    if is_premium_active(profile.premium_until):
+        return False
+    date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    used = await db.count_events_for_day(user_id, "compat_result", date_key)
+    return used >= 3
+
+
+def compat_mode_keyboard(locale: str, *, back_data: str = "nav:compat") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t(locale, "compat_mode_love"), callback_data="compatmode:love"),
+                InlineKeyboardButton(
+                    text=t(locale, "compat_mode_friendship"), callback_data="compatmode:friendship"
+                ),
+                InlineKeyboardButton(text=t(locale, "compat_mode_work"), callback_data="compatmode:work"),
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=back_data)],
+        ]
+    )
+
+
+def compat_menu_keyboard(locale: str, partners) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for partner in partners:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{partner.name} · {get_sign_name(partner.sign, locale)}",
+                    callback_data=f"compat:pick:{partner.id}",
+                )
+            ]
+        )
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "compat_add_partner"), callback_data="compat:add")]
+    )
+    rows.append([InlineKeyboardButton(text=t(locale, "compat_once"), callback_data="compat:once")])
+    if partners:
+        rows.append([InlineKeyboardButton(text=t(locale, "compat_manage"), callback_data="compat:manage")])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def compat_manage_keyboard(locale: str, partners) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"🗑 {partner.name}",
+                callback_data=f"compat:del:{partner.id}",
+            )
+        ]
+        for partner in partners
+    ]
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def compat_menu_text(locale: str, user_id: int) -> str:
+    partners = await db.list_partners(user_id)
+    return f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{t(locale, 'compat_choose_partner')}"
+
+
+async def show_compat_menu(*, user_id: int, locale: str, message: Message | None = None, callback: CallbackQuery | None = None) -> None:
+    partners = await db.list_partners(user_id)
+    text = await compat_menu_text(locale, user_id)
+    keyboard = compat_menu_keyboard(locale, partners)
+    if callback is not None:
+        await render_inline_panel(callback, text, keyboard)
+    elif message is not None:
+        await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+async def show_compat_mode_panel(
+    *,
+    locale: str,
+    intro: str,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+    back_data: str = "nav:compat",
+) -> None:
+    keyboard = compat_mode_keyboard(locale, back_data=back_data)
+    text = f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{intro}\n\n{t(locale, 'choose_compat_mode')}"
+    if callback is not None:
+        await render_inline_panel(callback, text, keyboard)
+    elif message is not None:
+        await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+async def deliver_compat_result(
+    *,
+    user_id: int,
+    locale: str,
+    profile,
+    syn,
+    mode: str,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+) -> None:
+    partner_name = syn.partner_name or get_sign_name(syn.partner_sign, locale)
+    result_text = t(
+        locale,
+        "compat_result",
+        sign_a=get_sign_name(profile.sign, locale),
+        partner_name=partner_name,
+        sign_b=get_sign_name(syn.partner_sign, locale),
+        mode=compat_mode_label(locale, mode),
+        score=str(syn.score),
+        details=syn.details,
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(locale, "btn_compat"), callback_data="nav:compat")],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+        ]
+    )
+    if callback is not None and callback.message is not None:
+        await show_ui_panel(
+            bot=callback.bot,
+            user_id=user_id,
+            chat_id=callback.message.chat.id,
+            text=result_text,
+            reply_markup=keyboard,
+            edit_message=callback.message,
+        )
+    elif message is not None:
+        await show_panel_from_message(message, result_text, reply_markup=keyboard)
+    await db.log_event(user_id, "compat_result")
+
+
+async def run_saved_partner_compat(
+    *,
+    user_id: int,
+    locale: str,
+    profile,
+    partner_id: int,
+    mode: str,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+    state: FSMContext | None = None,
+) -> bool:
+    if await compat_daily_limit_reached(user_id, profile):
+        limit_text = t(locale, "premium_required_compat_daily_limit")
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+        )
+        if callback is not None:
+            await edit_or_send(callback, limit_text, inline_keyboard=keyboard)
+        elif message is not None:
+            await show_panel_from_message(message, limit_text, reply_markup=keyboard)
+        return False
+
+    partner = await db.get_partner(user_id, partner_id)
+    if partner is None:
+        if callback is not None:
+            await show_compat_menu(user_id=user_id, locale=locale, callback=callback)
+        elif message is not None:
+            await show_compat_menu(user_id=user_id, locale=locale, message=message)
+        return False
+
+    syn = build_synastry_for_partner_profile(locale, profile, partner, mode)
+    if state is not None:
+        await state.clear()
+    await deliver_compat_result(
+        user_id=user_id,
+        locale=locale,
+        profile=profile,
+        syn=syn,
+        mode=mode,
+        message=message,
+        callback=callback,
+    )
+    return True
+
+
 async def get_user_locale(user_id: int) -> str:
     profile = await db.get_user(user_id)
     return get_locale(profile.language if profile else None)
@@ -1771,33 +2009,7 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
             )
             return
         await state.clear()
-        await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
-        mode_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t(locale, "compat_mode_love"),
-                        callback_data="compatmode:love",
-                    ),
-                    InlineKeyboardButton(
-                        text=t(locale, "compat_mode_friendship"),
-                        callback_data="compatmode:friendship",
-                    ),
-                    InlineKeyboardButton(
-                        text=t(locale, "compat_mode_work"),
-                        callback_data="compatmode:work",
-                    ),
-                ],
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-            ]
-        )
-        await state.update_data(compat_mode="love")
-        await render_inline_panel(
-            callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
-            f"{t(locale, 'choose_compat_mode')}\n\n{t(locale, 'ask_compat_date')}",
-            mode_keyboard,
-        )
+        await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
         return
     if action == "admin":
         await render_inline_panel(
@@ -2092,71 +2304,137 @@ async def compat_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
-    premium_active = is_premium_active(profile.premium_until)
-    if not premium_active:
-        date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        used = await db.count_events_for_day(user.id, "compat_result", date_key)
-        if used >= 3:
-            await show_panel_from_message(
-                message,
-                t(locale, "premium_required_compat_daily_limit"),
-                reply_markup=home_panel_keyboard(locale),
+    await state.clear()
+    await show_compat_menu(user_id=user.id, locale=locale, message=message)
+
+
+@router.callback_query(F.data.startswith("compat:"))
+async def compat_action_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or not profile.sign:
+        await callback.answer()
+        await edit_or_send(callback, t(locale, "complete_profile_first"), inline_keyboard=home_panel_keyboard(locale))
+        return
+
+    action = (callback.data or "").split(":", 1)[1]
+    await callback.answer()
+
+    if action == "add":
+        count = await db.count_partners(user.id)
+        limit = partner_profile_limit(profile)
+        if count >= limit:
+            await render_inline_panel(
+                callback,
+                f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{partner_limit_text(locale, profile, limit)}",
+                partner_limit_keyboard(locale, profile),
             )
             return
+        await state.clear()
+        await state.set_state(PartnerSetup.waiting_name)
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{t(locale, 'compat_ask_name')}",
+            InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
 
-    await state.clear()
-    await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
-    mode_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=t(locale, "compat_mode_love"), callback_data="compatmode:love"),
-                InlineKeyboardButton(
-                    text=t(locale, "compat_mode_friendship"), callback_data="compatmode:friendship"
-                ),
-                InlineKeyboardButton(text=t(locale, "compat_mode_work"), callback_data="compatmode:work"),
-            ],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-        ]
-    )
-    await state.update_data(compat_mode="love")
-    await show_panel_from_message(
-        message,
-        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
-        f"{t(locale, 'choose_compat_mode')}\n\n{t(locale, 'ask_compat_date')}",
-        reply_markup=mode_keyboard,
-    )
+    if action == "once":
+        await state.clear()
+        await state.update_data(compat_mode="love", compat_partner_id=None)
+        await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
+        await show_compat_mode_panel(
+            locale=locale,
+            intro=t(locale, "ask_compat_date"),
+            callback=callback,
+        )
+        return
+
+    if action == "manage":
+        partners = await db.list_partners(user.id)
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{t(locale, 'compat_manage_hint')}",
+            compat_manage_keyboard(locale, partners),
+        )
+        return
+
+    if action.startswith("pick:"):
+        partner_id = int(action.split(":", 1)[1])
+        partner = await db.get_partner(user.id, partner_id)
+        if partner is None:
+            await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
+            return
+        await state.update_data(compat_mode="love", compat_partner_id=partner_id)
+        await show_compat_mode_panel(
+            locale=locale,
+            intro=t(locale, "compat_mode_for_partner", name=partner.name),
+            callback=callback,
+        )
+        return
+
+    if action.startswith("del:"):
+        partner_id = int(action.split(":", 1)[1])
+        partner = await db.get_partner(user.id, partner_id)
+        if partner is None:
+            await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
+            return
+        await db.delete_partner(user.id, partner_id)
+        partners = await db.list_partners(user.id)
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+            f"{t(locale, 'compat_partner_deleted', name=partner.name)}",
+            compat_manage_keyboard(locale, partners) if partners else compat_menu_keyboard(locale, partners),
+        )
+        return
 
 
 @router.callback_query(F.data.startswith("compatmode:"))
 async def compat_mode_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
-    if user is None:
+    if user is None or callback.message is None:
         return
     locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or not profile.sign:
+        await callback.answer()
+        return
+
     mode = (callback.data or "").split(":")[-1]
     if mode not in {"love", "friendship", "work"}:
         mode = "love"
     await state.update_data(compat_mode=mode)
     await callback.answer()
-    mode_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=t(locale, "compat_mode_love"), callback_data="compatmode:love"),
-                InlineKeyboardButton(
-                    text=t(locale, "compat_mode_friendship"), callback_data="compatmode:friendship"
-                ),
-                InlineKeyboardButton(text=t(locale, "compat_mode_work"), callback_data="compatmode:work"),
-            ],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-        ]
-    )
+
+    data = await state.get_data()
+    partner_id = data.get("compat_partner_id")
+    if partner_id is not None:
+        await run_saved_partner_compat(
+            user_id=user.id,
+            locale=locale,
+            profile=profile,
+            partner_id=int(partner_id),
+            mode=mode,
+            callback=callback,
+            state=state,
+        )
+        return
+
+    await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
     await edit_or_send(
         callback,
         f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
         f"{t(locale, 'choose_compat_mode')}\n"
-        f"{t(locale, 'compat_mode_saved', mode=mode)}\n\n"
+        f"{t(locale, 'compat_mode_saved', mode=compat_mode_label(locale, mode))}\n\n"
         f"{t(locale, 'ask_compat_date')}",
-        inline_keyboard=mode_keyboard,
+        inline_keyboard=compat_mode_keyboard(locale),
     )
 
 
@@ -3144,26 +3422,194 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
 
     data = await state.get_data()
     mode = data.get("compat_mode", "love")
-    syn = build_synastry(locale, profile.sign, partner_birth_date, mode)
+    if await compat_daily_limit_reached(user.id, profile):
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "premium_required_compat_daily_limit"),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+
+    syn = build_synastry(
+        locale,
+        profile.sign,
+        partner_birth_date,
+        mode,
+        user_birth_date=profile.birth_date,
+        user_birth_time=profile.birth_time,
+        user_city=profile.city,
+        user_timezone=profile.timezone or "UTC",
+        user_id=user.id,
+        partner_name=partner_birth_date.strftime("%d.%m.%Y"),
+    )
     await state.clear()
+    await deliver_compat_result(
+        user_id=user.id,
+        locale=locale,
+        profile=profile,
+        syn=syn,
+        mode=mode,
+        message=message,
+    )
+
+
+@router.message(PartnerSetup.waiting_name)
+async def partner_name_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    name = (message.text or "").strip()
+    if len(name) < 2:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'compat_name_short')}\n\n{t(locale, 'compat_ask_name')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+    if len(name) > 40:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'compat_name_long')}\n\n{t(locale, 'compat_ask_name')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+    await state.update_data(partner_name=name)
+    await state.set_state(PartnerSetup.waiting_birth_date)
     await show_panel_from_message(
         message,
-        t(
-            locale,
-            "compat_result",
-            sign_a=get_sign_name(profile.sign, locale),
-            sign_b=get_sign_name(syn.partner_sign, locale),
-            mode=mode,
-            score=str(syn.score),
-            details=syn.details,
-        ),
+        t(locale, "ask_compat_date"),
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")]
-            ]
+            inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
         ),
     )
-    await db.log_event(user.id, "compat_result")
+
+
+@router.message(PartnerSetup.waiting_birth_date)
+async def partner_birth_date_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    try:
+        birth_date = datetime.strptime(raw_text, "%d.%m.%Y").date()
+    except ValueError:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'invalid_date')}\n\n{t(locale, 'ask_compat_date')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+    await state.update_data(partner_birth_date=birth_date.isoformat())
+    await state.set_state(PartnerSetup.waiting_birth_time)
+    await show_panel_from_message(message, t(locale, "ask_time"), reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+    ))
+
+
+@router.message(PartnerSetup.waiting_birth_time)
+async def partner_birth_time_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    if raw_text == "-":
+        await state.update_data(partner_birth_time=None)
+    else:
+        try:
+            birth_time = datetime.strptime(raw_text, "%H:%M").time()
+        except ValueError:
+            await show_panel_from_message(
+                message,
+                f"{t(locale, 'invalid_time')}\n\n{t(locale, 'ask_time')}",
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+                ),
+            )
+            return
+        await state.update_data(partner_birth_time=birth_time.isoformat(timespec="minutes"))
+    await state.set_state(PartnerSetup.waiting_city)
+    await show_panel_from_message(message, t(locale, "ask_city"), reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+    ))
+
+
+@router.message(PartnerSetup.waiting_city)
+async def partner_city_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    city = (message.text or "").strip()
+    if len(city) < 2:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_short')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+            ),
+        )
+        return
+
+    data = await state.get_data()
+    name = data.get("partner_name")
+    birth_date_iso = data.get("partner_birth_date")
+    if not name or not birth_date_iso:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "session_expired"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
+    birth_date = date.fromisoformat(birth_date_iso)
+    birth_time_iso = data.get("partner_birth_time")
+    birth_time = datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
+    sign = zodiac_sign(birth_date)
+    user_tz = profile.timezone if profile and profile.timezone else "UTC"
+
+    count = await db.count_partners(user.id)
+    limit = partner_profile_limit(profile)
+    if count >= limit:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{partner_limit_text(locale, profile, limit)}",
+            reply_markup=partner_limit_keyboard(locale, profile),
+        )
+        return
+
+    await db.add_partner(
+        user.id,
+        name=name,
+        birth_date=birth_date,
+        birth_time=birth_time,
+        city=city,
+        timezone=user_tz,
+        sign=sign,
+    )
+    await state.clear()
+    partners = await db.list_partners(user.id)
+    await show_panel_from_message(
+        message,
+        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+        f"{t(locale, 'compat_partner_saved', name=name)}\n\n"
+        f"{t(locale, 'compat_choose_partner')}",
+        reply_markup=compat_menu_keyboard(locale, partners),
+    )
 
 
 @router.message(ProfileSetup.waiting_birth_date)
