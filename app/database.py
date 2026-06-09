@@ -157,6 +157,7 @@ class Database:
                 "referrer_id": "INTEGER",
                 "ref_bonus_count": "INTEGER DEFAULT 0",
                 "start_source": "TEXT",
+                "created_at": "TEXT",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
@@ -241,17 +242,21 @@ class Database:
         first_name: Optional[str],
         language: str,
     ) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
-                INSERT INTO users (user_id, username, first_name, language, evening_enabled, evening_time)
-                VALUES (?, ?, ?, ?, 1, '20:00')
+                INSERT INTO users (
+                    user_id, username, first_name, language,
+                    evening_enabled, evening_time, created_at
+                )
+                VALUES (?, ?, ?, ?, 1, '20:00', ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                     username = excluded.username,
                     first_name = excluded.first_name,
                     language = COALESCE(users.language, excluded.language)
                 """,
-                (user_id, username, first_name, language),
+                (user_id, username, first_name, language, now_iso),
             )
             await db.commit()
 
@@ -959,26 +964,66 @@ class Database:
         ]
 
     async def get_stats(self) -> dict[str, int]:
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
+        since_24h = (now - timedelta(hours=24)).isoformat()
+        since_7d = (now - timedelta(days=7)).isoformat()
+        since_30d = (now - timedelta(days=30)).isoformat()
         async with aiosqlite.connect(self._db_path) as db:
             async with db.execute("SELECT COUNT(*) FROM users") as c:
                 total_users = (await c.fetchone())[0]
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE created_at IS NOT NULL AND created_at >= ?
+                """,
+                (since_7d,),
+            ) as c:
+                new_users_7d = (await c.fetchone())[0]
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE created_at IS NOT NULL AND created_at >= ?
+                """,
+                (since_30d,),
+            ) as c:
+                new_users_30d = (await c.fetchone())[0]
             async with db.execute("SELECT COUNT(*) FROM users WHERE daily_enabled = 1") as c:
                 daily_subscribers = (await c.fetchone())[0]
-            now_iso = datetime.now(timezone.utc).isoformat()
             async with db.execute(
                 "SELECT COUNT(*) FROM users WHERE premium_until IS NOT NULL AND premium_until > ?",
                 (now_iso,),
             ) as c:
                 premium_users = (await c.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM referrals WHERE created_at >= ?",
+                (since_7d,),
+            ) as c:
+                referrals_7d = (await c.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM referrals WHERE created_at >= ?",
+                (since_30d,),
+            ) as c:
+                referrals_30d = (await c.fetchone())[0]
             async with db.execute("SELECT COUNT(*) FROM events") as c:
                 total_events = (await c.fetchone())[0]
+            async with db.execute(
+                "SELECT COUNT(*) FROM error_log WHERE created_at >= ?",
+                (since_24h,),
+            ) as c:
+                errors_24h = (await c.fetchone())[0]
             async with db.execute("SELECT COUNT(*) FROM error_log") as c:
                 total_errors = (await c.fetchone())[0]
         return {
             "total_users": total_users,
+            "new_users_7d": new_users_7d,
+            "new_users_30d": new_users_30d,
             "daily_subscribers": daily_subscribers,
             "premium_users": premium_users,
+            "referrals_7d": referrals_7d,
+            "referrals_30d": referrals_30d,
             "total_events": total_events,
+            "errors_24h": errors_24h,
             "total_errors": total_errors,
         }
 

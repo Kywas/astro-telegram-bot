@@ -1,26 +1,53 @@
-# Astro Telegram Bot (MVP)
+# AstroPulse Telegram Bot
 
-Simple astrology Telegram bot on Python + aiogram.
+Astrology Telegram bot on Python + aiogram: horoscopes, compatibility, moon calendar, natal chart, Premium subscriptions, referrals, and admin tools.
 
 ## Features
 
-- User onboarding (`/start`)
-- Profile collection: birth date, time, city
-- Zodiac sign calculation
-- Daily horoscope (`/today`)
-- Compatibility check (`/compat`)
-- Moon calendar (`/moon`)
-- Moon table for 7/30 days with daily tips
-- Mood tracking (`/mood 1..10`)
-- Daily auto-delivery (`/daily on HH:MM`, `/daily off`)
-- User preferences (`/prefs`, `/setprefs`)
-- Basic analytics and premium status (`/stats`, `/premium`)
-- Preferences wizard with buttons (`/prefssetup`)
-- Premium payment skeleton (`/buypremium`)
-- Admin utilities (`/grantpremium`, `/broadcast`, `/ping`)
-- Error logging (`error_log` table)
-- RU/EN localization with language switch
-- Data stored in SQLite
+### Core
+- Onboarding (`/start`) with birth date, time, city, and zodiac sign
+- Daily / weekly horoscope (`/today`) with personalization by goal and relationship status
+- Compatibility / synastry (`/compat`) with saved partners (up to 2 free, 10 with Premium)
+- Moon calendar (`/moon`) — 7 days free, 30 days in Premium
+- Natal chart (`/natal`) — short free, full in Premium
+- Mood tracker (`/mood`) and evening check-in with streak counter
+- Daily auto-delivery, evening check-in, and lunar notifications (`/daily`)
+- Preferences wizard (`/prefssetup`, `/setprefs`, `/prefs`)
+- RU / EN localization (`/language`)
+- Feedback via `/feedback` and `FEEDBACK_USERNAME` in bot profile
+
+### Premium
+- **100 Stars · 199 ₽ · $3.00** per 30 days (Stars work out of the box; fiat needs BotFather provider)
+- One-time **7-day trial** after profile completion (`PREMIUM_TRIAL_DAYS`)
+- Expiry reminders at 11:00 user local time (3 days, 1 day, today)
+- Admin notification on every successful purchase
+
+### Growth
+- Referral program: invite a friend → **+7 days Premium** (reward after full profile)
+- UTM in `/start`: `?start=src_vk` — source tracked in `/stats`
+- Share horoscope button with referral link
+
+### Admin (`ADMIN_IDS`)
+- `/stats` — users, subscribers, Premium, events, errors, **traffic sources**
+- `/stars` — Telegram Stars balance and recent transactions
+- `/grantpremium`, `/broadcast`, `/ping`, `/admin` panel
+- Alerts: bot start/crash, error spike (≥10/hour)
+
+## Project layout
+
+```
+app/
+  bot.py              # entrypoint (run_bot)
+  bot_context.py      # routers, settings, db singleton
+  i18n.py             # localized strings
+  keyboards.py        # inline keyboard builders
+  ui.py               # panel edit/send helpers
+  profile_public.py   # BotFather profile sync
+  handlers/
+    admin.py          # admin commands
+    user.py           # user commands and callbacks
+  services/           # shared business logic (home, compat, premium, …)
+```
 
 ## Quick start
 
@@ -31,87 +58,70 @@ Simple astrology Telegram bot on Python + aiogram.
 pip install -r requirements.txt
 ```
 
-3. Create `.env` from `.env.example` and set your bot token from BotFather.
-4. Run the bot:
+3. Copy `.env.example` to `.env` and set `BOT_TOKEN` from [@BotFather](https://t.me/BotFather).
+4. Run:
 
 ```bash
 python main.py
 ```
 
-Or run helper script on Windows (creates `.venv` if needed, installs deps, starts bot):
+Windows helpers: `start_bot.ps1` or `start_bot.bat`.
 
-```powershell
-.\start_bot.ps1
-```
-
-If PowerShell execution policy blocks scripts, use batch file:
-
-```bat
-start_bot.bat
-```
-
-## Proxy setup (optional)
-
-If Telegram API is blocked in your network, set proxy in `.env`:
+## Environment (`.env`)
 
 ```env
-BOT_PROXY=http://127.0.0.1:7890
-```
+BOT_TOKEN=
+ADMIN_IDS=123456789
+FEEDBACK_USERNAME=your_username
 
-You can also use authenticated proxy:
-
-```env
-BOT_PROXY=http://username:password@host:port
-```
-
-If `BOT_PROXY` is empty, the bot will also try `HTTPS_PROXY` and `HTTP_PROXY`.
-
-Admin and premium config in `.env`:
-
-```env
-ADMIN_IDS=123456789,987654321
 ENABLE_PAYMENTS=true
 PREMIUM_PRICE_STARS=100
 PREMIUM_PRICE_RUB=199
 PREMIUM_PRICE_USD=300
-PAYMENT_PROVIDER_TOKEN=
-PAYMENT_PROVIDER_TOKEN_USD=
+PREMIUM_TRIAL_DAYS=7
+PAYMENT_PROVIDER_TOKEN=       # YooKassa etc. after BotFather approval
+PAYMENT_PROVIDER_TOKEN_USD=   # Stripe etc.
+
+# Optional proxy if Telegram API is blocked
+BOT_PROXY=http://127.0.0.1:7890
 ```
-
-Premium payments (aligned tier **100 Stars · 199 ₽ · $3.00** per 30 days):
-- **Stars** — works with `PREMIUM_PRICE_STARS` only (no provider token).
-- **RUB** — connect YooKassa (or another provider) in [@BotFather](https://t.me/BotFather) → Bot Settings → Payments, then paste the provider token into `PAYMENT_PROVIDER_TOKEN` and set `PREMIUM_PRICE_RUB` in whole rubles.
-- **USD** — connect Stripe (or another USD provider) in BotFather, set `PAYMENT_PROVIDER_TOKEN_USD` and `PREMIUM_PRICE_USD` in cents (`300` = $3.00).
-
-If a fiat provider is not configured, that currency is hidden automatically.
 
 ## Commands
 
-- `/start` - start and fill profile
-- `/profile` - show current profile
-- `/today` - get horoscope for today
-- `/compat` - check compatibility with another person
-- `/moon` - show moon calendar for today
-- `/mood 1..10` - save current mood
-- `/daily on HH:MM` - enable daily auto-send in UTC
-- `/daily off` - disable daily auto-send
-- `/prefs` - view personal preferences
-- `/setprefs m single career` - update profile preferences
-- `/prefssetup` - open step-by-step preferences wizard
-- `/premium` - show premium status
-- `/buypremium` - choose Premium payment method (Stars / RUB / USD)
-- `/stats` - show bot stats
-- `/grantpremium <user_id> <days>` - admin grant premium
-- `/broadcast <text>` - admin broadcast message to all users
-- `/ping` - admin health check
-- `/language` - switch RU/EN
-- `/help` - command list
+| Command | Description |
+|---------|-------------|
+| `/start` | Start bot, fill profile |
+| `/profile` | Show profile |
+| `/today` | Horoscope (day / week / month) |
+| `/compat` | Compatibility |
+| `/moon` | Moon calendar |
+| `/natal` | Natal chart |
+| `/mood 1..10` | Save mood |
+| `/daily` | Daily / evening / lunar notifications |
+| `/prefs`, `/prefssetup` | Personal settings |
+| `/premium`, `/buypremium` | Premium status and payment |
+| `/ref` | Referral link |
+| `/feedback` | Contact support |
+| `/language`, `/menu`, `/help`, `/about` | UI helpers |
+| `/stats`, `/stars`, `/grantpremium`, `/broadcast`, `/ping` | Admin only |
 
-Notes:
-- `/stats` is admin-only (IDs from `ADMIN_IDS`)
-- `/buypremium` works when `ENABLE_PAYMENTS=true` and at least one price is configured
+## Marketing links
+
+- Referral: `https://t.me/YourBot?start=ref_CODE`
+- Traffic source: `https://t.me/YourBot?start=src_vk`
+
+## Deploy
+
+Push to `main` triggers GitHub Actions deploy to VPS (`/opt/astro-telegram-bot`, systemd `astrobot`).
+
+Offline checks:
+
+```bash
+python scripts/test_core.py
+python -m compileall app main.py scripts
+```
 
 ## Notes
 
-- This bot provides entertainment content.
-- Do not share real personal data in testing.
+- Entertainment content only — not professional advice.
+- Data stored in SQLite (`astro_bot.db` on server).

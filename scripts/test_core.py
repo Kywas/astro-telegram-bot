@@ -92,12 +92,41 @@ def test_start_source_payloads() -> None:
     assert parse_ref_code_from_start("ref_abc123") == "abc123"
 
 
+def test_stats_keys() -> None:
+    import asyncio
+    import tempfile
+    from pathlib import Path
+
+    from app.database import Database
+
+    async def run() -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = str(Path(tmp) / "test.db")
+            database = Database(db_path)
+            await database.init()
+            stats = await database.get_stats()
+            for key in (
+                "total_users",
+                "new_users_7d",
+                "new_users_30d",
+                "premium_users",
+                "referrals_7d",
+                "referrals_30d",
+                "errors_24h",
+                "total_errors",
+            ):
+                assert key in stats
+
+    asyncio.run(run())
+
+
 def main() -> None:
     test_payment_payloads()
     test_payment_options()
     test_referral_profile_requirements()
     test_premium_dates()
     test_start_source_payloads()
+    test_stats_keys()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 
