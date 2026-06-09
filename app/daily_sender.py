@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.admin_alerts import check_and_notify_error_spike
 from app.database import Database
 from app.evening_checkin import build_evening_checkin_prompt
 from app.horoscope import generate_horoscope, personalization_from_profile
@@ -244,7 +245,12 @@ async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: dateti
             await db.log_event(user.user_id, f"premium_reminder_{days_left}d_failed")
 
 
-async def run_daily_loop(db: Database, bot: Bot) -> None:
+async def run_daily_loop(
+    db: Database,
+    bot: Bot,
+    *,
+    admin_ids: tuple[int, ...] = (),
+) -> None:
     logger = logging.getLogger(__name__)
     while True:
         try:
@@ -253,6 +259,7 @@ async def run_daily_loop(db: Database, bot: Bot) -> None:
             await _send_evening_checkins(db, bot, now)
             await _send_lunar_notifications(db, bot, now)
             await _send_premium_expiry_reminders(db, bot, now)
+            await check_and_notify_error_spike(db, bot, admin_ids)
         except Exception:
             logger.exception("daily loop tick failed")
         await asyncio.sleep(60)

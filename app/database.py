@@ -156,6 +156,7 @@ class Database:
                 "ref_code": "TEXT",
                 "referrer_id": "INTEGER",
                 "ref_bonus_count": "INTEGER DEFAULT 0",
+                "start_source": "TEXT",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
@@ -888,6 +889,74 @@ class Database:
                 (user_id, period, date_key, now_iso),
             )
             await db.commit()
+
+    async def set_start_source_if_empty(self, user_id: int, source: str) -> bool:
+        normalized = source.strip().lower()[:32]
+        if not normalized:
+            return False
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                """
+                UPDATE users
+                SET start_source = ?
+                WHERE user_id = ?
+                  AND (start_source IS NULL OR start_source = '')
+                """,
+                (normalized, user_id),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    async def get_start_source_stats(self) -> list[tuple[str, int]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                """
+                SELECT COALESCE(NULLIF(start_source, ''), 'direct') AS src, COUNT(*) AS cnt
+                FROM users
+                GROUP BY src
+                ORDER BY cnt DESC, src ASC
+                LIMIT 20
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [(str(row[0]), int(row[1])) for row in rows]
+
+    async def count_errors_since(self, since_iso: str) -> int:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT COUNT(*) FROM error_log WHERE created_at >= ?",
+                (since_iso,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        return int(row[0] if row else 0)
+
+    async def get_recent_error_summaries(
+        self,
+        since_iso: str,
+        *,
+        limit: int = 5,
+    ) -> list[dict[str, str]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT source, error_type, message
+                FROM error_log
+                WHERE created_at >= ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (since_iso, limit),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [
+            {
+                "source": str(row["source"]),
+                "error_type": str(row["error_type"]),
+                "message": str(row["message"]),
+            }
+            for row in rows
+        ]
 
     async def get_stats(self) -> dict[str, int]:
         async with aiosqlite.connect(self._db_path) as db:

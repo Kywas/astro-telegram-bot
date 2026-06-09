@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 from app.config import Settings
 from app.payments import PayCurrency, available_payment_options, parse_premium_payload, premium_payload
 from app.premium import DEFAULT_PREMIUM_TRIAL_DAYS, extend_premium_until, is_premium_active
-from app.premium_lifecycle import days_until_premium_end, format_payment_amount
+from app.premium_lifecycle import format_payment_amount
 
 
 def test_payment_payloads() -> None:
@@ -81,11 +81,23 @@ def test_premium_dates() -> None:
     assert is_premium_active(until.isoformat())
 
 
+def test_start_source_payloads() -> None:
+    from app.start_payload import parse_ref_code_from_start, parse_start_source_from_start
+
+    assert parse_start_source_from_start("src_vk") == "vk"
+    assert parse_start_source_from_start("src_tg_ads") == "tg_ads"
+    assert parse_start_source_from_start("ref_abc") is None
+    assert parse_start_source_from_start("src_") is None
+    assert parse_start_source_from_start("src_bad-chars") is None
+    assert parse_ref_code_from_start("ref_abc123") == "abc123"
+
+
 def main() -> None:
     test_payment_payloads()
     test_payment_options()
     test_referral_profile_requirements()
     test_premium_dates()
+    test_start_source_payloads()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 

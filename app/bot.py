@@ -39,8 +39,14 @@ from app.moon_calendar import (
     generate_moon_table_text,
 )
 from app.natal import build_natal_summary
+from app.start_payload import parse_ref_code_from_start, parse_start_source_from_start
 from app.states import CompatibilityCheck, MoonDetails, PartnerSetup, PreferencesSetup, ProfileSetup
 from app.states import AdminPanel, DailySetup
+from app.admin_alerts import (
+    check_and_notify_error_spike,
+    notify_admins_bot_crashed,
+    notify_admins_bot_started,
+)
 from app.premium_lifecycle import notify_admins_purchase
 from app.payments import (
     PayCurrency,
@@ -299,6 +305,10 @@ TEXTS = {
             "• Всего событий: {total_events}\n"
             "• Ошибок: {total_errors}"
         ),
+        "stats_sources_header": "Источники (/start):",
+        "stats_sources_line": "• {source}: {count}",
+        "stats_source_direct": "без метки",
+        "home_ref_promo": "👥 Приведи друга — +7 дней Premium",
         "admin_only": "Эта команда доступна только администратору.",
         "premium_active": "Premium активен до {until}.",
         "premium_inactive": "Premium не активен. Сейчас доступен базовый режим.",
@@ -601,6 +611,10 @@ TEXTS = {
             "• Total events: {total_events}\n"
             "• Errors: {total_errors}"
         ),
+        "stats_sources_header": "Sources (/start):",
+        "stats_sources_line": "• {source}: {count}",
+        "stats_source_direct": "direct",
+        "home_ref_promo": "👥 Invite a friend — +7 days Premium",
         "admin_only": "This command is available to admin only.",
         "premium_active": "Premium active until {until}.",
         "premium_inactive": "Premium is not active. You are using base mode.",
@@ -900,12 +914,12 @@ async def build_referral_link(bot: Bot, user_id: int) -> str:
     return f"ref_{ref_code}"
 
 
-def parse_ref_code_from_start(payload: str) -> str | None:
-    raw = unquote(payload.strip())
-    if not raw.lower().startswith("ref_"):
-        return None
-    code = raw[4:].strip()
-    return code or None
+async def attach_start_source_from_start(user_id: int, payload: str) -> None:
+    source = parse_start_source_from_start(payload)
+    if not source:
+        return
+    if await db.set_start_source_if_empty(user_id, source):
+        await db.log_event(user_id, f"start_source:{source}")
 
 
 async def try_notify_referral_reward(user_id: int, bot: Bot | None) -> None:
@@ -1241,7 +1255,35 @@ async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "me
         lines.append(t(locale, "home_goal_unset"))
     if profile.mood_streak > 0:
         lines.append(t(locale, "home_streak", streak=str(profile.mood_streak)))
+    lines.append(t(locale, "home_ref_promo"))
     return "\n\n".join(lines)
+
+
+async def build_admin_stats_text(locale: str) -> str:
+    stats = await db.get_stats()
+    base = t(
+        locale,
+        "stats_text",
+        total_users=str(stats["total_users"]),
+        daily_subscribers=str(stats["daily_subscribers"]),
+        premium_users=str(stats["premium_users"]),
+        total_events=str(stats["total_events"]),
+        total_errors=str(stats["total_errors"]),
+    )
+    sources = await db.get_start_source_stats()
+    if not sources:
+        return base
+    source_lines = [t(locale, "stats_sources_header")]
+    for source_key, count in sources:
+        label = (
+            t(locale, "stats_source_direct")
+            if source_key == "direct"
+            else source_key
+        )
+        source_lines.append(
+            t(locale, "stats_sources_line", source=label, count=str(count))
+        )
+    return base + "\n\n" + "\n".join(source_lines)
 
 
 def resolve_user_timezone(profile, locale: str) -> str:
@@ -2096,6 +2138,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
                 locale=default_lang,
                 bot=message.bot,
             )
+            await attach_start_source_from_start(user.id, payload)
         await state.clear()
         lang_sent = await message.answer(
             "Выбери язык / Choose language:",
@@ -2119,6 +2162,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             locale=language,
             bot=message.bot,
         )
+        await attach_start_source_from_start(user.id, payload)
     await state.clear()
     try:
         if existing_profile.birth_date is None:
@@ -3977,17 +4021,8 @@ async def stats_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    stats = await db.get_stats()
     await message.answer(
-        t(
-            locale,
-            "stats_text",
-            total_users=str(stats["total_users"]),
-            daily_subscribers=str(stats["daily_subscribers"]),
-            premium_users=str(stats["premium_users"]),
-            total_events=str(stats["total_events"]),
-            total_errors=str(stats["total_errors"]),
-        ),
+        await build_admin_stats_text(locale),
         reply_markup=admin_panel_keyboard(locale),
     )
 
@@ -4110,18 +4145,9 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
         )
         return
     if action == "stats":
-        stats = await db.get_stats()
         await render_inline_panel(
             callback,
-            t(
-                locale,
-                "stats_text",
-                total_users=str(stats["total_users"]),
-                daily_subscribers=str(stats["daily_subscribers"]),
-                premium_users=str(stats["premium_users"]),
-                total_events=str(stats["total_events"]),
-                total_errors=str(stats["total_errors"]),
-            ),
+            await build_admin_stats_text(locale),
             admin_panel_keyboard(locale),
         )
         return
@@ -5016,12 +5042,21 @@ async def run_bot() -> None:
     dp.include_router(router)
     asyncio.create_task(asyncio.to_thread(warm_timezone_finder))
     await bot.delete_webhook(drop_pending_updates=False)
-    daily_task = asyncio.create_task(run_daily_loop(db, bot))
+    await notify_admins_bot_started(bot, settings.admin_ids)
+    daily_task = asyncio.create_task(
+        run_daily_loop(db, bot, admin_ids=settings.admin_ids)
+    )
     try:
         await dp.start_polling(bot)
     except Exception as e:
         await db.log_error(
             source="run_bot",
+            error_type=type(e).__name__,
+            message=str(e),
+        )
+        await notify_admins_bot_crashed(
+            bot,
+            settings.admin_ids,
             error_type=type(e).__name__,
             message=str(e),
         )
