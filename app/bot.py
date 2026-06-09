@@ -134,13 +134,14 @@ TEXTS = {
         ),
         "about_block": (
             "🌌 AstroPulse\n"
-            "Портал в тайны звёзд и лунных циклов.\n\n"
-            "✨ Гороскоп — сегодня, неделя, месяц\n"
-            "💫 Совместимость — нити судеб и знаков\n"
-            "🌙 Лунный календарь — ритм твоих решений\n"
-            "🪐 Натальная карта — отпечаток неба при рождении\n\n"
-            "⭐ Premium — глубокие видения и полный доступ\n\n"
-            "🌍 RU / EN · космос говорит мягко ✨"
+            "Карманный астролог на эфемеридах.\n\n"
+            "✨ Гороскоп по транзитам — сегодня, неделя, месяц\n"
+            "💞 Совместимость с полным профилем партнёра\n"
+            "🌙 Лунный календарь и ежедневные напоминания\n"
+            "🪐 Натальная карта по Swiss Ephemeris\n\n"
+            "⭐ Premium: полная карта, неделя/месяц, луна 30 дней, "
+            "безлимит совместимости — Telegram Stars\n\n"
+            "🌍 RU / EN"
         ),
         "about_show_commands": "Показать все команды",
         "welcome": (
@@ -405,13 +406,14 @@ TEXTS = {
         ),
         "about_block": (
             "🌌 AstroPulse\n"
-            "A portal to starlight and lunar cycles.\n\n"
-            "✨ Horoscope — today, week, month\n"
-            "💫 Compatibility — threads of fate and signs\n"
-            "🌙 Moon calendar — rhythm of your path\n"
-            "🪐 Natal chart — the sky at your birth\n\n"
-            "⭐ Premium — deeper visions and full access\n\n"
-            "🌍 RU / EN · the cosmos speaks softly ✨"
+            "Pocket astrologer powered by ephemerides.\n\n"
+            "✨ Transit horoscope — today, week, month\n"
+            "💞 Compatibility with full partner profile\n"
+            "🌙 Moon calendar and daily lunar reminders\n"
+            "🪐 Natal chart via Swiss Ephemeris\n\n"
+            "⭐ Premium: full chart, week/month, 30-day moon, "
+            "unlimited compatibility — Telegram Stars\n\n"
+            "🌍 RU / EN"
         ),
         "about_show_commands": "Show all commands",
         "welcome": (
@@ -659,25 +661,27 @@ TEXTS = {
 
 def public_description_ru() -> str:
     return (
-        "🌌 AstroPulse — там, где звёзды встречаются с твоим путём.\n\n"
-        "✨ Узнай, что готовит небо: сегодня, неделя, месяц\n"
-        "💫 Сверь совместимость душ и знаков\n"
-        "🌙 Следи за лунными фазами и их знаками\n"
-        "🪐 Открой натальную карту — отпечаток рождения\n\n"
-        "⭐ Premium — глубокие прогнозы и безграничные чтения\n\n"
-        "🔮 Нажми /start · RU / EN"
+        "🌌 AstroPulse — карманный астролог на эфемеридах.\n\n"
+        "✨ Гороскоп по транзитам: сегодня, неделя, месяц\n"
+        "💞 Совместимость с полным профилем партнёра\n"
+        "🌙 Лунный календарь и ежедневные напоминания\n"
+        "🪐 Натальная карта по Swiss Ephemeris\n\n"
+        "⭐ Premium: полная карта, неделя/месяц, луна на 30 дней, "
+        "безлимит совместимости — Telegram Stars\n\n"
+        "🔮 /start · RU / EN"
     )
 
 
 def public_description_en() -> str:
     return (
-        "🌌 AstroPulse — where starlight meets your path.\n\n"
-        "✨ Discover what the sky holds: today, week, month\n"
-        "💫 Compare compatibility of souls and signs\n"
-        "🌙 Follow lunar phases and their guidance\n"
-        "🪐 Open your natal chart — imprint of your birth\n\n"
-        "⭐ Premium — deep forecasts and boundless readings\n\n"
-        "🔮 Tap /start · RU / EN"
+        "🌌 AstroPulse — pocket astrologer powered by ephemerides.\n\n"
+        "✨ Transit horoscope: today, week, month\n"
+        "💞 Compatibility with full partner profile\n"
+        "🌙 Moon calendar and daily lunar reminders\n"
+        "🪐 Natal chart via Swiss Ephemeris\n\n"
+        "⭐ Premium: full chart, week/month, 30-day moon, "
+        "unlimited compatibility — Telegram Stars\n\n"
+        "🔮 /start · RU / EN"
     )
 
 
@@ -687,11 +691,11 @@ async def configure_public_profile(bot: Bot) -> None:
         await bot.set_my_name(name="AstroPulse", language_code="ru")
         await bot.set_my_name(name="AstroPulse", language_code="en")
     await bot.set_my_short_description(
-        short_description="🌌 Звёзды шепчут, луна ведёт. AstroPulse · гороскоп · луна · карта · /start",
+        short_description="🌌 AstroPulse · транзиты · луна · совместимость · Premium Stars · /start",
         language_code="ru",
     )
     await bot.set_my_short_description(
-        short_description="🌌 Stars whisper, the moon guides. AstroPulse · horoscope · moon · chart · /start",
+        short_description="🌌 AstroPulse · transits · moon · compatibility · Premium Stars · /start",
         language_code="en",
     )
     await bot.set_my_description(
