@@ -13,4 +13,8 @@ def setup_logging() -> None:
 
 if __name__ == "__main__":
     setup_logging()
-    asyncio.run(run_bot())
+    try:
+        asyncio.run(run_bot())
+    except Exception:
+        logging.exception("Bot failed to start")
+        raise

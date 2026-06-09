@@ -5,11 +5,14 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/astro-telegram-bot
+EnvironmentFile=-/opt/astro-telegram-bot/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=HTTP_PROXY=
+Environment=HTTPS_PROXY=
 ExecStart=/opt/astro-telegram-bot/.venv/bin/python /opt/astro-telegram-bot/main.py
 Restart=always
 RestartSec=5
 User=root
-Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
