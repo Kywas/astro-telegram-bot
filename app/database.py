@@ -744,7 +744,13 @@ class Database:
         bonus_days: int = 7,
     ) -> Optional[int]:
         profile = await self.get_user(invited_user_id)
-        if profile is None or profile.birth_date is None or not profile.sign or not profile.goal:
+        if (
+            profile is None
+            or profile.birth_date is None
+            or not profile.sign
+            or not profile.goal
+            or not profile.relationship_status
+        ):
             return None
 
         now = datetime.now(timezone.utc)

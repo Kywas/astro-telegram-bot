@@ -931,14 +931,15 @@ async def attach_referrer_from_start(
         return
     inviter_id = await db.get_user_id_by_ref_code(ref_code)
     if inviter_id is None:
-        await bot.send_message(invited_user_id, t(locale, "ref_invalid"))
+        invited = await db.get_user(invited_user_id)
+        if invited is not None and invited.referrer_id is None:
+            await bot.send_message(invited_user_id, t(locale, "ref_invalid"))
         return
     linked = await db.set_referrer_if_empty(invited_user_id, inviter_id)
     if not linked:
         return
     await db.log_event(invited_user_id, "ref_linked")
     await bot.send_message(invited_user_id, t(locale, "ref_attached"))
-    await try_notify_referral_reward(invited_user_id, bot)
 
 
 def referral_panel_keyboard(locale: str, link: str) -> InlineKeyboardMarkup:
@@ -3603,6 +3604,8 @@ async def home_relationship_set_callback(callback: CallbackQuery, state: FSMCont
         return
 
     finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
+    if not finished:
+        await try_notify_referral_reward(user.id, callback.bot)
     home_text = await build_home_panel_text(
         user.id,
         locale,
@@ -3642,9 +3645,10 @@ async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> 
     await state.clear()
     await db.update_preferences(user.id, goal=goal)
     await db.log_event(user.id, "goal_updated")
-    await try_notify_referral_reward(user.id, callback.bot)
     await callback.answer(t(locale, "goal_saved_toast", goal=label))
     finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
+    if not finished:
+        await try_notify_referral_reward(user.id, callback.bot)
     home_text = await build_home_panel_text(
         user.id,
         locale,
@@ -3678,7 +3682,9 @@ async def prefs_goal_callback(callback: CallbackQuery, state: FSMContext) -> Non
         goal=goal,
     )
     await db.log_event(user.id, "prefs_wizard_done")
-    await try_notify_referral_reward(user.id, callback.bot)
+    finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
+    if not finished:
+        await try_notify_referral_reward(user.id, callback.bot)
     await edit_or_send(
         callback,
         t(
@@ -3714,7 +3720,9 @@ async def setprefs_handler(message: Message) -> None:
         goal=goal.lower(),
     )
     await db.log_event(user.id, "prefs_updated")
-    await try_notify_referral_reward(user.id, message.bot)
+    finished = await _try_finish_profile_if_ready(user.id, locale, message.bot)
+    if not finished:
+        await try_notify_referral_reward(user.id, message.bot)
     await message.answer(
         t(
             locale,

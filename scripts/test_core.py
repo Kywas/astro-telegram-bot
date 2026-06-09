@@ -37,7 +37,43 @@ def test_payment_options() -> None:
     assert format_payment_amount(PayCurrency.USD, 300, "USD") == "$3.00"
 
 
-def test_premium_dates() -> None:
+def test_referral_profile_requirements() -> None:
+    from app.database import UserProfile
+    from datetime import date
+
+    complete = UserProfile(
+        user_id=1,
+        username=None,
+        first_name=None,
+        birth_date=date(2000, 1, 1),
+        birth_time=None,
+        city="Moscow",
+        birth_lat=None,
+        birth_lon=None,
+        birth_timezone=None,
+        sign="Aries",
+        language="ru",
+        gender=None,
+        relationship_status="single",
+        goal="balance",
+        mood_score=None,
+        mood_updated_at=None,
+        daily_enabled=False,
+        daily_time="09:00",
+        timezone="UTC",
+        evening_enabled=True,
+        evening_time="20:00",
+        mood_streak=0,
+        last_mood_date=None,
+        lunar_notify_enabled=True,
+        premium_until=None,
+        trial_used=False,
+        natal_mode="full",
+        ref_code=None,
+        referrer_id=2,
+        ref_bonus_count=0,
+    )
+    assert complete.relationship_status and complete.goal and complete.sign
     until = extend_premium_until(None, 7)
     assert is_premium_active(until.isoformat())
     left = days_until_premium_end(until.isoformat(), "UTC")
