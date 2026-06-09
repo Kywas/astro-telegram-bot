@@ -5,6 +5,7 @@ class ProfileSetup(StatesGroup):
     waiting_birth_date = State()
     waiting_birth_time = State()
     waiting_city = State()
+    waiting_goal = State()
 
 
 class CompatibilityCheck(StatesGroup):

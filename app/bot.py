@@ -138,6 +138,10 @@ TEXTS = {
         "home_goal": "🎯 Цель: {goal}",
         "home_goal_unset": "🎯 Цель не выбрана — нажми «Цель» ниже",
         "choose_goal_menu": "Выбери фокус прогноза — от него зависят акценты в текстах:",
+        "choose_goal_onboarding": (
+            "✨ Последний шаг\n\n"
+            "Выбери фокус — от него зависят акценты в прогнозах:"
+        ),
         "goal_saved_toast": "Цель: {goal}",
         "profile_not_found": "Профиль не найден. Сначала используйте /start.",
         "profile_incomplete": "Профиль заполнен не полностью. Используйте /start.",
@@ -374,6 +378,10 @@ TEXTS = {
         "home_goal": "🎯 Focus: {goal}",
         "home_goal_unset": "🎯 No focus selected — tap Focus below",
         "choose_goal_menu": "Choose your forecast focus — it shapes the highlights in your texts:",
+        "choose_goal_onboarding": (
+            "✨ Last step\n\n"
+            "Choose your focus — it shapes the highlights in your forecasts:"
+        ),
         "goal_saved_toast": "Focus: {goal}",
         "profile_not_found": "Profile not found. Use /start first.",
         "profile_incomplete": "Profile is incomplete. Use /start to continue.",
@@ -710,7 +718,7 @@ def prefs_goal_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
-def home_goal_keyboard(locale: str, *, back_callback: str = "nav:home") -> InlineKeyboardMarkup:
+def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for goal_key, text_key in GOAL_TEXT_KEYS.items():
         rows.append(
@@ -721,8 +729,28 @@ def home_goal_keyboard(locale: str, *, back_callback: str = "nav:home") -> Inlin
                 )
             ]
         )
-    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data=back_callback)])
+    if back_callback:
+        rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data=back_callback)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def show_goal_onboarding_panel(
+    locale: str,
+    *,
+    message: Message | None = None,
+    callback: CallbackQuery | None = None,
+) -> None:
+    text = t(locale, "choose_goal_onboarding")
+    keyboard = home_goal_keyboard(locale, back_callback=None)
+    if callback is not None:
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+    elif message is not None:
+        await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+async def user_needs_goal_selection(user_id: int) -> bool:
+    profile = await db.get_user(user_id)
+    return bool(profile and profile.sign and not profile.goal)
 
 
 def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
@@ -1052,7 +1080,6 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(locale, "btn_goal"), callback_data="nav:goal"),
                 InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings"),
             ],
-            [InlineKeyboardButton(text=t(locale, "btn_about"), callback_data="nav:about")],
         ]
     )
 
@@ -1384,14 +1411,23 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
             panel_text = t(language, "welcome")
+            await show_panel_from_message(
+                message,
+                panel_text,
+                reply_markup=home_panel_keyboard(language),
+                prefer_new=True,
+            )
+        elif not existing_profile.goal:
+            await state.set_state(ProfileSetup.waiting_goal)
+            await show_goal_onboarding_panel(language, message=message)
         else:
             panel_text = await build_home_panel_text(user.id, language, variant="start")
-        await show_panel_from_message(
-            message,
-            panel_text,
-            reply_markup=home_panel_keyboard(language),
-            prefer_new=True,
-        )
+            await show_panel_from_message(
+                message,
+                panel_text,
+                reply_markup=home_panel_keyboard(language),
+                prefer_new=True,
+            )
     except Exception as e:
         await db.log_error(
             source="start_handler",
@@ -1406,7 +1442,13 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         )
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
-        sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
+            sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
+        elif not existing_profile.goal:
+            await state.set_state(ProfileSetup.waiting_goal)
+            await show_goal_onboarding_panel(language, message=message)
+            return
+        else:
+            sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
         _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
 
@@ -1462,11 +1504,15 @@ async def about_commands_callback(callback: CallbackQuery) -> None:
 
 
 @router.message(Command("menu"))
-async def menu_handler(message: Message) -> None:
+async def menu_handler(message: Message, state: FSMContext) -> None:
     user = message.from_user
     if user is None:
         return
     locale = await get_user_locale(user.id)
+    if await user_needs_goal_selection(user.id):
+        await state.set_state(ProfileSetup.waiting_goal)
+        await show_goal_onboarding_panel(locale, message=message)
+        return
     await show_panel_from_message(
         message,
         await build_home_panel_text(user.id, locale),
@@ -1551,6 +1597,10 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         return
 
     if action == "back":
+        if await user_needs_goal_selection(user.id):
+            await state.set_state(ProfileSetup.waiting_goal)
+            await show_goal_onboarding_panel(locale, callback=callback)
+            return
         await edit_or_send(
             callback,
             await build_home_panel_text(user.id, locale),
@@ -1599,6 +1649,10 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         return
     if action == "home":
         await state.clear()
+        if await user_needs_goal_selection(user.id):
+            await state.set_state(ProfileSetup.waiting_goal)
+            await show_goal_onboarding_panel(locale, callback=callback)
+            return
         await edit_or_send(
             callback,
             await build_home_panel_text(user.id, locale),
@@ -2478,22 +2532,53 @@ async def prefs_relationship_callback(callback: CallbackQuery, state: FSMContext
     )
 
 
+async def _complete_onboarding_with_goal(
+    user_id: int,
+    locale: str,
+    goal: str,
+    bot: Bot | None = None,
+) -> None:
+    await db.update_preferences(user_id, goal=goal)
+    await db.log_event(user_id, "profile_completed")
+    inviter_id = await db.reward_referral(user_id, bonus_days=7, min_events=2)
+    if inviter_id is not None and bot is not None:
+        try:
+            inviter_locale = await get_user_locale(inviter_id)
+            await bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
+        except Exception:
+            pass
+
+
 @router.callback_query(F.data.startswith("goal:set:"))
 async def home_goal_set_callback(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
-    if user is None:
+    if user is None or callback.message is None:
         return
     locale = await get_user_locale(user.id)
     goal = (callback.data or "").split(":")[-1]
     if goal not in GOAL_TEXT_KEYS:
         goal = "balance"
+    label = goal_display(locale, goal)
+    is_onboarding = await state.get_state() == ProfileSetup.waiting_goal.state
+
+    if is_onboarding:
+        await state.clear()
+        await _complete_onboarding_with_goal(user.id, locale, goal, callback.bot)
+        profile = await db.get_user(user.id)
+        sign_name = get_sign_name(profile.sign, locale) if profile and profile.sign else "-"
+        await callback.answer(t(locale, "goal_saved_toast", goal=label))
+        home_text = await build_home_panel_text(user.id, locale, variant="start")
+        await edit_or_send(
+            callback,
+            f"{t(locale, 'profile_saved', sign=sign_name)}\n\n{home_text}",
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+
     await state.clear()
     await db.update_preferences(user.id, goal=goal)
     await db.log_event(user.id, "goal_updated")
-    label = goal_display(locale, goal)
     await callback.answer(t(locale, "goal_saved_toast", goal=label))
-    if callback.message is None:
-        return
     await edit_or_send(
         callback,
         await build_home_panel_text(user.id, locale),
@@ -3096,21 +3181,20 @@ async def city_handler(message: Message, state: FSMContext) -> None:
         city=city,
         sign=sign,
     )
-    await db.log_event(user.id, "profile_completed")
-    inviter_id = await db.reward_referral(user.id, bonus_days=7, min_events=2)
-    if inviter_id is not None:
-        try:
-            inviter_locale = await get_user_locale(inviter_id)
-            await message.bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
-        except Exception:
-            pass
-    await state.clear()
-    sign_name = get_sign_name(sign, locale)
-    await show_panel_from_message(
-        message,
-        t(locale, "profile_saved", sign=sign_name),
-        reply_markup=home_panel_keyboard(locale),
+    await state.set_state(ProfileSetup.waiting_goal)
+    await show_goal_onboarding_panel(
+        locale,
+        message=message,
     )
+
+
+@router.message(ProfileSetup.waiting_goal)
+async def onboarding_goal_waiting_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await show_goal_onboarding_panel(locale, message=message)
 
 
 @router.message(F.text)
@@ -3157,7 +3241,7 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
         await start_handler(message, state)
         return
     if text == "/menu":
-        await menu_handler(message)
+        await menu_handler(message, state)
         return
     if text == "/help":
         await help_handler(message)
@@ -3172,7 +3256,7 @@ async def fallback_handler(message: Message, state: FSMContext) -> None:
         await today_handler(message)
         return
     if action == "back":
-        await menu_handler(message)
+        await menu_handler(message, state)
         return
 
     await show_panel_from_message(
