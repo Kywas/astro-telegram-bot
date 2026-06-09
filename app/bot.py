@@ -155,7 +155,9 @@ TEXTS = {
         "home_goal": "🎯 Цель: {goal}",
         "home_goal_unset": "🎯 Цель не выбрана — нажми «Цель» ниже",
         "home_relationship": "💞 Статус: {status}",
+        "home_relationship_unset": "💞 Статус не выбран — нажми «Статус» ниже",
         "choose_goal_menu": "Выбери фокус прогноза — от него зависят акценты в текстах:",
+        "choose_relationship_menu": "Выбери статус отношений — от него зависят акценты в прогнозах:",
         "choose_goal_onboarding": "🎯 Выбери фокус — от него зависят акценты в прогнозах:",
         "choose_relationship_onboarding": (
             "💞 Какой у тебя статус отношений?\n\n"
@@ -193,6 +195,7 @@ TEXTS = {
         "crumb_profile_setup": "Настройка профиля",
         "crumb_daily": "Рассылка",
         "crumb_goal": "Цель",
+        "crumb_relationship": "Статус",
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
         "moon_7_days": "7 дней",
@@ -369,6 +372,7 @@ TEXTS = {
         "settings_btn_language": "🌐 Язык",
         "settings_btn_profile": "🧩 Профиль",
         "settings_btn_daily": "⏰ Рассылка",
+        "settings_btn_relationship": "💞 Статус",
         "settings_btn_help": "❓ Помощь",
         "btn_today": "🔮 Гороскоп",
         "btn_profile": "👤 Профиль",
@@ -379,6 +383,7 @@ TEXTS = {
         "btn_moon": "🌙 Лунный календарь",
         "btn_prefs": "⚙ Настройки",
         "btn_goal": "🎯 Цель",
+        "btn_relationship": "💞 Статус",
         "btn_about": "ℹ О боте",
         "btn_ref": "👥 Рефералка",
         "btn_premium": "⭐ Premium",
@@ -435,7 +440,9 @@ TEXTS = {
         "home_goal": "🎯 Focus: {goal}",
         "home_goal_unset": "🎯 No focus selected — tap Focus below",
         "home_relationship": "💞 Status: {status}",
+        "home_relationship_unset": "💞 Status not set — tap «Status» below",
         "choose_goal_menu": "Choose your forecast focus — it shapes the highlights in your texts:",
+        "choose_relationship_menu": "Choose your relationship status — it shapes relationship highlights:",
         "choose_goal_onboarding": "🎯 Choose your focus — it shapes the highlights in your forecasts:",
         "choose_relationship_onboarding": (
             "💞 What is your relationship status?\n\n"
@@ -473,6 +480,7 @@ TEXTS = {
         "crumb_profile_setup": "Profile setup",
         "crumb_daily": "Daily delivery",
         "crumb_goal": "Focus",
+        "crumb_relationship": "Status",
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
         "moon_7_days": "7 days",
@@ -649,6 +657,7 @@ TEXTS = {
         "settings_btn_language": "🌐 Language",
         "settings_btn_profile": "🧩 Profile",
         "settings_btn_daily": "⏰ Daily",
+        "settings_btn_relationship": "💞 Status",
         "settings_btn_help": "❓ Help",
         "btn_today": "🔮 Horoscope",
         "btn_profile": "👤 Profile",
@@ -659,6 +668,7 @@ TEXTS = {
         "btn_moon": "🌙 Moon calendar",
         "btn_prefs": "⚙ Preferences",
         "btn_goal": "🎯 Focus",
+        "btn_relationship": "💞 Status",
         "btn_about": "ℹ About",
         "btn_ref": "👥 Referral",
         "btn_premium": "⭐ Premium",
@@ -850,6 +860,18 @@ def onboarding_relationship_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
+def home_relationship_keyboard(locale: str, *, back_callback: str | None = "nav:home") -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(text=t(locale, "rel_single"), callback_data="rel:set:single"),
+            InlineKeyboardButton(text=t(locale, "rel_relationship"), callback_data="rel:set:relationship"),
+        ],
+    ]
+    if back_callback:
+        rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data=back_callback)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for goal_key, text_key in GOAL_TEXT_KEYS.items():
@@ -971,15 +993,21 @@ def settings_keyboard(locale: str) -> InlineKeyboardMarkup:
                     callback_data="settings:language",
                 ),
                 InlineKeyboardButton(
-                    text=t(locale, "settings_btn_profile"),
-                    callback_data="settings:profile",
+                    text=t(locale, "settings_btn_relationship"),
+                    callback_data="settings:relationship",
                 ),
             ],
             [
                 InlineKeyboardButton(
+                    text=t(locale, "settings_btn_profile"),
+                    callback_data="settings:profile",
+                ),
+                InlineKeyboardButton(
                     text=t(locale, "settings_btn_daily"),
                     callback_data="settings:daily",
                 ),
+            ],
+            [
                 InlineKeyboardButton(
                     text=t(locale, "settings_btn_help"),
                     callback_data="settings:help",
@@ -1043,6 +1071,8 @@ async def build_home_panel_text(user_id: int, locale: str, *, variant: str = "me
         lines.append(
             t(locale, "home_relationship", status=relationship_display(locale, profile.relationship_status))
         )
+    else:
+        lines.append(t(locale, "home_relationship_unset"))
     if profile.goal:
         lines.append(t(locale, "home_goal", goal=goal_display(locale, profile.goal)))
     else:
@@ -1264,8 +1294,9 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text=t(locale, "btn_goal"), callback_data="nav:goal"),
-                InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings"),
+                InlineKeyboardButton(text=t(locale, "btn_relationship"), callback_data="nav:relationship"),
             ],
+            [InlineKeyboardButton(text=t(locale, "btn_prefs"), callback_data="nav:settings")],
         ]
     )
 
@@ -2173,6 +2204,14 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         text, keyboard = await render_daily_panel(user.id, locale)
         await render_inline_panel(callback, text, keyboard)
         return
+    if action == "relationship":
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_relationship'))}\n\n"
+            f"{t(locale, 'choose_relationship_menu')}",
+            home_relationship_keyboard(locale, back_callback="nav:settings"),
+        )
+        return
     if action == "help":
         await render_inline_panel(
             callback,
@@ -2205,6 +2244,13 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_goal'))}\n\n{t(locale, 'choose_goal_menu')}",
             home_goal_keyboard(locale),
+        )
+        return
+    if action == "relationship":
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_relationship'))}\n\n{t(locale, 'choose_relationship_menu')}",
+            home_relationship_keyboard(locale),
         )
         return
     if action == "settings":
@@ -3204,6 +3250,42 @@ async def _complete_onboarding_with_goal(
             await bot.send_message(inviter_id, t(inviter_locale, "ref_reward_inviter"))
         except Exception:
             pass
+
+
+@router.callback_query(F.data.startswith("rel:set:"))
+async def home_relationship_set_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+    locale = await get_user_locale(user.id)
+    relationship = (callback.data or "").split(":")[-1]
+    if relationship not in {"single", "relationship"}:
+        relationship = "single"
+    status_label = t(
+        locale,
+        "rel_single" if relationship == "single" else "rel_relationship",
+    )
+    is_onboarding = await state.get_state() == ProfileSetup.waiting_relationship.state
+
+    await state.clear()
+    await db.update_preferences(user.id, relationship_status=relationship)
+    await db.log_event(user.id, "relationship_set" if is_onboarding else "relationship_updated")
+    await callback.answer(t(locale, "relationship_saved_toast", status=status_label))
+
+    if is_onboarding:
+        await state.set_state(ProfileSetup.waiting_goal)
+        await edit_or_send(
+            callback,
+            t(locale, "choose_goal_onboarding"),
+            inline_keyboard=home_goal_keyboard(locale, back_callback=None),
+        )
+        return
+
+    await edit_or_send(
+        callback,
+        await build_home_panel_text(user.id, locale),
+        inline_keyboard=home_panel_keyboard(locale),
+    )
 
 
 @router.callback_query(F.data.startswith("goal:set:"))
