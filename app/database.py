@@ -4,6 +4,8 @@ from typing import Optional
 
 import aiosqlite
 
+from app.premium import extend_premium_until
+
 
 @dataclass
 class UserProfile:
@@ -608,6 +610,19 @@ class Database:
                 (premium_until, user_id),
             )
             await db.commit()
+
+    async def extend_premium(self, user_id: int, days: int) -> str:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT premium_until FROM users WHERE user_id = ?",
+                (user_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                current_until = row[0] if row else None
+        until = extend_premium_until(current_until, days)
+        until_iso = until.isoformat()
+        await self.set_premium_until(user_id, until_iso)
+        return until_iso
 
     async def set_natal_mode(self, user_id: int, mode: str) -> None:
         normalized = "short" if mode == "short" else "full"

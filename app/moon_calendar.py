@@ -294,8 +294,9 @@ def generate_moon_compact_table_text(locale: str, days: int, start_date: date | 
     return "\n".join(lines)
 
 
-MAJOR_LUNAR_PHASES = ("new_moon", "full_moon")
+MAJOR_LUNAR_PHASES = ("new_moon", "first_quarter", "full_moon", "last_quarter")
 LUNAR_PREVIEW_DAYS = 7
+LUNAR_PREVIEW_FREE_DAYS = 1
 
 
 def major_lunar_phase_on(for_date: date) -> str | None:
@@ -305,6 +306,74 @@ def major_lunar_phase_on(for_date: date) -> str | None:
     if data.phase_key in MAJOR_LUNAR_PHASES:
         return data.phase_key
     return None
+
+
+def _next_major_phase_line(locale: str, snap: dict[str, str | int | float]) -> str | None:
+    current_locale = _locale(locale)
+    next_key = str(snap["next_phase_key"])
+    if next_key not in MAJOR_LUNAR_PHASES:
+        return None
+    days_left = int(snap["next_phase_days"])
+    if days_left > 3:
+        return None
+    title = _phase_name(locale, next_key).lower()
+    if current_locale == "ru":
+        if days_left == 0:
+            return f"Сегодня — {title}."
+        if days_left == 1:
+            return f"Завтра — {title}."
+        return f"Через {days_left} дн. — {title}."
+    if days_left == 0:
+        return f"Today — {title}."
+    if days_left == 1:
+        return f"Tomorrow — {title}."
+    return f"In {days_left} days — {title}."
+
+
+def format_lunar_daily_reminder(locale: str, for_date: date) -> str:
+    current_locale = _locale(locale)
+    snap = _moon_snapshot(locale, for_date)
+    if snap is None:
+        return _fallback_text(locale)
+
+    phase_name = str(snap["phase_name"])
+    moon_sign = str(snap["moon_sign"])
+    illumination = int(snap["illumination"])
+    lunar_day = int(snap["lunar_day"])
+    rec_do = str(snap["do"])
+    rec_avoid = str(snap["avoid"])
+    next_line = _next_major_phase_line(locale, snap)
+
+    if current_locale == "ru":
+        lines = [
+            f"🌙 Лунный фокус · {for_date.strftime('%d.%m')}",
+            "",
+            (
+                f"Луна в {moon_sign} · {phase_name.lower()} · "
+                f"{illumination}% · {lunar_day}-й лунный день"
+            ),
+            "",
+            f"✅ Уместно: {rec_do}",
+            f"⚠️ Избегать: {rec_avoid}",
+        ]
+        if next_line:
+            lines.extend(["", next_line])
+        return "\n".join(lines)
+
+    lines = [
+        f"🌙 Lunar focus · {for_date.isoformat()}",
+        "",
+        (
+            f"Moon in {moon_sign} · {phase_name.lower()} · "
+            f"{illumination}% · lunar day {lunar_day}"
+        ),
+        "",
+        f"✅ Do: {rec_do}",
+        f"⚠️ Avoid: {rec_avoid}",
+    ]
+    if next_line:
+        lines.extend(["", next_line])
+    return "\n".join(lines)
 
 
 def lunar_event_title(phase_key: str, locale: str) -> str:
@@ -317,20 +386,21 @@ def format_lunar_day_notification(phase_key: str, locale: str, for_date: date) -
     snap = _moon_snapshot(locale, for_date)
     if snap is None:
         return _fallback_text(locale)
+    moon_sign = str(snap["moon_sign"])
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
-    moon_sign = str(snap["moon_sign"])
-
+    illumination = int(snap["illumination"])
+    lunar_day = int(snap["lunar_day"])
     if current_locale == "ru":
         return (
-            f"🌑 Сегодня {title.lower()} ({for_date.strftime('%d.%m.%Y')})\n\n"
-            f"• Луна в знаке: {moon_sign}\n"
+            f"🌑 Сегодня {title.lower()} · {for_date.strftime('%d.%m.%Y')}\n\n"
+            f"• Луна в {moon_sign} · {illumination}% · {lunar_day}-й лунный день\n"
             f"• Что делать: {rec_do}\n"
             f"• Чего избегать: {rec_avoid}"
         )
     return (
-        f"🌑 Today is {title} ({for_date.isoformat()})\n\n"
-        f"• Moon sign: {moon_sign}\n"
+        f"🌑 Today is {title} · {for_date.isoformat()}\n\n"
+        f"• Moon in {moon_sign} · {illumination}% · lunar day {lunar_day}\n"
         f"• Do: {rec_do}\n"
         f"• Avoid: {rec_avoid}"
     )
@@ -342,6 +412,7 @@ def format_lunar_preview_notification(
     event_date: date,
     *,
     days_left: int,
+    early: bool = False,
 ) -> str:
     current_locale = _locale(locale)
     title = lunar_event_title(phase_key, current_locale)
@@ -349,17 +420,31 @@ def format_lunar_preview_notification(
     if snap is None:
         return _fallback_text(locale)
     rec_do = str(snap["do"])
+    rec_avoid = str(snap["avoid"])
     moon_sign = str(snap["moon_sign"])
 
     if current_locale == "ru":
-        return (
-            f"🌙 Через {days_left} дн. — {title.lower()} "
-            f"({event_date.strftime('%d.%m.%Y')})\n\n"
-            f"• Луна будет в знаке: {moon_sign}\n"
-            f"Premium-напоминание: начни готовиться — {rec_do}."
+        when = (
+            f"Через {days_left} дн."
+            if days_left > 1
+            else ("Завтра" if days_left == 1 else "Сегодня")
         )
+        prefix = "Premium-напоминание" if early else "Напоминание"
+        return (
+            f"🌙 {when} — {title.lower()} ({event_date.strftime('%d.%m.%Y')})\n\n"
+            f"• Луна будет в {moon_sign}\n"
+            f"• {prefix}: {rec_do}\n"
+            f"• Чего избегать ближе к фазе: {rec_avoid}"
+        )
+    when = (
+        f"In {days_left} days"
+        if days_left > 1
+        else ("Tomorrow" if days_left == 1 else "Today")
+    )
+    prefix = "Premium reminder" if early else "Reminder"
     return (
-        f"🌙 In {days_left} days — {title} ({event_date.isoformat()})\n\n"
+        f"🌙 {when} — {title} ({event_date.isoformat()})\n\n"
         f"• Moon sign: {moon_sign}\n"
-        f"Premium reminder: start preparing — {rec_do}."
+        f"• {prefix}: {rec_do}\n"
+        f"• Avoid closer to the phase: {rec_avoid}"
     )

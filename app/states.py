@@ -11,6 +11,8 @@ class ProfileSetup(StatesGroup):
 
 class CompatibilityCheck(StatesGroup):
     waiting_partner_birth_date = State()
+    waiting_partner_birth_time = State()
+    waiting_partner_city = State()
 
 
 class PartnerSetup(StatesGroup):

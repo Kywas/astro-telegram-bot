@@ -15,6 +15,7 @@ from app.forecast_text import (
     format_domain_section,
     format_summary_aspect,
 )
+from app.synastry_text import format_synastry_report
 from app.timezones import normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -981,6 +982,83 @@ def build_moon_day_data(for_date: date) -> MoonDayData | None:
         return None
 
 
+@dataclass
+class EveningSnapshot:
+    moon_sign: str
+    moon_phase_key: str
+    energy_score: int
+    top_hit: tuple[float, str, str, str] | None
+    challenging_count: int
+    supportive_count: int
+    avoid_line: str
+    solar_only: bool
+
+
+def build_evening_snapshot(
+    *,
+    birth_date: date | None,
+    birth_time: time | None,
+    city: str | None,
+    timezone_name: str,
+    for_date: date,
+    locale: str,
+    sign: str | None = None,
+    user_id: int | None = None,
+    lat: float | None = None,
+    lon: float | None = None,
+    birth_timezone: str | None = None,
+) -> EveningSnapshot | None:
+    try:
+        tz = normalize_timezone(birth_timezone or timezone_name)
+        _lat, _lon, resolved_tz = resolve_birth_location(
+            city,
+            tz,
+            lat=lat,
+            lon=lon,
+            birth_timezone=birth_timezone,
+        )
+        solar_only = birth_date is None
+        if solar_only:
+            if not sign:
+                return None
+            natal_longitudes = _solar_natal_longitudes(sign)
+        else:
+            natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
+            natal_longitudes = _collect_longitudes(natal_jd, NATAL_POINTS)
+
+        hits, moon_sign, _transit_longitudes = _aggregate_hits(
+            natal_longitudes,
+            [for_date],
+            resolved_tz,
+            birth_time=birth_time,
+        )
+        moon_data = build_moon_day_data(for_date)
+        phase_key = moon_data.phase_key if moon_data else "waxing_gibbous"
+        energy_score = _domain_score(_domain_hits(hits, "energy"))
+        challenging_count = sum(1 for hit in hits if hit[3] in {"square", "opposition"})
+        supportive_count = sum(1 for hit in hits if hit[3] in {"trine", "sextile", "conjunction"})
+        avoid_line = format_avoid(locale, hits)
+
+        return EveningSnapshot(
+            moon_sign=moon_sign,
+            moon_phase_key=phase_key,
+            energy_score=energy_score,
+            top_hit=hits[0] if hits else None,
+            challenging_count=challenging_count,
+            supportive_count=supportive_count,
+            avoid_line=avoid_line,
+            solar_only=solar_only,
+        )
+    except Exception:
+        logger.warning(
+            "evening snapshot failed user_id=%s for_date=%s",
+            user_id,
+            for_date,
+            exc_info=True,
+        )
+        return None
+
+
 SYNASTRY_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
 
 MODE_PLANET_WEIGHT: dict[str, dict[str, float]] = {
@@ -1074,79 +1152,6 @@ def _synastry_score(hits: list[tuple[float, float, str, str, str]], mode: str) -
     return max(35, min(98, round(total)))
 
 
-def _synastry_tone(locale: str, aspect: str, mode: str) -> str:
-    lang = _lang(locale)
-    tones = {
-        "ru": {
-            "love": {
-                "trine": "сильное притяжение и эмоциональная поддержка",
-                "sextile": "лёгкий контакт и взаимный интерес",
-                "conjunction": "мощное слияние энергий — тема отношений усиливается",
-                "square": "страсть и напряжение — важен диалог",
-                "opposition": "магнетизм через контраст — нужен баланс",
-            },
-            "friendship": {
-                "trine": "лёгкое взаимопонимание и общий язык",
-                "sextile": "комфортное общение и совместные идеи",
-                "conjunction": "сильная связь интересов и тем",
-                "square": "разные темпы — учитесь договариваться",
-                "opposition": "дополняете друг друга через различия",
-            },
-            "work": {
-                "trine": "продуктивное взаимодействие и синхронность в задачах",
-                "sextile": "удачное сотрудничество и обмен идеями",
-                "conjunction": "фокус на общей цели усиливается",
-                "square": "разные подходы — нужны чёткие роли",
-                "opposition": "конструктивное напряжение требует структуры",
-            },
-        },
-        "en": {
-            "love": {
-                "trine": "strong attraction and emotional support",
-                "sextile": "easy contact and mutual interest",
-                "conjunction": "powerful merging of energies in the relationship theme",
-                "square": "passion and tension — dialogue matters",
-                "opposition": "magnetism through contrast — balance is needed",
-            },
-            "friendship": {
-                "trine": "easy understanding and shared language",
-                "sextile": "comfortable communication and shared ideas",
-                "conjunction": "strong link of interests and themes",
-                "square": "different rhythms — negotiate expectations",
-                "opposition": "you complement each other through differences",
-            },
-            "work": {
-                "trine": "productive interaction and task synchrony",
-                "sextile": "successful cooperation and idea exchange",
-                "conjunction": "focus on a shared goal intensifies",
-                "square": "different approaches — define clear roles",
-                "opposition": "constructive tension needs structure",
-            },
-        },
-    }
-    mode_key = mode if mode in tones[lang] else "love"
-    return tones[lang][mode_key][aspect]
-
-
-def _synastry_aspect_line(
-    locale: str,
-    user_planet: str,
-    partner_planet: str,
-    aspect: str,
-    mode: str,
-) -> str:
-    lang = _lang(locale)
-    aspect_name = ASPECT_LABELS[lang][aspect]
-    user_label = _planet_label(locale, user_planet)
-    partner_label = _planet_label(locale, partner_planet)
-    tone = _synastry_tone(locale, aspect, mode)
-    if lang == "ru":
-        return (
-            f"• Ваше {user_label} — {aspect_name} к {partner_label} партнёра: {tone}."
-        )
-    return f"• Your {user_label} {aspect_name} partner's {partner_label}: {tone}."
-
-
 def build_synastry_analysis(
     *,
     user_birth_date: date,
@@ -1169,10 +1174,9 @@ def build_synastry_analysis(
 ) -> SynastryAnalysis | None:
     try:
         mode = relation_mode if relation_mode in MODE_PLANET_WEIGHT else "love"
-        lang = _lang(locale)
         partner_tz = partner_birth_timezone or partner_timezone or user_birth_timezone or user_timezone
 
-        user_chart, _user_sign = _natal_chart(
+        user_chart, user_sign_key = _natal_chart(
             user_birth_date,
             user_birth_time,
             user_city,
@@ -1181,7 +1185,7 @@ def build_synastry_analysis(
             lon=user_lon,
             birth_timezone=user_birth_timezone,
         )
-        partner_chart, partner_sign = _natal_chart(
+        partner_chart, partner_sign_key = _natal_chart(
             partner_birth_date,
             partner_birth_time,
             partner_city,
@@ -1193,44 +1197,28 @@ def build_synastry_analysis(
         hits = _collect_synastry_hits(user_chart, partner_chart)
         score = _synastry_score(hits, mode)
 
-        lines = [
-            f"💞 {'Синастрия (Swiss Ephemeris)' if lang == 'ru' else 'Synastry (Swiss Ephemeris)'} · "
-            f"{MODE_LABELS[lang][mode]}",
-        ]
-        if user_birth_time is None:
-            lines.append(
-                "• Ваше время рождения не указано — ваша Луна не учитывается."
-                if lang == "ru"
-                else "• Your birth time is missing — your Moon is not included."
-            )
-        if partner_birth_time is None:
-            lines.append(
-                "• У партнёра нет времени рождения — Луна партнёра не учитывается."
-                if lang == "ru"
-                else "• Partner birth time is missing — partner Moon is not included."
-            )
-        if not hits:
-            lines.append(
-                "• Ярких межкартовых аспектов не найдено — связь более нейтральная."
-                if lang == "ru"
-                else "• No major cross-chart aspects found — the connection is more neutral."
-            )
-        else:
-            ranked = sorted(
-                hits,
-                key=lambda item: abs(_synastry_aspect_delta(item[4], item[2], item[3]))
-                * _synastry_pair_weight(item[2], item[3], mode),
-                reverse=True,
-            )
-            for _orb, _orb2, user_planet, partner_planet, aspect in ranked[:4]:
-                lines.append(
-                    _synastry_aspect_line(locale, user_planet, partner_planet, aspect, mode)
-                )
+        ranked = sorted(
+            hits,
+            key=lambda item: abs(_synastry_aspect_delta(item[4], item[2], item[3]))
+            * _synastry_pair_weight(item[2], item[3], mode),
+            reverse=True,
+        )
+        ranked_hits = [(item[0], item[2], item[3], item[4]) for item in ranked]
+        details = format_synastry_report(
+            locale,
+            mode=mode,
+            score=score,
+            hits=ranked_hits,
+            user_sign=_sign_label(locale, user_sign_key),
+            partner_sign=_sign_label(locale, partner_sign_key),
+            user_has_moon=user_birth_time is not None,
+            partner_has_moon=partner_birth_time is not None,
+        )
 
         return SynastryAnalysis(
             score=score,
-            details="\n".join(lines),
-            partner_sign=partner_sign,
+            details=details,
+            partner_sign=partner_sign_key,
         )
     except Exception:
         logger.warning(

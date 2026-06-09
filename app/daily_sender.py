@@ -9,6 +9,8 @@ from app.evening_checkin import build_evening_checkin_prompt
 from app.horoscope import generate_horoscope, personalization_from_profile
 from app.moon_calendar import (
     LUNAR_PREVIEW_DAYS,
+    LUNAR_PREVIEW_FREE_DAYS,
+    format_lunar_daily_reminder,
     format_lunar_day_notification,
     format_lunar_preview_notification,
     major_lunar_phase_on,
@@ -28,6 +30,15 @@ def mood_checkin_keyboard() -> InlineKeyboardMarkup:
         ]
         rows.append(row)
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def lunar_notify_keyboard(locale: str) -> InlineKeyboardMarkup:
+    moon_label = "🌙 Лунный календарь" if locale == "ru" else "🌙 Moon calendar"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=moon_label, callback_data="nav:moon")],
+        ]
+    )
 
 
 async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> None:
@@ -74,7 +85,8 @@ async def _send_evening_checkins(db: Database, bot: Bot, now_utc: datetime) -> N
         if await db.was_daily_sent(user.user_id, "evening", date_key):
             continue
 
-        text = build_evening_checkin_prompt(user.language)
+        for_date = date.fromisoformat(date_key)
+        text = build_evening_checkin_prompt(user.language, profile=user, for_date=for_date)
         try:
             await bot.send_message(
                 chat_id=user.user_id,
@@ -87,6 +99,42 @@ async def _send_evening_checkins(db: Database, bot: Bot, now_utc: datetime) -> N
             await db.log_event(user.user_id, "evening_checkin_failed")
 
 
+async def _send_lunar_preview(
+    db: Database,
+    bot: Bot,
+    *,
+    user,
+    locale: str,
+    event_date: date,
+    phase_key: str,
+    days_left: int,
+    early: bool,
+) -> None:
+    period = f"lunar_preview:{'early' if early else 'free'}:{phase_key}"
+    date_key = event_date.isoformat()
+    if await db.was_daily_sent(user.user_id, period, date_key):
+        return
+    text = format_lunar_preview_notification(
+        phase_key,
+        locale,
+        event_date,
+        days_left=days_left,
+        early=early,
+    )
+    try:
+        await bot.send_message(
+            chat_id=user.user_id,
+            text=text,
+            reply_markup=lunar_notify_keyboard(locale),
+        )
+        await db.mark_daily_sent(user.user_id, period, date_key)
+        event_name = "lunar_preview_early_sent" if early else "lunar_preview_free_sent"
+        await db.log_event(user.user_id, event_name)
+    except Exception:
+        event_name = "lunar_preview_early_failed" if early else "lunar_preview_free_failed"
+        await db.log_event(user.user_id, event_name)
+
+
 async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -> None:
     recipients = await db.get_lunar_notify_subscribers()
     for user in recipients:
@@ -95,45 +143,63 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
 
         locale = user.language
         local_today = date.fromisoformat(user_local_date_key(now_utc, user.timezone))
+        date_key = local_today.isoformat()
+
+        if is_premium_active(user.premium_until):
+            preview_date = local_today + timedelta(days=LUNAR_PREVIEW_DAYS)
+            phase_preview = major_lunar_phase_on(preview_date)
+            if phase_preview:
+                await _send_lunar_preview(
+                    db,
+                    bot,
+                    user=user,
+                    locale=locale,
+                    event_date=preview_date,
+                    phase_key=phase_preview,
+                    days_left=LUNAR_PREVIEW_DAYS,
+                    early=True,
+                )
+
+        preview_date = local_today + timedelta(days=LUNAR_PREVIEW_FREE_DAYS)
+        phase_preview = major_lunar_phase_on(preview_date)
+        if phase_preview:
+            await _send_lunar_preview(
+                db,
+                bot,
+                user=user,
+                locale=locale,
+                event_date=preview_date,
+                phase_key=phase_preview,
+                days_left=LUNAR_PREVIEW_FREE_DAYS,
+                early=False,
+            )
+
+        period = f"lunar_daily:{date_key}"
+        if await db.was_daily_sent(user.user_id, period, date_key):
+            continue
 
         phase_today = major_lunar_phase_on(local_today)
         if phase_today:
-            date_key = local_today.isoformat()
-            period = f"lunar_day:{phase_today}"
-            if not await db.was_daily_sent(user.user_id, period, date_key):
-                text = format_lunar_day_notification(phase_today, locale, local_today)
-                try:
-                    await bot.send_message(chat_id=user.user_id, text=text)
-                    await db.mark_daily_sent(user.user_id, period, date_key)
-                    await db.log_event(user.user_id, "lunar_day_sent")
-                except Exception:
-                    await db.log_event(user.user_id, "lunar_day_failed")
+            text = format_lunar_day_notification(phase_today, locale, local_today)
+        else:
+            text = format_lunar_daily_reminder(locale, local_today)
 
-        if not is_premium_active(user.premium_until):
-            continue
-
-        preview_date = local_today + timedelta(days=LUNAR_PREVIEW_DAYS)
-        phase_preview = major_lunar_phase_on(preview_date)
-        if not phase_preview:
-            continue
-
-        preview_key = preview_date.isoformat()
-        period = f"lunar_preview:{phase_preview}"
-        if await db.was_daily_sent(user.user_id, period, preview_key):
-            continue
-
-        text = format_lunar_preview_notification(
-            phase_preview,
-            locale,
-            preview_date,
-            days_left=LUNAR_PREVIEW_DAYS,
-        )
         try:
-            await bot.send_message(chat_id=user.user_id, text=text)
-            await db.mark_daily_sent(user.user_id, period, preview_key)
-            await db.log_event(user.user_id, "lunar_preview_sent")
+            await bot.send_message(
+                chat_id=user.user_id,
+                text=text,
+                reply_markup=lunar_notify_keyboard(locale),
+            )
+            await db.mark_daily_sent(user.user_id, period, date_key)
+            await db.log_event(
+                user.user_id,
+                "lunar_major_sent" if phase_today else "lunar_daily_sent",
+            )
         except Exception:
-            await db.log_event(user.user_id, "lunar_preview_failed")
+            await db.log_event(
+                user.user_id,
+                "lunar_major_failed" if phase_today else "lunar_daily_failed",
+            )
 
 
 async def run_daily_loop(db: Database, bot: Bot) -> None:

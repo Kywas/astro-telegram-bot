@@ -40,7 +40,12 @@ from app.moon_calendar import (
 from app.natal import build_natal_summary
 from app.states import CompatibilityCheck, MoonDetails, PartnerSetup, PreferencesSetup, ProfileSetup
 from app.states import AdminPanel, DailySetup
-from app.premium import is_premium_active
+from app.premium import (
+    PREMIUM_PAYLOAD,
+    PREMIUM_PERIOD_DAYS,
+    format_premium_until,
+    is_premium_active,
+)
 from app.synastry import build_synastry, build_synastry_for_partner_profile
 from app.timezones import (
     TIMEZONE_OPTIONS,
@@ -120,8 +125,8 @@ TEXTS = {
             "/prefs - персональные настройки\n"
             "/prefssetup - пошаговая настройка профиля\n"
             "/stats - статистика бота (админ)\n"
-            "/premium - статус premium\n"
-            "/buypremium - купить premium (тестовый skeleton)\n"
+            "/premium - статус Premium\n"
+            "/buypremium - оформить Premium (Telegram Stars)\n"
             "/about - что умеет бот\n"
             "/language - сменить язык\n"
             "/menu - показать кнопки меню\n"
@@ -189,7 +194,7 @@ TEXTS = {
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
         "moon_7_days": "7 дней",
-        "moon_30_days": "30 дней",
+        "moon_30_days": "30 дней ⭐",
         "moon_today": "Сегодня",
         "moon_details_day": "Подробнее по дню",
         "ask_moon_day_month": "Введи дату в формате ДД.ММ (например, 14.06):",
@@ -203,7 +208,7 @@ TEXTS = {
         "compat_mode_saved": "Режим сохранен: {mode}. Теперь введи дату второго человека (ДД.ММ.ГГГГ).",
         "compat_choose_partner": "Выбери сохранённого партнёра или добавь нового:",
         "compat_add_partner": "➕ Добавить партнёра",
-        "compat_once": "📅 Разовая проверка по дате",
+        "compat_once": "Разовая проверка — понадобятся дата, время и город рождения партнёра.",
         "compat_manage": "🗂 Управление партнёрами",
         "compat_manage_hint": "Нажми на партнёра, чтобы удалить профиль:",
         "compat_ask_name": "Как зовут партнёра? (имя или nickname)",
@@ -218,9 +223,9 @@ TEXTS = {
         ),
         "compat_mode_for_partner": "Режим для {name}:",
         "compat_result": (
-            "Совместимость: {sign_a} + {partner_name} ({sign_b})\n"
-            "Режим: {mode}\n"
-            "Оценка: {score}%\n\n"
+            "💞 Совместимость · {mode}\n"
+            "{sign_a} + {partner_name} ({sign_b})\n"
+            "Оценка: {score}/100\n\n"
             "{details}"
         ),
         "mood_saved": "Настроение сохранено: {score}/10. Серия: {streak} дн.",
@@ -249,7 +254,7 @@ TEXTS = {
         "evening_btn_off": "🔕 Выключить вечерний чек-ин",
         "evening_time_set": "Вечерний чек-ин включён на {hhmm} ({tz})",
         "evening_disabled": "Вечерний чек-ин выключен.",
-        "lunar_status_on": "🌑 Лунные напоминания: вкл (новолуние/полнолуние)",
+        "lunar_status_on": "🌑 Лунные напоминания: вкл (ежедневно + фазы)",
         "lunar_status_off": "🌑 Лунные напоминания: выкл",
         "lunar_btn_on": "🌑 Включить лунные напоминания",
         "lunar_btn_off": "🔕 Выключить лунные напоминания",
@@ -273,24 +278,30 @@ TEXTS = {
             "• Ошибок: {total_errors}"
         ),
         "admin_only": "Эта команда доступна только администратору.",
-        "premium_active": "Premium активен до: {until}. Доступны расширенные функции.",
+        "premium_active": "Premium активен до {until}.",
         "premium_inactive": "Premium не активен. Сейчас доступен базовый режим.",
+        "premium_price_line": "💫 {price} Stars · {days} дней",
         "payments_disabled": "Платежи временно отключены.",
-        "premium_buy_intro": "Оформи premium на 30 дней за {price} Stars.",
-        "premium_buy_fail": "Не удалось открыть платеж. Проверь, что бот поддерживает Stars.",
-        "premium_payment_ok": "Оплата прошла. Premium активирован на 30 дней.",
-        "premium_payment_error": "Оплата не прошла, попробуй еще раз позже.",
-        "premium_required_full_natal": "Полная натальная карта доступна в Premium. В бесплатной версии доступен краткий формат.",
-        "premium_required_horo_period": "Неделя и месяц доступны в Premium. В бесплатной версии доступен период 'Сегодня'.",
-        "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан. Активируй Premium для безлимита.",
+        "premium_buy_intro": "Premium на {days} дней — {price} Stars.",
+        "premium_buy_fail": "Не удалось открыть платёж. Проверь, что бот поддерживает Stars.",
+        "premium_payment_ok": "Оплата прошла. Premium активен до {until}.",
+        "premium_payment_error": "Оплата не прошла, попробуй ещё раз позже.",
+        "premium_required_full_natal": "Полная натальная карта доступна в Premium.",
+        "premium_required_horo_period": "Неделя и месяц доступны в Premium.",
+        "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан ({limit}/день).",
+        "premium_required_moon_30": "Лунный календарь на 30 дней и разбор по дню — в Premium.",
         "premium_menu_title": "⭐ Premium",
         "premium_features": (
             "🌠 Что откроет Premium:\n\n"
             "🪐 Полная натальная карта\n"
             "✨ Гороскоп на неделю и месяц\n"
-            "💫 Совместимость без границ"
+            "💫 Совместимость без лимита · до 10 партнёров\n"
+            "📬 Недельный гороскоп в авторассылке\n"
+            "🌙 Напоминание о фазах за 7 дней\n"
+            "📅 Лунный календарь на 30 дней"
         ),
         "premium_buy_button": "🌟 Открыть Premium",
+        "premium_renew_button": "🌟 Продлить Premium",
         "grant_usage": "Используй: /grantpremium <user_id> <days>. Пример: /grantpremium 123456789 30",
         "grant_done": "Premium выдан пользователю {user_id} на {days} дн.",
         "broadcast_usage": "Используй: /broadcast текст сообщения",
@@ -385,8 +396,8 @@ TEXTS = {
             "/prefs - personal preferences\n"
             "/prefssetup - profile setup wizard\n"
             "/stats - bot stats (admin)\n"
-            "/premium - premium status\n"
-            "/buypremium - buy premium (test skeleton)\n"
+            "/premium - Premium status\n"
+            "/buypremium - buy Premium (Telegram Stars)\n"
             "/about - bot capabilities\n"
             "/language - change language\n"
             "/menu - show menu buttons\n"
@@ -454,7 +465,7 @@ TEXTS = {
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
         "moon_7_days": "7 days",
-        "moon_30_days": "30 days",
+        "moon_30_days": "30 days ⭐",
         "moon_today": "Today",
         "moon_details_day": "Day details",
         "ask_moon_day_month": "Enter date as DD.MM (for example, 14.06):",
@@ -468,7 +479,7 @@ TEXTS = {
         "compat_mode_saved": "Mode saved: {mode}. Now enter second person's birth date (DD.MM.YYYY).",
         "compat_choose_partner": "Choose a saved partner or add a new one:",
         "compat_add_partner": "➕ Add partner",
-        "compat_once": "📅 One-time check by date",
+        "compat_once": "One-time check — you'll need the partner's date, time, and city of birth.",
         "compat_manage": "🗂 Manage partners",
         "compat_manage_hint": "Tap a partner to delete their profile:",
         "compat_ask_name": "What is your partner's name?",
@@ -483,9 +494,9 @@ TEXTS = {
         ),
         "compat_mode_for_partner": "Mode for {name}:",
         "compat_result": (
-            "Compatibility: {sign_a} + {partner_name} ({sign_b})\n"
-            "Mode: {mode}\n"
-            "Score: {score}%\n\n"
+            "💞 Compatibility · {mode}\n"
+            "{sign_a} + {partner_name} ({sign_b})\n"
+            "Score: {score}/100\n\n"
             "{details}"
         ),
         "mood_saved": "Mood saved: {score}/10. Streak: {streak} days.",
@@ -514,7 +525,7 @@ TEXTS = {
         "evening_btn_off": "🔕 Turn off evening check-in",
         "evening_time_set": "Evening check-in enabled at {hhmm} ({tz})",
         "evening_disabled": "Evening check-in disabled.",
-        "lunar_status_on": "🌑 Lunar reminders: on (new/full moon)",
+        "lunar_status_on": "🌑 Lunar reminders: on (daily + phases)",
         "lunar_status_off": "🌑 Lunar reminders: off",
         "lunar_btn_on": "🌑 Enable lunar reminders",
         "lunar_btn_off": "🔕 Disable lunar reminders",
@@ -538,24 +549,30 @@ TEXTS = {
             "• Errors: {total_errors}"
         ),
         "admin_only": "This command is available to admin only.",
-        "premium_active": "Premium active until: {until}. Extended features are enabled.",
+        "premium_active": "Premium active until {until}.",
         "premium_inactive": "Premium is not active. You are using base mode.",
+        "premium_price_line": "💫 {price} Stars · {days} days",
         "payments_disabled": "Payments are temporarily disabled.",
-        "premium_buy_intro": "Buy premium for 30 days at {price} Stars.",
+        "premium_buy_intro": "Premium for {days} days — {price} Stars.",
         "premium_buy_fail": "Failed to open payment form. Check Stars support for your bot.",
-        "premium_payment_ok": "Payment completed. Premium activated for 30 days.",
+        "premium_payment_ok": "Payment completed. Premium active until {until}.",
         "premium_payment_error": "Payment failed, please try again later.",
-        "premium_required_full_natal": "Full natal chart is available in Premium. Free version has short mode only.",
-        "premium_required_horo_period": "Week and month are Premium features. Free version supports 'Today' only.",
-        "premium_required_compat_daily_limit": "Free compatibility limit for today is reached. Activate Premium for unlimited usage.",
+        "premium_required_full_natal": "Full natal chart is available in Premium.",
+        "premium_required_horo_period": "Week and month horoscopes are Premium features.",
+        "premium_required_compat_daily_limit": "Free compatibility limit for today is reached ({limit}/day).",
+        "premium_required_moon_30": "30-day moon calendar and day details are Premium features.",
         "premium_menu_title": "⭐ Premium",
         "premium_features": (
             "🌠 What Premium unlocks:\n\n"
             "🪐 Full natal chart\n"
             "✨ Weekly and monthly horoscope\n"
-            "💫 Unlimited compatibility"
+            "💫 Unlimited compatibility · up to 10 partners\n"
+            "📬 Weekly horoscope in daily delivery\n"
+            "🌙 Lunar phase reminders 7 days ahead\n"
+            "📅 30-day moon calendar"
         ),
         "premium_buy_button": "🌟 Unlock Premium",
+        "premium_renew_button": "🌟 Renew Premium",
         "grant_usage": "Use: /grantpremium <user_id> <days>. Example: /grantpremium 123456789 30",
         "grant_done": "Premium granted to user {user_id} for {days} days.",
         "broadcast_usage": "Use: /broadcast message text",
@@ -1236,11 +1253,20 @@ def breadcrumb(locale: str, *parts: str) -> str:
     return " > ".join([t(locale, "crumb_root"), *parts])
 
 
-def premium_menu_keyboard(locale: str) -> InlineKeyboardMarkup:
+def premium_menu_keyboard(locale: str, *, active: bool = False) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if settings.enable_payments:
+        label = t(locale, "premium_renew_button") if active else t(locale, "premium_buy_button")
+        rows.append([InlineKeyboardButton(text=label, callback_data="premium:buy")])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def premium_upsell_keyboard(locale: str, *, back_data: str = "nav:home") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(locale, "premium_buy_button"), callback_data="premium:buy")],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+            [InlineKeyboardButton(text=t(locale, "btn_premium"), callback_data="nav:premium")],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=back_data)],
         ]
     )
 
@@ -1661,6 +1687,61 @@ async def deliver_compat_result(
     await db.log_event(user_id, "compat_result")
 
 
+def compat_wizard_keyboard(locale: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
+    )
+
+
+async def run_once_compat_synastry(
+    message: Message,
+    state: FSMContext,
+    *,
+    locale: str,
+    profile,
+    partner_birth_date: date,
+    partner_birth_time: time | None,
+    city: str,
+    location,
+    mode: str,
+    partner_label: str | None = None,
+) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    syn = build_synastry(
+        locale,
+        profile.sign or "",
+        partner_birth_date,
+        mode,
+        user_birth_date=profile.birth_date,
+        user_birth_time=profile.birth_time,
+        user_city=profile.city,
+        user_timezone=profile.timezone or "UTC",
+        user_id=user.id,
+        user_lat=profile.birth_lat,
+        user_lon=profile.birth_lon,
+        user_birth_timezone=profile.birth_timezone,
+        partner_birth_time=partner_birth_time,
+        partner_city=city,
+        partner_timezone=location.timezone,
+        partner_lat=location.lat,
+        partner_lon=location.lon,
+        partner_birth_timezone=location.timezone,
+        partner_name=partner_label or partner_birth_date.strftime("%d.%m.%Y"),
+    )
+    await state.clear()
+    await deliver_compat_result(
+        user_id=user.id,
+        locale=locale,
+        profile=profile,
+        syn=syn,
+        mode=mode,
+        message=message,
+    )
+
+
 async def run_saved_partner_compat(
     *,
     user_id: int,
@@ -1673,14 +1754,19 @@ async def run_saved_partner_compat(
     state: FSMContext | None = None,
 ) -> bool:
     if await compat_daily_limit_reached(user_id, profile):
-        limit_text = t(locale, "premium_required_compat_daily_limit")
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
-        )
+        limit_text = t(locale, "premium_required_compat_daily_limit", limit="3")
         if callback is not None:
-            await edit_or_send(callback, limit_text, inline_keyboard=keyboard)
+            await edit_or_send(
+                callback,
+                limit_text,
+                inline_keyboard=premium_upsell_keyboard(locale, back_data="nav:compat"),
+            )
         elif message is not None:
-            await show_panel_from_message(message, limit_text, reply_markup=keyboard)
+            await show_panel_from_message(
+                message,
+                limit_text,
+                reply_markup=premium_upsell_keyboard(locale, back_data="nav:compat"),
+            )
         return False
 
     partner = await db.get_partner(user_id, partner_id)
@@ -1936,16 +2022,62 @@ async def ref_handler(message: Message) -> None:
 
 async def _premium_panel_text(user_id: int, locale: str) -> str:
     profile = await db.get_user(user_id)
-    status_text = (
-        t(locale, "premium_active", until=profile.premium_until or "-")
-        if profile and is_premium_active(profile.premium_until)
-        else t(locale, "premium_inactive")
-    )
+    active = bool(profile and is_premium_active(profile.premium_until))
+    if active and profile:
+        status_text = t(
+            locale,
+            "premium_active",
+            until=format_premium_until(profile.premium_until, locale),
+        )
+    else:
+        status_text = t(locale, "premium_inactive")
+        if settings.enable_payments:
+            status_text = (
+                f"{status_text}\n"
+                f"{t(locale, 'premium_price_line', price=str(settings.premium_price_stars), days=str(PREMIUM_PERIOD_DAYS))}"
+            )
     return (
         f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
         f"{status_text}\n\n"
         f"{t(locale, 'premium_features')}"
     )
+
+
+def _premium_invoice_copy(locale: str) -> tuple[str, str]:
+    if locale == "ru":
+        return (
+            f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} дн.",
+            "Натальная карта, неделя/месяц, совместимость, луна на 30 дней, напоминания за 7 дней.",
+        )
+    return (
+        f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} days",
+        "Full natal chart, week/month horoscope, compatibility, 30-day moon, 7-day lunar alerts.",
+    )
+
+
+async def _send_premium_invoice(
+    *,
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    locale: str,
+) -> bool:
+    title, description = _premium_invoice_copy(locale)
+    try:
+        await bot.send_invoice(
+            chat_id=chat_id,
+            title=title,
+            description=description,
+            payload=PREMIUM_PAYLOAD,
+            provider_token="",
+            currency="XTR",
+            prices=[LabeledPrice(label=f"Premium {PREMIUM_PERIOD_DAYS}d", amount=settings.premium_price_stars)],
+        )
+        await db.log_event(user_id, "premium_invoice_sent")
+        return True
+    except Exception:
+        await db.log_event(user_id, "premium_invoice_failed")
+        return False
 
 
 @router.message(Command("language"))
@@ -2117,10 +2249,12 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "premium":
+        profile = await db.get_user(user.id)
+        active = bool(profile and is_premium_active(profile.premium_until))
         await render_inline_panel(
             callback,
             await _premium_panel_text(user.id, locale),
-            premium_menu_keyboard(locale),
+            premium_menu_keyboard(locale, active=active),
         )
         return
     if action == "natal":
@@ -2364,8 +2498,15 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
 
     premium_active = is_premium_active(profile.premium_until)
     if period in {"week", "month"} and not premium_active:
-        await callback.answer(t(locale, "premium_required_horo_period"), show_alert=True)
-        period = "day"
+        await callback.answer()
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n"
+            f"{t(locale, 'premium_required_horo_period')}\n\n"
+            f"{t(locale, 'premium_features')}",
+            premium_upsell_keyboard(locale, back_data="nav:horo"),
+        )
+        return
 
     await callback.answer()
     if callback.message and user:
@@ -2440,10 +2581,9 @@ async def compat_action_callback_handler(callback: CallbackQuery, state: FSMCont
     if action == "once":
         await state.clear()
         await state.update_data(compat_mode="love", compat_partner_id=None)
-        await state.set_state(CompatibilityCheck.waiting_partner_birth_date)
         await show_compat_mode_panel(
             locale=locale,
-            intro=t(locale, "ask_compat_date"),
+            intro=t(locale, "compat_once"),
             callback=callback,
         )
         return
@@ -2561,6 +2701,17 @@ async def natal_mode_callback_handler(callback: CallbackQuery) -> None:
         return
     locale = await get_user_locale(user.id)
     mode = (callback.data or "").split(":")[-1]
+    profile = await db.get_user(user.id)
+    if mode == "full" and profile and not is_premium_active(profile.premium_until):
+        await callback.answer()
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{t(locale, 'premium_required_full_natal')}\n\n"
+            f"{t(locale, 'premium_features')}",
+            premium_upsell_keyboard(locale, back_data="nav:natal"),
+        )
+        return
     await db.set_natal_mode(user.id, mode)
     await callback.answer()
     text, keyboard = await render_natal_for_user_mode(user.id, locale, mode=mode)
@@ -2592,6 +2743,16 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
     if action == "7":
         text = generate_moon_table_text(locale=locale, days=7)
     elif action == "30":
+        profile = await db.get_user(user.id)
+        if profile is None or not is_premium_active(profile.premium_until):
+            await render_inline_panel(
+                callback,
+                f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
+                f"{t(locale, 'premium_required_moon_30')}\n\n"
+                f"{t(locale, 'premium_features')}",
+                premium_upsell_keyboard(locale, back_data="nav:moon"),
+            )
+            return
         text = generate_moon_compact_table_text(locale=locale, days=30)
         details_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -2606,6 +2767,16 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
         )
         return
     elif action == "details":
+        profile = await db.get_user(user.id)
+        if profile is None or not is_premium_active(profile.premium_until):
+            await render_inline_panel(
+                callback,
+                f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
+                f"{t(locale, 'premium_required_moon_30')}\n\n"
+                f"{t(locale, 'premium_features')}",
+                premium_upsell_keyboard(locale, back_data="nav:moon"),
+            )
+            return
         await state.set_state(MoonDetails.waiting_day_month)
         await edit_or_send(
             callback,
@@ -2634,6 +2805,15 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
         return
 
     locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or not is_premium_active(profile.premium_until):
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'premium_required_moon_30')}\n\n{t(locale, 'premium_features')}",
+            reply_markup=premium_upsell_keyboard(locale, back_data="nav:moon"),
+        )
+        return
     raw_text = (message.text or "").strip()
     if not re.match(r"^\d{2}\.\d{2}$", raw_text):
         await show_panel_from_message(
@@ -2707,7 +2887,16 @@ async def checkin_mood_callback_handler(callback: CallbackQuery) -> None:
 
     streak = await save_user_mood(user.id, locale, score)
     await db.log_event(user.id, "evening_checkin_done")
-    response_text = build_evening_response(locale, score, streak)
+    profile = await db.get_user(user.id)
+    tz = resolve_user_timezone(profile, locale)
+    local_date = date.fromisoformat(user_local_date_key(datetime.now(timezone.utc), tz))
+    response_text = build_evening_response(
+        locale,
+        score,
+        streak,
+        profile=profile,
+        for_date=local_date,
+    )
     await callback.answer()
     if callback.message:
         await callback.message.edit_text(response_text)
@@ -3103,10 +3292,12 @@ async def premium_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    active = bool(profile and is_premium_active(profile.premium_until))
     await show_panel_from_message(
         message,
         await _premium_panel_text(user.id, locale),
-        reply_markup=premium_menu_keyboard(locale),
+        reply_markup=premium_menu_keyboard(locale, active=active),
     )
 
 
@@ -3120,21 +3311,20 @@ async def buy_premium_handler(message: Message) -> None:
         await message.answer(t(locale, "payments_disabled"), reply_markup=settings_keyboard(locale))
         return
     await message.answer(
-        t(locale, "premium_buy_intro", price=str(settings.premium_price_stars)),
+        t(
+            locale,
+            "premium_buy_intro",
+            price=str(settings.premium_price_stars),
+            days=str(PREMIUM_PERIOD_DAYS),
+        ),
         reply_markup=settings_keyboard(locale),
     )
-    try:
-        await message.answer_invoice(
-            title="Astro Premium 30 days",
-            description="Extended horoscope, weekly delivery and advanced compatibility.",
-            payload="premium_30d",
-            provider_token="",
-            currency="XTR",
-            prices=[LabeledPrice(label="Premium 30d", amount=settings.premium_price_stars)],
-        )
-        await db.log_event(user.id, "premium_invoice_sent")
-    except Exception:
-        await db.log_event(user.id, "premium_invoice_failed")
+    if not await _send_premium_invoice(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        user_id=user.id,
+        locale=locale,
+    ):
         await message.answer(t(locale, "premium_buy_fail"), reply_markup=settings_keyboard(locale))
 
 
@@ -3147,50 +3337,65 @@ async def premium_buy_callback(callback: CallbackQuery) -> None:
     await callback.answer()
     if callback.message is None:
         return
+    profile = await db.get_user(user.id)
+    active = bool(profile and is_premium_active(profile.premium_until))
     if not settings.enable_payments:
         await render_inline_panel(
             callback,
             f"{await _premium_panel_text(user.id, locale)}\n\n{t(locale, 'payments_disabled')}",
-            premium_menu_keyboard(locale),
+            premium_menu_keyboard(locale, active=active),
         )
         return
-    try:
-        await callback.message.answer_invoice(
-            title="Astro Premium 30 days",
-            description="Extended horoscope, weekly delivery and advanced compatibility.",
-            payload="premium_30d",
-            provider_token="",
-            currency="XTR",
-            prices=[LabeledPrice(label="Premium 30d", amount=settings.premium_price_stars)],
-        )
-        await db.log_event(user.id, "premium_invoice_sent")
-    except Exception:
-        await db.log_event(user.id, "premium_invoice_failed")
+    if not await _send_premium_invoice(
+        bot=callback.bot,
+        chat_id=callback.message.chat.id,
+        user_id=user.id,
+        locale=locale,
+    ):
         await render_inline_panel(
             callback,
             t(locale, "premium_buy_fail"),
-            premium_menu_keyboard(locale),
+            premium_menu_keyboard(locale, active=active),
         )
 
 
 @router.pre_checkout_query()
 async def pre_checkout_handler(pre_checkout_query) -> None:
+    locale = await get_user_locale(pre_checkout_query.from_user.id)
+    if pre_checkout_query.invoice_payload != PREMIUM_PAYLOAD:
+        await pre_checkout_query.answer(
+            ok=False,
+            error_message=t(locale, "premium_payment_error"),
+        )
+        return
+    if pre_checkout_query.total_amount != settings.premium_price_stars:
+        await pre_checkout_query.answer(
+            ok=False,
+            error_message=t(locale, "premium_payment_error"),
+        )
+        return
     await pre_checkout_query.answer(ok=True)
 
 
 @router.message(F.successful_payment)
 async def successful_payment_handler(message: Message) -> None:
     user = message.from_user
-    if user is None:
+    if user is None or message.successful_payment is None:
         return
     locale = await get_user_locale(user.id)
+    payment = message.successful_payment
+    if payment.invoice_payload != PREMIUM_PAYLOAD:
+        await db.log_event(user.id, "premium_paid_invalid_payload")
+        return
+    if payment.total_amount != settings.premium_price_stars:
+        await db.log_event(user.id, "premium_paid_invalid_amount")
+        return
     try:
-        until = datetime.now(timezone.utc) + timedelta(days=30)
-        await db.set_premium_until(user.id, until.isoformat())
+        until_iso = await db.extend_premium(user.id, PREMIUM_PERIOD_DAYS)
         await db.log_event(user.id, "premium_paid")
         await show_panel_from_message(
             message,
-            t(locale, "premium_payment_ok"),
+            t(locale, "premium_payment_ok", until=format_premium_until(until_iso, locale)),
             reply_markup=home_panel_keyboard(locale),
         )
     except Exception:
@@ -3235,11 +3440,16 @@ async def grant_premium_handler(message: Message) -> None:
         return
     target_user_id = int(parts[1])
     days = int(parts[2])
-    until = datetime.now(timezone.utc) + timedelta(days=max(1, days))
-    await db.set_premium_until(target_user_id, until.isoformat())
+    until_iso = await db.extend_premium(target_user_id, max(1, days))
     await db.log_event(user.id, "grantpremium")
     await message.answer(
-        t(locale, "grant_done", user_id=str(target_user_id), days=str(days)),
+        t(
+            locale,
+            "grant_done",
+            user_id=str(target_user_id),
+            days=str(days),
+        )
+        + f"\nUntil: {format_premium_until(until_iso, locale)}",
         reply_markup=admin_panel_keyboard(locale),
     )
 
@@ -3469,13 +3679,13 @@ async def admin_grant_input_handler(message: Message, state: FSMContext) -> None
         return
     target_user_id = int(parts[0])
     days = int(parts[1])
-    until = datetime.now(timezone.utc) + timedelta(days=max(1, days))
-    await db.set_premium_until(target_user_id, until.isoformat())
+    until_iso = await db.extend_premium(target_user_id, max(1, days))
     await db.log_event(user.id, "grantpremium_panel")
     await state.clear()
     await message.answer(
         f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n"
-        f"{t(locale, 'grant_done', user_id=str(target_user_id), days=str(days))}",
+        f"{t(locale, 'grant_done', user_id=str(target_user_id), days=str(days))}\n"
+        f"Until: {format_premium_until(until_iso, locale)}",
         reply_markup=admin_panel_keyboard(locale),
     )
 
@@ -3494,11 +3704,7 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
         await show_panel_from_message(
             message,
             f"{t(locale, 'invalid_date')}\n\n{t(locale, 'ask_compat_date')}",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-                ]
-            ),
+            reply_markup=compat_wizard_keyboard(locale),
         )
         return
 
@@ -3512,39 +3718,139 @@ async def compat_birth_date_handler(message: Message, state: FSMContext) -> None
         )
         return
 
+    await state.update_data(partner_birth_date=partner_birth_date.isoformat())
+    await state.set_state(CompatibilityCheck.waiting_partner_birth_time)
+    await show_panel_from_message(
+        message,
+        t(locale, "ask_time"),
+        reply_markup=compat_wizard_keyboard(locale),
+    )
+
+
+@router.message(CompatibilityCheck.waiting_partner_birth_time)
+async def compat_partner_birth_time_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    if raw_text == "-":
+        await state.update_data(partner_birth_time=None)
+    else:
+        try:
+            birth_time = datetime.strptime(raw_text, "%H:%M").time()
+        except ValueError:
+            await show_panel_from_message(
+                message,
+                f"{t(locale, 'invalid_time')}\n\n{t(locale, 'ask_time')}",
+                reply_markup=compat_wizard_keyboard(locale),
+            )
+            return
+        await state.update_data(partner_birth_time=birth_time.isoformat(timespec="minutes"))
+
+    await state.set_state(CompatibilityCheck.waiting_partner_city)
+    await show_panel_from_message(
+        message,
+        t(locale, "ask_city"),
+        reply_markup=compat_wizard_keyboard(locale),
+    )
+
+
+@router.message(CompatibilityCheck.waiting_partner_city)
+async def compat_partner_city_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or not profile.sign:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "complete_profile_first"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
+    city = (message.text or "").strip()
+    if len(city) < 2:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_short')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=compat_wizard_keyboard(locale),
+        )
+        return
+
     data = await state.get_data()
+    birth_date_iso = data.get("partner_birth_date")
+    if not birth_date_iso:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "session_expired"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
     mode = data.get("compat_mode", "love")
+    partner_birth_date = date.fromisoformat(birth_date_iso)
+    birth_time_iso = data.get("partner_birth_time")
+    partner_birth_time = (
+        datetime.strptime(birth_time_iso, "%H:%M").time() if birth_time_iso else None
+    )
+
     if await compat_daily_limit_reached(user.id, profile):
         await state.clear()
         await show_panel_from_message(
             message,
-            t(locale, "premium_required_compat_daily_limit"),
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:compat")]]
-            ),
+            t(locale, "premium_required_compat_daily_limit", limit="3"),
+            reply_markup=premium_upsell_keyboard(locale, back_data="nav:compat"),
         )
         return
 
-    syn = build_synastry(
-        locale,
-        profile.sign,
-        partner_birth_date,
-        mode,
-        user_birth_date=profile.birth_date,
-        user_birth_time=profile.birth_time,
-        user_city=profile.city,
-        user_timezone=profile.timezone or "UTC",
-        user_id=user.id,
-        partner_name=partner_birth_date.strftime("%d.%m.%Y"),
+    back_keyboard = compat_wizard_keyboard(locale)
+    await show_panel_from_message(
+        message,
+        f"⏳ {t(locale, 'city_checking')}\n\n{t(locale, 'ask_city')}",
+        reply_markup=back_keyboard,
     )
-    await state.clear()
-    await deliver_compat_result(
-        user_id=user.id,
+
+    try:
+        location = await geocode_city_input(message, city)
+    except Exception as e:
+        await db.log_error(
+            source="compat_partner_city_handler",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_geocode_error')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=back_keyboard,
+        )
+        return
+
+    if location is None:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_not_found')}\n\n{t(locale, 'ask_city')}",
+            reply_markup=back_keyboard,
+        )
+        return
+
+    await run_once_compat_synastry(
+        message,
+        state,
         locale=locale,
         profile=profile,
-        syn=syn,
+        partner_birth_date=partner_birth_date,
+        partner_birth_time=partner_birth_time,
+        city=city,
+        location=location,
         mode=mode,
-        message=message,
     )
 
 
