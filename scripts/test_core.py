@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from app.config import Settings
-from app.payments import PayCurrency, available_payment_options, parse_premium_payload, premium_payload
+from app.payments import PayCurrency, available_payment_options, get_payment_option, parse_premium_payload, premium_payload
 from app.premium import DEFAULT_PREMIUM_TRIAL_DAYS, extend_premium_until, is_premium_active
 from app.premium_lifecycle import format_payment_amount
 
@@ -33,8 +33,20 @@ def test_payment_options() -> None:
     options = available_payment_options(settings)
     currencies = {opt.currency for opt in options}
     assert currencies == {PayCurrency.STARS, PayCurrency.RUB, PayCurrency.USD}
+    assert options[0].currency == PayCurrency.RUB
+    assert "ЮKassa" in options[0].button_ru
     assert format_payment_amount(PayCurrency.RUB, 19900, "RUB") == "199 ₽"
     assert format_payment_amount(PayCurrency.USD, 300, "USD") == "$3.00"
+
+    rub_only_ui = Settings(
+        bot_token="x",
+        enable_payments=True,
+        premium_price_rub=199,
+    )
+    rub_options = available_payment_options(rub_only_ui)
+    assert len(rub_options) == 1
+    assert rub_options[0].currency == PayCurrency.RUB
+    assert get_payment_option(rub_only_ui, PayCurrency.RUB) is None
 
 
 def test_referral_profile_requirements() -> None:

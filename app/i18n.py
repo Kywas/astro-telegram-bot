@@ -199,7 +199,7 @@ TEXTS = {
         "premium_fiat_disabled": "Оплата в ₽/$ не настроена. Доступны только Stars.",
         "payments_disabled": "Платежи временно отключены.",
         "premium_buy_intro": "Premium на {days} дней — {price} Stars.",
-        "premium_buy_fail": "Не удалось открыть платёж. Проверь, что бот поддерживает Stars.",
+        "premium_buy_fail": "Не удалось открыть платёж. Для ₽ нужен PAYMENT_PROVIDER_TOKEN (ЮKassa в BotFather).",
         "premium_payment_ok": "Оплата прошла. Premium активен до {until}.",
         "premium_payment_error": "Оплата не прошла, попробуй ещё раз позже.",
         "premium_trial_granted": (
