@@ -7,7 +7,6 @@ from app.config import Settings
 from app.premium import (
     DEFAULT_PREMIUM_PRICE_RUB,
     DEFAULT_PREMIUM_PRICE_STARS,
-    DEFAULT_PREMIUM_PRICE_USD_CENTS,
 )
 
 
@@ -45,10 +44,6 @@ def parse_premium_payload(payload: str) -> PayCurrency | None:
         return None
 
 
-def _format_usd(cents: int) -> str:
-    return f"${cents / 100:.2f}"
-
-
 def available_payment_options(settings: Settings) -> tuple[PremiumPaymentOption, ...]:
     if not settings.enable_payments:
         return ()
@@ -81,22 +76,6 @@ def available_payment_options(settings: Settings) -> tuple[PremiumPaymentOption,
                 button_en=f"⭐ {settings.premium_price_stars} Stars",
                 panel_ru=f"⭐ {settings.premium_price_stars} Stars",
                 panel_en=f"⭐ {settings.premium_price_stars} Stars",
-            )
-        )
-
-    usd_token = settings.payment_provider_token_usd or settings.payment_provider_token
-    if usd_token and settings.premium_price_usd_cents > 0:
-        usd_label = _format_usd(settings.premium_price_usd_cents)
-        options.append(
-            PremiumPaymentOption(
-                currency=PayCurrency.USD,
-                invoice_amount=settings.premium_price_usd_cents,
-                telegram_currency="USD",
-                provider_token=usd_token,
-                button_ru=f"💵 {usd_label}",
-                button_en=f"💵 {usd_label}",
-                panel_ru=f"💵 {usd_label}",
-                panel_en=f"💵 {usd_label}",
             )
         )
 

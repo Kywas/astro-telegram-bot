@@ -32,11 +32,10 @@ def test_payment_options() -> None:
     )
     options = available_payment_options(settings)
     currencies = {opt.currency for opt in options}
-    assert currencies == {PayCurrency.STARS, PayCurrency.RUB, PayCurrency.USD}
+    assert currencies == {PayCurrency.STARS, PayCurrency.RUB}
     assert options[0].currency == PayCurrency.RUB
     assert "ЮKassa" in options[0].button_ru
     assert format_payment_amount(PayCurrency.RUB, 19900, "RUB") == "199 ₽"
-    assert format_payment_amount(PayCurrency.USD, 300, "USD") == "$3.00"
 
     rub_only_ui = Settings(
         bot_token="x",
