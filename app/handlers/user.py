@@ -19,6 +19,7 @@ from app.admin_alerts import (
 from app.admin_middleware import AdminOnlyMiddleware
 from app.bot_context import (
     FREE_PARTNER_LIMIT,
+    GOAL_TEXT_KEYS,
     PREMIUM_PARTNER_LIMIT,
     SIGN_EMOJI,
     admin_router,
