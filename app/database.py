@@ -949,28 +949,37 @@ class Database:
 
     async def get_recent_error_summaries(
         self,
-        since_iso: str,
+        since_iso: str | None = None,
         *,
         limit: int = 5,
     ) -> list[dict[str, str]]:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute(
+            if since_iso is None:
+                query = """
+                    SELECT source, error_type, message, created_at
+                    FROM error_log
+                    ORDER BY id DESC
+                    LIMIT ?
                 """
-                SELECT source, error_type, message
-                FROM error_log
-                WHERE created_at >= ?
-                ORDER BY id DESC
-                LIMIT ?
-                """,
-                (since_iso, limit),
-            ) as cursor:
+                params: tuple[object, ...] = (limit,)
+            else:
+                query = """
+                    SELECT source, error_type, message, created_at
+                    FROM error_log
+                    WHERE created_at >= ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                """
+                params = (since_iso, limit)
+            async with db.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
         return [
             {
                 "source": str(row["source"]),
                 "error_type": str(row["error_type"]),
                 "message": str(row["message"]),
+                "created_at": str(row["created_at"]),
             }
             for row in rows
         ]
