@@ -28,6 +28,7 @@ from app.bot_context import (
     settings,
 )
 from app.daily_sender import run_daily_loop
+from app.error_reporting import report_error
 from app.evening_checkin import build_evening_response
 from app.fsm_storage import SQLiteFsmStorage
 from app.geo import resolve_city, warm_timezone_finder
@@ -217,7 +218,9 @@ async def start_handler(message: Message, state: FSMContext) -> None:
                 prefer_new=True,
             )
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="start_handler",
             error_type=type(e).__name__,
             message=str(e),
@@ -2024,7 +2027,9 @@ async def compat_partner_city_handler(message: Message, state: FSMContext) -> No
     try:
         location = await geocode_city_input(message, city)
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="compat_partner_city_handler",
             error_type=type(e).__name__,
             message=str(e),
@@ -2204,7 +2209,9 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
     try:
         location = await geocode_city_input(message, city)
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="partner_city_handler",
             error_type=type(e).__name__,
             message=str(e),
@@ -2248,7 +2255,9 @@ async def partner_city_handler(message: Message, state: FSMContext) -> None:
             sign=sign,
         )
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="partner_city_handler_save",
             error_type=type(e).__name__,
             message=str(e),
@@ -2363,7 +2372,9 @@ async def city_handler(message: Message, state: FSMContext) -> None:
     try:
         location = await geocode_city_input(message, city)
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="city_handler",
             error_type=type(e).__name__,
             message=str(e),
@@ -2408,7 +2419,9 @@ async def city_handler(message: Message, state: FSMContext) -> None:
             birth_timezone=location.timezone,
         )
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="city_handler_save",
             error_type=type(e).__name__,
             message=str(e),
@@ -2558,7 +2571,9 @@ async def run_bot() -> None:
         me = await bot.get_me()
         logger.info("Connected to Telegram as @%s (id=%s)", me.username, me.id)
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=bot,
+            admin_ids=settings.admin_ids,
             source="startup_get_me",
             error_type=type(e).__name__,
             message=str(e),
@@ -2568,7 +2583,9 @@ async def run_bot() -> None:
         await configure_public_profile(bot)
     except Exception as e:
         logger.exception("Failed to configure public profile")
-        await db.log_error(
+        await report_error(
+            bot=bot,
+            admin_ids=settings.admin_ids,
             source="configure_public_profile",
             error_type=type(e).__name__,
             message=str(e),
@@ -2591,7 +2608,9 @@ async def run_bot() -> None:
             user_id = update.callback_query.from_user.id
             if update.callback_query.message:
                 chat_id = update.callback_query.message.chat.id
-        await db.log_error(
+        await report_error(
+            bot=bot,
+            admin_ids=settings.admin_ids,
             source="dispatcher",
             error_type=type(exc).__name__,
             message=str(exc),
@@ -2644,10 +2663,13 @@ async def run_bot() -> None:
     try:
         await dp.start_polling(bot)
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=bot,
+            admin_ids=settings.admin_ids,
             source="run_bot",
             error_type=type(e).__name__,
             message=str(e),
+            notify=False,
         )
         await notify_admins_bot_crashed(
             bot,

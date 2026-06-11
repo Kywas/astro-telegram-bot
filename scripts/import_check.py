@@ -15,6 +15,7 @@ MODULES = (
     "app.handlers.admin",
     "app.handlers.user",
     "app.keyboards",
+    "app.error_reporting",
     "app.profile_public",
     "app.services.admin_users",
     "app.services.compat",

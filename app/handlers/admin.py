@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, Message
 
 from app.admin_alerts import notify_admins
 from app.bot_context import admin_router, db, settings
+from app.error_reporting import report_error
 from app.i18n import t
 from app.keyboards import admin_panel_keyboard, admin_users_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
 from app.premium import format_premium_until
@@ -175,11 +176,14 @@ async def broadcast_handler(message: Message) -> None:
             ok += 1
         except Exception as e:
             fail += 1
-            await db.log_error(
+            await report_error(
+                bot=message.bot,
+                admin_ids=settings.admin_ids,
                 source="broadcast",
                 error_type=type(e).__name__,
                 message=str(e),
                 context=f"user_id={uid}",
+                notify=False,
             )
     await db.log_event(user.id, "broadcast")
     await message.answer(
@@ -394,11 +398,14 @@ async def admin_broadcast_confirm_callback(callback: CallbackQuery, state: FSMCo
             ok += 1
         except Exception as e:
             fail += 1
-            await db.log_error(
+            await report_error(
+                bot=callback.message.bot,
+                admin_ids=settings.admin_ids,
                 source="broadcast",
                 error_type=type(e).__name__,
                 message=str(e),
                 context=f"user_id={uid}",
+                notify=False,
             )
     await db.log_event(user.id, "broadcast_panel")
     await state.clear()

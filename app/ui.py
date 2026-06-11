@@ -3,7 +3,8 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
-from app.bot_context import db
+from app.bot_context import db, settings
+from app.error_reporting import report_error
 
 _USER_PANELS: dict[int, list[tuple[int, int]]] = {}
 
@@ -124,7 +125,9 @@ async def show_panel_from_message(
             fallback_message=message,
         )
     except Exception as e:
-        await db.log_error(
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
             source="show_panel_from_message",
             error_type=type(e).__name__,
             message=str(e),
