@@ -59,7 +59,7 @@ from app.keyboards import (
     referral_panel_keyboard,
     settings_keyboard,
 )
-from app.profile_public import configure_public_profile, feedback_keyboard
+from app.profile_public import configure_public_profile, feedback_keyboard, _feedback_contact_handle
 from app.moon_calendar import (
     generate_moon_calendar_text,
     generate_moon_compact_table_text,
@@ -124,7 +124,7 @@ from app.states import (
     PreferencesSetup,
     ProfileSetup,
 )
-from app.timezones import user_local_date_key
+from app.timezones import normalize_timezone, timezone_label_with_offset, user_local_date_key
 from app.ui import (
     _save_user_panel,
     delete_user_wizard_message,
