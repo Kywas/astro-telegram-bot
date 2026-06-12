@@ -272,6 +272,70 @@ async def admin_panel_back_callback(callback: CallbackQuery, state: FSMContext) 
     )
 
 
+@admin_router.callback_query(F.data == "admin:broadcast_cancel")
+async def admin_broadcast_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await state.clear()
+    await callback.answer()
+    if callback.message:
+        await render_inline_panel(
+            callback,
+            t(locale, "broadcast_cancelled"),
+            admin_panel_keyboard(locale),
+        )
+
+
+@admin_router.callback_query(F.data == "admin:broadcast_confirm")
+async def admin_broadcast_confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    data = await state.get_data()
+    payload = (data.get("broadcast_payload") or "").strip()
+    if not payload:
+        await state.clear()
+        await callback.answer()
+        if callback.message:
+            await render_inline_panel(
+                callback,
+                t(locale, "broadcast_usage"),
+                admin_panel_keyboard(locale),
+            )
+        return
+
+    user_ids = await db.get_all_user_ids()
+    ok = 0
+    fail = 0
+    for uid in user_ids:
+        try:
+            await callback.message.bot.send_message(uid, payload)
+            ok += 1
+        except Exception as e:
+            fail += 1
+            await report_error(
+                bot=callback.message.bot,
+                admin_ids=settings.admin_ids,
+                source="broadcast",
+                error_type=type(e).__name__,
+                message=str(e),
+                context=f"user_id={uid}",
+                notify=False,
+            )
+    await db.log_event(user.id, "broadcast_panel")
+    await state.clear()
+    await callback.answer()
+    if callback.message:
+        await render_inline_panel(
+            callback,
+            t(locale, "broadcast_done", ok=str(ok), fail=str(fail)),
+            admin_panel_keyboard(locale),
+        )
+
+
 @admin_router.callback_query(F.data.startswith("admin:"))
 async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
@@ -352,70 +416,6 @@ async def admin_broadcast_input_handler(message: Message, state: FSMContext) -> 
         f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'broadcast_confirm_title')}",
         reply_markup=broadcast_confirm_keyboard(locale),
     )
-
-
-@admin_router.callback_query(F.data == "admin:broadcast_cancel")
-async def admin_broadcast_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    user = callback.from_user
-    if user is None:
-        return
-    locale = await get_user_locale(user.id)
-    await state.clear()
-    await callback.answer()
-    if callback.message:
-        await render_inline_panel(
-            callback,
-            t(locale, "broadcast_cancelled"),
-            admin_panel_keyboard(locale),
-        )
-
-
-@admin_router.callback_query(F.data == "admin:broadcast_confirm")
-async def admin_broadcast_confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    user = callback.from_user
-    if user is None:
-        return
-    locale = await get_user_locale(user.id)
-    data = await state.get_data()
-    payload = (data.get("broadcast_payload") or "").strip()
-    if not payload:
-        await state.clear()
-        await callback.answer()
-        if callback.message:
-            await render_inline_panel(
-                callback,
-                t(locale, "broadcast_usage"),
-                admin_panel_keyboard(locale),
-            )
-        return
-
-    user_ids = await db.get_all_user_ids()
-    ok = 0
-    fail = 0
-    for uid in user_ids:
-        try:
-            await callback.message.bot.send_message(uid, payload)
-            ok += 1
-        except Exception as e:
-            fail += 1
-            await report_error(
-                bot=callback.message.bot,
-                admin_ids=settings.admin_ids,
-                source="broadcast",
-                error_type=type(e).__name__,
-                message=str(e),
-                context=f"user_id={uid}",
-                notify=False,
-            )
-    await db.log_event(user.id, "broadcast_panel")
-    await state.clear()
-    await callback.answer()
-    if callback.message:
-        await render_inline_panel(
-            callback,
-            t(locale, "broadcast_done", ok=str(ok), fail=str(fail)),
-            admin_panel_keyboard(locale),
-        )
 
 
 @admin_router.message(AdminPanel.waiting_broadcast_confirm)
