@@ -54,6 +54,7 @@ from app.keyboards import (
     language_keyboard,
     moon_content_keyboard,
     moon_period_keyboard,
+    natal_part_keyboard,
     onboarding_relationship_keyboard,
     prefs_gender_keyboard,
     prefs_goal_keyboard,
@@ -759,29 +760,37 @@ async def open_horoscope_for_user(
     )
 
 
-async def render_natal_for_user(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
-    return await render_natal_for_user_mode(user_id, locale, mode="full")
+async def render_natal_for_user(user_id: int, locale: str, *, part: int = 1) -> tuple[str, InlineKeyboardMarkup]:
+    return await render_natal_for_user_mode(user_id, locale, mode="full", part=part)
 
 
 async def render_natal_for_user_mode(
     user_id: int,
     locale: str,
     mode: str = "full",
+    part: int = 1,
 ) -> tuple[str, InlineKeyboardMarkup]:
     profile = await db.get_user(user_id)
     if profile is None or profile.birth_date is None or not profile.sign:
         return t(locale, "natal_profile_missing"), home_panel_keyboard(locale)
-    sign_name = get_sign_name(profile.sign, locale)
+
+    if profile.birth_time is None:
+        return t(locale, "natal_time_required"), home_panel_keyboard(locale)
+
     premium_active = is_premium_active(profile.premium_until)
-    profile_mode = "short" if profile.natal_mode == "short" else "full"
-    normalized_mode = profile_mode if mode == "auto" else ("short" if mode == "short" else "full")
+    normalized_part = max(1, min(3, part))
+    normalized_mode = "short" if mode == "short" or (mode == "auto" and not premium_active) else "full"
+
     notice = ""
-    if normalized_mode == "full" and not premium_active:
-        normalized_mode = "short"
+    if normalized_mode == "short" and normalized_part > 1:
+        normalized_part = 1
+    if normalized_part > 1 and not premium_active:
         notice = t(locale, "premium_required_full_natal")
+        normalized_part = 1
+
     text = build_natal_summary(
         locale=locale,
-        sign_name=sign_name,
+        sign_name=get_sign_name(profile.sign, locale),
         sign_key=profile.sign,
         birth_date=profile.birth_date,
         birth_time=profile.birth_time,
@@ -789,7 +798,8 @@ async def render_natal_for_user_mode(
         relationship_status=profile.relationship_status,
         goal=profile.goal,
         mood_score=profile.mood_score,
-        mode=normalized_mode,
+        mode=normalized_mode if normalized_part == 1 else "full",
+        part=normalized_part,
         timezone=profile.timezone,
         lat=profile.birth_lat,
         lon=profile.birth_lon,
@@ -797,24 +807,12 @@ async def render_natal_for_user_mode(
     )
     if notice:
         text = f"{notice}\n\n{text}"
+
+    part_line = t(locale, "natal_part_label", part=str(normalized_part))
+    header = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n{part_line}\n\n{text}"
     return (
-        f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{text}",
-        InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text=t(locale, "natal_mode_short"),
-                        callback_data="natal:mode:short",
-                    ),
-                    InlineKeyboardButton(
-                        text=t(locale, "natal_mode_full"),
-                        callback_data="natal:mode:full",
-                    ),
-                ],
-                [glossary_help_button(locale, "natal", "nav:natal")],
-                [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
-            ]
-        ),
+        header,
+        natal_part_keyboard(locale, part=normalized_part, premium_active=premium_active),
     )
 
 
@@ -1079,27 +1077,38 @@ async def natal_handler(message: Message) -> None:
     await show_panel_from_message(message, text, reply_markup=keyboard)
 
 
-@router.callback_query(F.data.startswith("natal:mode:"))
-async def natal_mode_callback_handler(callback: CallbackQuery) -> None:
+@router.callback_query(F.data.startswith("natal:part:"))
+async def natal_part_callback_handler(callback: CallbackQuery) -> None:
     user = callback.from_user
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    mode = (callback.data or "").split(":")[-1]
+    part = int((callback.data or "natal:part:1").rsplit(":", 1)[-1])
     profile = await db.get_user(user.id)
-    if mode == "full" and profile and not is_premium_active(profile.premium_until):
+    if profile and part > 1 and not is_premium_active(profile.premium_until):
         await callback.answer()
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
             f"{t(locale, 'premium_required_full_natal')}\n\n"
             f"{t(locale, 'premium_features')}",
-            premium_upsell_keyboard(locale, back_data="nav:natal"),
+            premium_upsell_keyboard(locale, back_data="natal:part:1"),
         )
         return
-    await db.set_natal_mode(user.id, mode)
     await callback.answer()
-    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode=mode)
+    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="full", part=part)
+    await edit_or_send(callback, text, inline_keyboard=keyboard)
+
+
+@router.callback_query(F.data.startswith("natal:mode:"))
+async def natal_mode_callback_handler(callback: CallbackQuery) -> None:
+    """Legacy alias — redirect to part 1."""
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await callback.answer()
+    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="auto", part=1)
     await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 

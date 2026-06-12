@@ -28,6 +28,36 @@ def glossary_help_button(locale: str, topic: str, back_data: str) -> InlineKeybo
     )
 
 
+def natal_part_keyboard(locale: str, *, part: int, premium_active: bool) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    if premium_active:
+        part_labels = {
+            "ru": ("① Каркас", "② Планеты", "③ Итог"),
+            "en": ("① Core", "② Planets", "③ Summary"),
+        }
+        lang = "ru" if locale == "ru" else "en"
+        labels = part_labels[lang]
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{'✓ ' if part == 1 else ''}{labels[0]}",
+                    callback_data="natal:part:1",
+                ),
+                InlineKeyboardButton(
+                    text=f"{'✓ ' if part == 2 else ''}{labels[1]}",
+                    callback_data="natal:part:2",
+                ),
+                InlineKeyboardButton(
+                    text=f"{'✓ ' if part == 3 else ''}{labels[2]}",
+                    callback_data="natal:part:3",
+                ),
+            ]
+        )
+    rows.append([glossary_help_button(locale, "natal", f"natal:part:{part}")])
+    rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def horoscope_period_keyboard(
     locale: str,
     *,

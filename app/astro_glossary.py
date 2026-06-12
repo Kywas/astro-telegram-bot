@@ -377,15 +377,16 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
     if topic == "natal":
         if lang == "ru":
             blocks.append(
-                "«Солнце в Тельце» или «Луна в Раке» — это положение планеты в знаке зодиака "
-                "в момент рождения, а не на другой планете."
+                "«Лагна» — восходный знак: как ты входишь в жизнь и как тебя видят. "
+                "«Дом» — сфера жизни (карьера, отношения…). "
+                "«Накшатра» — лунный сектор, уточняющий характер планеты."
             )
+            blocks.extend(["", _planets_block(locale), "", _aspects_block(locale)])
         else:
             blocks.append(
-                "“Sun in Taurus” or “Moon in Cancer” is a planet's position in a zodiac sign "
-                "at birth — not on another planet."
+                "Lagna is the rising sign; houses are life areas; nakshatras refine planetary expression."
             )
-        blocks.extend(["", _planets_block(locale), "", _aspects_block(locale)])
+            blocks.extend(["", _planets_block(locale), "", _aspects_block(locale)])
         return "\n".join(blocks)
 
     if topic == "compat":
