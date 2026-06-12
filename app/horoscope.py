@@ -2,6 +2,7 @@ from datetime import date, time
 from dataclasses import dataclass
 
 from app.astro_engine import AstroForecast, build_astro_forecast
+from app.forecast_text import format_forecast_opening, format_score_word
 
 SECTION_TEMPLATES = {
     "ru": {
@@ -56,7 +57,35 @@ GOAL_FOCUS_KEYS = {
     "balance": "advice_title",
 }
 
-DETAILS_DIVIDER = "──────────────────"
+PERIOD_HEADERS = {
+    "ru": {
+        "day": "🌙 Прогноз на сегодня",
+        "week": "🌙 Прогноз на неделю",
+        "month": "🌙 Прогноз на месяц",
+    },
+    "en": {
+        "day": "🌙 Forecast for today",
+        "week": "🌙 Forecast for the week",
+        "month": "🌙 Forecast for the month",
+    },
+}
+
+DOMAIN_SECTION_KEYS = {
+    "energy": "energy_title",
+    "work": "work_title",
+    "finance": "finance_title",
+    "love": "love_title",
+    "social": "social_title",
+    "health": "health_title",
+}
+
+GOAL_DOMAIN_ORDER = {
+    "love": ["energy", "love", "social"],
+    "career": ["energy", "work", "finance"],
+    "money": ["energy", "finance", "work"],
+}
+
+DEFAULT_DOMAIN_ORDER = ["energy", "love", "work"]
 
 GOAL_LABELS = {
     "ru": {
@@ -112,22 +141,51 @@ def _is_focus_section(key: str, goal: str | None) -> bool:
     return bool(goal and GOAL_FOCUS_KEYS.get(goal) == key)
 
 
-def _format_detail_block(
+def _collapse_prose(text: str) -> str:
+    return " ".join(line.strip() for line in text.splitlines() if line.strip())
+
+
+def _domains_for_goal(goal: str | None) -> list[str]:
+    if goal and goal in GOAL_DOMAIN_ORDER:
+        return GOAL_DOMAIN_ORDER[goal]
+    return DEFAULT_DOMAIN_ORDER
+
+
+def _summary_accent(summary_lines: list[str]) -> str | None:
+    for line in summary_lines:
+        if line.startswith("ℹ"):
+            continue
+        return line
+    return None
+
+
+def _summary_footnotes(summary_lines: list[str]) -> list[str]:
+    return [line for line in summary_lines if line.startswith("ℹ")]
+
+
+def _format_domain_block(
     labels: dict[str, str],
-    key: str,
+    domain: str,
     text: str,
     *,
     goal: str | None,
-    score: int | None = None,
+    score: int | None,
+    locale: str,
 ) -> str:
-    icon = SECTION_ICONS[key]
-    title = labels[key]
-    focus = "⭐ " if _is_focus_section(key, goal) else ""
-    if score is not None:
-        header = f"{focus}{icon} {title} · {score}/10"
+    title_key = DOMAIN_SECTION_KEYS[domain]
+    icon = SECTION_ICONS[title_key]
+    title = labels[title_key]
+    focus = "⭐ " if _is_focus_section(title_key, goal) else ""
+    prose = _collapse_prose(text)
+    if score is not None and domain == "energy":
+        tone = format_score_word(score, locale)
+        if locale == "ru":
+            header = f"{focus}{icon} {title} · {tone} энергия"
+        else:
+            header = f"{focus}{icon} {title} · {tone} energy"
     else:
         header = f"{focus}{icon} {title}"
-    return f"{header}\n{text}"
+    return f"{header}\n{prose}"
 
 
 def _personalization_banner(locale: str, ctx: PersonalizationContext) -> str:
@@ -200,42 +258,52 @@ def _format_forecast(
     personalization: PersonalizationContext | None,
 ) -> str:
     labels = SECTION_TEMPLATES[locale]
-    period_suffix = {
-        "ru": {"day": " · сегодня", "week": " · неделя", "month": " · месяц"},
-        "en": {"day": " · today", "week": " · week", "month": " · month"},
-    }
-    header = forecast.summary_lines[0] + period_suffix[locale][period]
-    lines = [header, *forecast.summary_lines[1:]]
+    parts = [PERIOD_HEADERS[locale][period]]
+
+    opening = format_forecast_opening(
+        locale,
+        period,
+        forecast.moon_sign,
+        accent_line=_summary_accent(forecast.summary_lines),
+    )
+    parts.append(opening)
+
     if personalization and personalization.has_data():
         banner = _personalization_banner(locale, personalization)
         if banner:
-            lines.append(banner)
+            parts.append(banner)
 
-    detail_blocks = [
-        _format_detail_block(
-            labels, "energy_title", forecast.energy.text, goal=goal, score=forecast.energy.score
-        ),
-        _format_detail_block(
-            labels, "work_title", forecast.work.text, goal=goal, score=forecast.work.score
-        ),
-        _format_detail_block(
-            labels, "finance_title", forecast.finance.text, goal=goal, score=forecast.finance.score
-        ),
-        _format_detail_block(
-            labels, "love_title", forecast.love.text, goal=goal, score=forecast.love.score
-        ),
-        _format_detail_block(labels, "social_title", forecast.social.text, goal=goal),
-        _format_detail_block(
-            labels, "health_title", forecast.health.text, goal=goal, score=forecast.health.score
-        ),
-        _format_detail_block(labels, "lucky_time_title", forecast.lucky_time, goal=goal),
-        _format_detail_block(labels, "avoid_title", forecast.avoid, goal=goal),
-        _format_detail_block(labels, "affirmation_title", forecast.affirmation, goal=goal),
-        _format_detail_block(labels, "advice_title", forecast.advice, goal=goal),
-    ]
-    backdrop = "\n".join(lines)
-    details = "\n\n".join(detail_blocks)
-    return f"{backdrop}\n\n{DETAILS_DIVIDER}\n{labels['details_header']}\n\n{details}"
+    section_map = {
+        "energy": forecast.energy,
+        "work": forecast.work,
+        "finance": forecast.finance,
+        "love": forecast.love,
+        "social": forecast.social,
+        "health": forecast.health,
+    }
+    for domain in _domains_for_goal(goal):
+        section = section_map[domain]
+        parts.append(
+            _format_domain_block(
+                labels,
+                domain,
+                section.text,
+                goal=goal,
+                score=section.score,
+                locale=locale,
+            )
+        )
+
+    tip = _collapse_prose(forecast.advice)
+    parts.append(f"💡 {labels['advice_title']}\n{tip}")
+    parts.append(f"⚠️ {labels['avoid_title']}\n{_collapse_prose(forecast.avoid)}")
+    parts.append(f"🕐 {labels['lucky_time_title']}: {forecast.lucky_time}")
+
+    footnotes = _summary_footnotes(forecast.summary_lines)
+    if footnotes:
+        parts.append("\n".join(footnotes))
+
+    return "\n\n".join(parts)
 
 
 def generate_home_teaser(
@@ -289,13 +357,14 @@ def generate_home_teaser(
             return f"{prefix}{sign_label} · прогноз временно недоступен"
         return f"{prefix}{sign_label} · forecast temporarily unavailable"
 
+    energy_tone = format_score_word(forecast.energy.score, current_locale)
     if current_locale == "ru":
         return (
-            f"{prefix}{sign_label} · энергия {forecast.energy.score}/10 · "
+            f"{prefix}{sign_label} · {energy_tone} энергия · "
             f"удачное время: {forecast.lucky_time}"
         )
     return (
-        f"{prefix}{sign_label} · energy {forecast.energy.score}/10 · "
+        f"{prefix}{sign_label} · {energy_tone} energy · "
         f"lucky time: {forecast.lucky_time}"
     )
 
@@ -476,11 +545,12 @@ def build_horoscope_share_text(
     sign_prefix = f"{context.sign_emoji} " if context.sign_emoji else ""
     advice = _truncate_share_line(context.advice)
 
+    energy_tone = format_score_word(context.energy_score, context.locale)
     if context.locale == "ru":
         lines = [
             f"🔮 Мой астрологический прогноз · {context.period_label}",
             "",
-            f"{sign_prefix}{context.sign_name} · энергия {context.energy_score}/10",
+            f"{sign_prefix}{context.sign_name} · {energy_tone} энергия",
             f"💡 {advice}",
             f"🕐 Удачное время: {context.lucky_time}",
             "",
@@ -490,7 +560,7 @@ def build_horoscope_share_text(
         lines = [
             f"🔮 My astrological forecast · {context.period_label}",
             "",
-            f"{sign_prefix}{context.sign_name} · energy {context.energy_score}/10",
+            f"{sign_prefix}{context.sign_name} · {energy_tone} energy",
             f"💡 {advice}",
             f"🕐 Lucky time: {context.lucky_time}",
             "",

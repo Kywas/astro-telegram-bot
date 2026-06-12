@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.astro_glossary import format_moon_in_sign_short
+from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint
 
 SIGN_ELEMENTS = {
     "Aries": "fire",
@@ -589,9 +589,9 @@ def _love_suffix(locale: str, domain: str, transit: str, relationship_status: st
         return ""
     lang = _lang(locale)
     if relationship_status == "single" and transit in {"VENUS", "MOON"}:
-        return " Это особенно заметно в новых знакомствах." if lang == "ru" else " Especially visible in new connections."
+        return " Особенно заметно в новых знакомствах." if lang == "ru" else " Especially visible in new connections."
     if relationship_status == "relationship" and transit in {"VENUS", "MOON", "MARS"}:
-        return ". Обсуди это с партнёром напрямую." if lang == "ru" else ". Discuss it openly with your partner."
+        return " Обсуди это с партнёром напрямую." if lang == "ru" else " Discuss it openly with your partner."
     return ""
 
 
@@ -620,6 +620,86 @@ def format_domain_hit(
     return line + _love_suffix(locale, domain, transit, relationship_status)
 
 
+def _collapse_prose(text: str) -> str:
+    return " ".join(line.strip() for line in text.splitlines() if line.strip())
+
+
+def format_score_word(score: int, locale: str) -> str:
+    lang = _lang(locale)
+    if lang == "ru":
+        if score >= 8:
+            return "высокая"
+        if score >= 6:
+            return "живая"
+        if score >= 4:
+            return "ровная"
+        return "спокойная"
+    if score >= 8:
+        return "high"
+    if score >= 6:
+        return "active"
+    if score >= 4:
+        return "steady"
+    return "quiet"
+
+
+def format_plain_accent(
+    locale: str,
+    _transit: str,
+    natal: str,
+    aspect: str,
+    _orb: float,
+) -> str:
+    lang = _lang(locale)
+    role = _natal_role_short(locale, natal)
+    if lang == "ru":
+        mapping = {
+            "conjunction": f"Главный акцент — {role}: день усилит эту тему.",
+            "sextile": f"Есть мягкая поддержка в теме «{role}».",
+            "trine": f"День облегчает {role} — можно опираться на это.",
+            "square": f"На {role} идёт давление — не форсируй и снижай темп.",
+            "opposition": f"{role.capitalize()} тянут в разные стороны — ищи середину.",
+        }
+        return mapping.get(aspect, f"Акцент дня — {role}.")
+    mapping = {
+        "conjunction": f"Main focus — {role}: the day amplifies this theme.",
+        "sextile": f"Gentle support around {role}.",
+        "trine": f"The day eases {role} — you can lean on that.",
+        "square": f"Pressure on {role} — don't force it; slow down.",
+        "opposition": f"{role.capitalize()} pull in opposite directions — find the middle.",
+    }
+    return mapping.get(aspect, f"Today's accent — {role}.")
+
+
+def format_forecast_opening(
+    locale: str,
+    period: str,
+    moon_sign: str,
+    accent_line: str | None = None,
+) -> str:
+    lang = _lang(locale)
+    moon = format_moon_in_sign_short(locale, moon_sign)
+    hint = moon_in_sign_hint(locale, moon_sign)
+    period_word = {
+        "ru": {"day": "Сегодня", "week": "На этой неделе", "month": "В этом месяце"},
+        "en": {"day": "Today", "week": "This week", "month": "This month"},
+    }[lang][period]
+
+    parts = [f"{period_word} {moon.lower()}."]
+    if hint:
+        hint_clean = hint.strip()
+        if hint_clean and not hint_clean.endswith("."):
+            hint_clean += "."
+        parts.append(hint_clean[0].upper() + hint_clean[1:])
+    if accent_line:
+        parts.append(accent_line)
+    elif lang == "ru":
+        parts.append("Ярких транзитов нет — держи свой обычный ритм.")
+    else:
+        parts.append("No strong transits — keep your usual rhythm.")
+    return " ".join(parts)
+
+
 def format_neutral_domain(
     locale: str,
     domain: str,
@@ -633,8 +713,8 @@ def format_neutral_domain(
     relation_line = SUN_MOON_RELATION[lang][relation]
     moon = _sign_label(locale, moon_sign)
     if lang == "ru":
-        return f"Луна в {moon}: {clause}.\n{relation_line}"
-    return f"Moon in {moon}: {clause}.\n{relation_line}"
+        return f"Луна в {moon} задаёт тон: {clause}. {relation_line}"
+    return f"Moon in {moon} sets the tone: {clause}. {relation_line}"
 
 
 def format_domain_section(
@@ -648,31 +728,21 @@ def format_domain_section(
 ) -> str:
     if not hits:
         return format_neutral_domain(locale, domain, moon_sign, natal_sun_sign)
-    selected = hits[:2]
-    lines: list[str] = []
-    first_orb, first_transit, _first_natal, _first_aspect = selected[0]
-    del first_orb
-    lines.append(_transit_domain_intro(locale, first_transit, domain))
-    seen_natal: set[str] = set()
-    for index, (orb, transit, natal, aspect) in enumerate(selected):
-        focus_planet = natal if natal not in seen_natal else transit
-        seen_natal.add(natal)
-        line = format_domain_hit(
-            locale,
-            domain,
-            transit,
-            natal,
-            aspect,
-            orb,
-            relationship_status=relationship_status if domain == "love" and index == len(selected) - 1 else None,
-            focus_planet=focus_planet,
-        )
-        lines.append(line)
-    return "\n".join(lines)
+
+    _orb, transit, natal, aspect = hits[0]
+    lang = _lang(locale)
+    intro = _transit_domain_intro(locale, transit, domain).rstrip(".")
+    verb = ASPECT_VERB_SHORT[lang][aspect]
+    focus = _domain_focus(locale, domain, natal)
+    if lang == "ru":
+        prose = f"{intro} — {verb} {focus}."
+    else:
+        prose = f"{intro} — {verb} {focus}."
+    return prose + _love_suffix(locale, domain, transit, relationship_status)
 
 
 def format_summary_aspect(locale: str, transit: str, natal: str, aspect: str, orb: float) -> str:
-    return _compact_hit_line(locale, transit, natal, aspect, orb, bullet="")
+    return format_plain_accent(locale, transit, natal, aspect, orb)
 
 
 def format_avoid(locale: str, hits: list[Hit]) -> str:

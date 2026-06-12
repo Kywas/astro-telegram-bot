@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 
 import swisseph as swe
 
-from app.astro_glossary import format_moon_in_sign_bullet
 from app.geo import resolve_birth_location
 from app.forecast_text import (
     format_advice,
@@ -496,44 +495,24 @@ def _build_summary_lines(
     solar_only: bool,
     period: str,
 ) -> list[str]:
+    del moon_sign, period
     lang = _lang(locale)
-    period_note = ""
-    if period == "week":
-        period_note = " (неделя)" if lang == "ru" else " (week)"
-    elif period == "month":
-        period_note = " (месяц)" if lang == "ru" else " (month)"
-
-    summary = [
-        (
-            f"🪐 Астрологический прогноз (Swiss Ephemeris){period_note}"
-            if lang == "ru"
-            else f"🪐 Astrological forecast (Swiss Ephemeris){period_note}"
-        ),
-        format_moon_in_sign_bullet(locale, moon_sign),
-    ]
+    summary: list[str] = []
+    if hits:
+        orb_delta, transit_key, natal_key, aspect_name = hits[0]
+        summary.append(_aspect_phrase(locale, transit_key, natal_key, aspect_name, orb_delta))
     if solar_only:
         summary.append(
-            "• Расчёт по солнечному знаку — укажите дату рождения для натальной карты."
+            "ℹ️ Расчёт по солнечному знаку — укажите дату рождения для точной карты."
             if lang == "ru"
-            else "• Solar-sign chart only — add your birth date for a natal chart."
+            else "ℹ️ Solar-sign chart only — add your birth date for a precise chart."
         )
     elif birth_time is None:
         summary.append(
-            "• Натал: время рождения не указано — Луна и дома не учитываются."
+            "ℹ️ Время рождения не указано — Луна и дома в расчёте не участвуют."
             if lang == "ru"
-            else "• Natal: birth time missing — Moon and houses are not included."
+            else "ℹ️ Birth time missing — Moon and houses are not included."
         )
-    if not hits:
-        summary.append(
-            "• Ярких транзитных аспектов к наталу нет — день более ровный."
-            if lang == "ru"
-            else "• No major transits to your natal chart — a steadier day."
-        )
-    else:
-        for orb_delta, transit_key, natal_key, aspect_name in hits[:3]:
-            summary.append(
-                f"• {_aspect_phrase(locale, transit_key, natal_key, aspect_name, orb_delta)}"
-            )
     return summary
 
 
