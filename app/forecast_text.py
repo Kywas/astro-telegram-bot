@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.astro_glossary import format_moon_in_sign_short
+
 SIGN_ELEMENTS = {
     "Aries": "fire",
     "Leo": "fire",
@@ -625,11 +627,11 @@ def format_neutral_domain(
     natal_sun_sign: str,
 ) -> str:
     lang = _lang(locale)
-    moon = _sign_label(locale, moon_sign)
     element = SIGN_ELEMENTS.get(moon_sign, "air")
     clause = MOON_ELEMENT_DOMAIN[lang][element][domain]
     relation = _element_relation(moon_sign, natal_sun_sign)
     relation_line = SUN_MOON_RELATION[lang][relation]
+    moon = _sign_label(locale, moon_sign)
     if lang == "ru":
         return f"Луна в {moon}: {clause}.\n{relation_line}"
     return f"Moon in {moon}: {clause}.\n{relation_line}"
@@ -695,10 +697,10 @@ def format_avoid(locale: str, hits: list[Hit]) -> str:
 def format_advice(locale: str, hits: list[Hit], moon_sign: str) -> str:
     lang = _lang(locale)
     if not hits:
-        moon = _sign_label(locale, moon_sign)
+        moon = format_moon_in_sign_short(locale, moon_sign)
         if lang == "ru":
-            return f"Точных аспектов мало — ориентируйся на ритм Луны в {moon} и не разгоняй день искусственно."
-        return f"Few exact aspects — follow the Moon in {moon} and don't force the pace."
+            return f"Точных аспектов мало — ориентируйся на ритм ({moon.lower()}) и не разгоняй день искусственно."
+        return f"Few exact aspects — follow the rhythm ({moon.lower()}) and don't force the pace."
 
     orb, transit, natal, aspect = hits[0]
     role = _natal_role_short(locale, natal)

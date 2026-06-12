@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from app.bot_context import FREE_PARTNER_LIMIT, PREMIUM_PARTNER_LIMIT, SIGN_EN, SIGN_RU, db
 from app.geo import resolve_city
 from app.i18n import t
-from app.keyboards import breadcrumb, premium_upsell_keyboard
+from app.keyboards import breadcrumb, glossary_help_button, premium_upsell_keyboard
 from app.premium import is_premium_active
 from app.synastry import build_synastry, build_synastry_for_partner_profile
 from app.timezones import user_local_date_key
@@ -170,6 +170,7 @@ async def deliver_compat_result(
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
+            [glossary_help_button(locale, "compat", "nav:compat")],
             [InlineKeyboardButton(text=t(locale, "btn_compat"), callback_data="nav:compat")],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]

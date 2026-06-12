@@ -31,6 +31,8 @@ from app.daily_sender import run_daily_loop
 from app.error_reporting import report_error
 from app.evening_checkin import build_evening_response
 from app.fsm_storage import SQLiteFsmStorage
+from app.astro_engine import build_moon_day_data
+from app.astro_glossary import build_glossary_help
 from app.geo import resolve_city, warm_timezone_finder
 from app.handlers import admin as _admin_handlers  # noqa: F401
 from app.horoscope import (
@@ -47,8 +49,10 @@ from app.keyboards import (
     home_goal_keyboard,
     home_panel_keyboard,
     home_relationship_keyboard,
+    glossary_help_button,
     horoscope_period_keyboard,
     language_keyboard,
+    moon_content_keyboard,
     moon_period_keyboard,
     onboarding_relationship_keyboard,
     prefs_gender_keyboard,
@@ -706,7 +710,12 @@ async def _send_period_horoscope(
         user_id=user_id,
         chat_id=message.chat.id,
         text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{intro}{header}\n{horoscope_text}",
-        reply_markup=horoscope_period_keyboard(locale, premium_active=premium_active, share_url=share_url),
+        reply_markup=horoscope_period_keyboard(
+            locale,
+            premium_active=premium_active,
+            share_url=share_url,
+            help_back=f"horo:{period}",
+        ),
         edit_message=message,
     )
 
@@ -802,10 +811,44 @@ async def render_natal_for_user_mode(
                         callback_data="natal:mode:full",
                     ),
                 ],
+                [glossary_help_button(locale, "natal", "nav:natal")],
                 [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
             ]
         ),
     )
+
+
+@router.callback_query(F.data.startswith("glossary:"))
+async def glossary_help_callback_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3:
+        await callback.answer()
+        return
+
+    topic = parts[1]
+    back_data = ":".join(parts[2:])
+    locale = await get_user_locale(user.id)
+    moon_sign_key = None
+    if topic in {"moon", "horo"}:
+        moon_data = build_moon_day_data(date.today())
+        if moon_data is not None:
+            moon_sign_key = moon_data.moon_sign
+
+    text = build_glossary_help(locale, topic, moon_sign_key=moon_sign_key)
+    if len(text) > 3900:
+        text = text[:3890].rstrip() + "…"
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=back_data)],
+        ]
+    )
+    await callback.answer()
+    await render_inline_panel(callback, text, keyboard)
 
 
 @router.callback_query(F.data.startswith("horo:"))
@@ -1082,6 +1125,8 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
         )
         return
 
+    content_action = f"moon:{action}" if action in {"today", "7", "30"} else "nav:moon"
+
     if action == "7":
         text = generate_moon_table_text(locale=locale, days=7)
     elif action == "30":
@@ -1099,6 +1144,7 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
         details_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=t(locale, "moon_details_day"), callback_data="moon:details")],
+                [glossary_help_button(locale, "moon", "moon:30")],
                 [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:moon")],
             ]
         )
@@ -1136,7 +1182,7 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
     await edit_or_send(
         callback,
         f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n{t(locale, 'moon_header')}\n\n{text}",
-        inline_keyboard=moon_period_keyboard(locale),
+        inline_keyboard=moon_content_keyboard(locale, content_action=content_action),
     )
 
 
@@ -1179,7 +1225,7 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
     await show_panel_from_message(
         message,
         f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n{t(locale, 'moon_header')}\n\n{text}",
-        reply_markup=moon_period_keyboard(locale),
+        reply_markup=moon_content_keyboard(locale, content_action="moon:30"),
     )
 
 

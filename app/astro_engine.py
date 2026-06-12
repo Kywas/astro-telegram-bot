@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import swisseph as swe
 
+from app.astro_glossary import format_moon_in_sign_bullet
 from app.geo import resolve_birth_location
 from app.forecast_text import (
     format_advice,
@@ -508,11 +509,7 @@ def _build_summary_lines(
             if lang == "ru"
             else f"🪐 Astrological forecast (Swiss Ephemeris){period_note}"
         ),
-        (
-            f"• Луна в {_sign_label(locale, moon_sign)}"
-            if lang == "ru"
-            else f"• Moon in {_sign_label(locale, moon_sign)}"
-        ),
+        format_moon_in_sign_bullet(locale, moon_sign),
     ]
     if solar_only:
         summary.append(

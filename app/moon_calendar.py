@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from app.astro_engine import build_moon_day_data, sign_label
+from app.astro_glossary import format_moon_in_sign_short
 
 PHASE_NAMES = {
     "ru": {
@@ -153,6 +154,7 @@ def _moon_snapshot(locale: str, for_date: date) -> dict[str, str | int | float] 
         "illumination": data.illumination,
         "lunar_day": data.lunar_day,
         "moon_sign": sign_label(locale, data.moon_sign),
+        "moon_sign_key": data.moon_sign,
         "next_phase_key": data.next_phase_key,
         "next_phase_days": data.next_phase_days,
         "do": rec_do,
@@ -179,18 +181,17 @@ def generate_moon_calendar_text(locale: str, for_date: date | None = None) -> st
     phase_name = str(snap["phase_name"])
     illumination = int(snap["illumination"])
     lunar_day = int(snap["lunar_day"])
-    moon_sign = str(snap["moon_sign"])
+    moon_line = format_moon_in_sign_short(locale, str(snap["moon_sign_key"]))
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
     next_phase_name = _phase_name(locale, str(snap["next_phase_key"]))
     days_left = int(snap["next_phase_days"])
     next_date = for_date + timedelta(days=days_left)
-
     if current_locale == "ru":
         return (
             f"🌙 Лунный календарь на {for_date.strftime('%d.%m.%Y')}\n\n"
             f"• Фаза Луны: {phase_name}\n"
-            f"• Луна в знаке: {moon_sign}\n"
+            f"• {moon_line}\n"
             f"• Освещённость диска: {illumination}%\n"
             f"• Лунный день: {lunar_day}\n"
             f"• Возраст Луны: {age:.1f} суток\n"
@@ -203,7 +204,7 @@ def generate_moon_calendar_text(locale: str, for_date: date | None = None) -> st
     return (
         f"🌙 Moon calendar for {for_date.isoformat()}\n\n"
         f"• Moon phase: {phase_name}\n"
-        f"• Moon sign: {moon_sign}\n"
+        f"• {moon_line}\n"
         f"• Illumination: {illumination}%\n"
         f"• Lunar day: {lunar_day}\n"
         f"• Moon age: {age:.1f} days\n"
@@ -337,7 +338,7 @@ def format_lunar_daily_reminder(locale: str, for_date: date) -> str:
         return _fallback_text(locale)
 
     phase_name = str(snap["phase_name"])
-    moon_sign = str(snap["moon_sign"])
+    moon_line = format_moon_in_sign_short(locale, str(snap["moon_sign_key"]))
     illumination = int(snap["illumination"])
     lunar_day = int(snap["lunar_day"])
     rec_do = str(snap["do"])
@@ -348,10 +349,7 @@ def format_lunar_daily_reminder(locale: str, for_date: date) -> str:
         lines = [
             f"🌙 Лунный фокус · {for_date.strftime('%d.%m')}",
             "",
-            (
-                f"Луна в {moon_sign} · {phase_name.lower()} · "
-                f"{illumination}% · {lunar_day}-й лунный день"
-            ),
+            f"{moon_line} · {phase_name.lower()} · {illumination}% · {lunar_day}-й лунный день",
             "",
             f"✅ Уместно: {rec_do}",
             f"⚠️ Избегать: {rec_avoid}",
@@ -363,10 +361,7 @@ def format_lunar_daily_reminder(locale: str, for_date: date) -> str:
     lines = [
         f"🌙 Lunar focus · {for_date.isoformat()}",
         "",
-        (
-            f"Moon in {moon_sign} · {phase_name.lower()} · "
-            f"{illumination}% · lunar day {lunar_day}"
-        ),
+        f"{moon_line} · {phase_name.lower()} · {illumination}% · lunar day {lunar_day}",
         "",
         f"✅ Do: {rec_do}",
         f"⚠️ Avoid: {rec_avoid}",
@@ -386,7 +381,7 @@ def format_lunar_day_notification(phase_key: str, locale: str, for_date: date) -
     snap = _moon_snapshot(locale, for_date)
     if snap is None:
         return _fallback_text(locale)
-    moon_sign = str(snap["moon_sign"])
+    moon_line = format_moon_in_sign_short(locale, str(snap["moon_sign_key"]))
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
     illumination = int(snap["illumination"])
@@ -394,13 +389,13 @@ def format_lunar_day_notification(phase_key: str, locale: str, for_date: date) -
     if current_locale == "ru":
         return (
             f"🌑 Сегодня {title.lower()} · {for_date.strftime('%d.%m.%Y')}\n\n"
-            f"• Луна в {moon_sign} · {illumination}% · {lunar_day}-й лунный день\n"
+            f"• {moon_line} · {illumination}% · {lunar_day}-й лунный день\n"
             f"• Что делать: {rec_do}\n"
             f"• Чего избегать: {rec_avoid}"
         )
     return (
         f"🌑 Today is {title} · {for_date.isoformat()}\n\n"
-        f"• Moon in {moon_sign} · {illumination}% · lunar day {lunar_day}\n"
+        f"• {moon_line} · {illumination}% · lunar day {lunar_day}\n"
         f"• Do: {rec_do}\n"
         f"• Avoid: {rec_avoid}"
     )
@@ -421,7 +416,7 @@ def format_lunar_preview_notification(
         return _fallback_text(locale)
     rec_do = str(snap["do"])
     rec_avoid = str(snap["avoid"])
-    moon_sign = str(snap["moon_sign"])
+    moon_line = format_moon_in_sign_short(locale, str(snap["moon_sign_key"]))
 
     if current_locale == "ru":
         when = (
@@ -432,7 +427,7 @@ def format_lunar_preview_notification(
         prefix = "Premium-напоминание" if early else "Напоминание"
         return (
             f"🌙 {when} — {title.lower()} ({event_date.strftime('%d.%m.%Y')})\n\n"
-            f"• Луна будет в {moon_sign}\n"
+            f"• {moon_line}\n"
             f"• {prefix}: {rec_do}\n"
             f"• Чего избегать ближе к фазе: {rec_avoid}"
         )
@@ -444,7 +439,7 @@ def format_lunar_preview_notification(
     prefix = "Premium reminder" if early else "Reminder"
     return (
         f"🌙 {when} — {title} ({event_date.isoformat()})\n\n"
-        f"• Moon sign: {moon_sign}\n"
+        f"• {moon_line}\n"
         f"• {prefix}: {rec_do}\n"
         f"• Avoid closer to the phase: {rec_avoid}"
     )

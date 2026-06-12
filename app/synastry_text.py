@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.forecast_text import _aspect_label
 
 SynastryHit = tuple[float, str, str, str]

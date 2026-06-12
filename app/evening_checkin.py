@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.astro_engine import EveningSnapshot, build_evening_snapshot, sign_label
+from app.astro_engine import EveningSnapshot, build_evening_snapshot
+from app.astro_glossary import format_moon_in_sign_short
 from app.forecast_text import format_summary_aspect
 from app.moon_calendar import PHASE_GUIDANCE, PHASE_NAMES
 
@@ -236,14 +237,14 @@ def build_evening_checkin_prompt(
             "it helps personalize your forecasts."
         )
 
-    moon_sign = sign_label(locale, snapshot.moon_sign)
+    moon_line = format_moon_in_sign_short(locale, snapshot.moon_sign)
     phase = PHASE_NAMES[lang][snapshot.moon_phase_key]
     aspect_line = _top_aspect_line(locale, snapshot)
     if lang == "ru":
         lines = [
             "🌆 Вечерний чек-ин",
             "",
-            f"Сегодня {phase.lower()}, Луна в {moon_sign}.",
+            f"Сегодня {phase.lower()}, {moon_line.lower()}.",
         ]
         if aspect_line:
             lines.append(f"Главный транзит дня: {aspect_line}.")
@@ -253,7 +254,7 @@ def build_evening_checkin_prompt(
     lines = [
         "🌆 Evening check-in",
         "",
-        f"Today: {phase}, Moon in {moon_sign}.",
+        f"Today: {phase}, {moon_line}.",
     ]
     if aspect_line:
         lines.append(f"Main transit today: {aspect_line}.")

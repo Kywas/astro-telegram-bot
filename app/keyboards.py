@@ -21,11 +21,19 @@ def language_keyboard(prefix: str = "lang") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=inline_rows)
 
 
+def glossary_help_button(locale: str, topic: str, back_data: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text=t(locale, "btn_glossary_help"),
+        callback_data=f"glossary:{topic}:{back_data}",
+    )
+
+
 def horoscope_period_keyboard(
     locale: str,
     *,
     premium_active: bool = False,
     share_url: str | None = None,
+    help_back: str = "nav:horo",
 ) -> InlineKeyboardMarkup:
     if locale == "ru":
         day_label, week_label, month_label = "Сегодня", "Неделя", "Месяц"
@@ -51,6 +59,7 @@ def horoscope_period_keyboard(
         )
     if share_url:
         rows.append([InlineKeyboardButton(text=t(locale, "share_horoscope"), url=share_url)])
+    rows.append([glossary_help_button(locale, "horo", help_back)])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -66,7 +75,7 @@ def build_telegram_share_url(*, text: str, url: str) -> str:
     return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
 
 
-def moon_period_keyboard(locale: str) -> InlineKeyboardMarkup:
+def moon_period_keyboard(locale: str, *, help_back: str = "nav:moon") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -74,6 +83,21 @@ def moon_period_keyboard(locale: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(locale, "moon_7_days"), callback_data="moon:7"),
                 InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
             ],
+            [glossary_help_button(locale, "moon", help_back)],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+        ]
+    )
+
+
+def moon_content_keyboard(locale: str, *, content_action: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t(locale, "moon_today"), callback_data="moon:today"),
+                InlineKeyboardButton(text=t(locale, "moon_7_days"), callback_data="moon:7"),
+                InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
+            ],
+            [glossary_help_button(locale, "moon", content_action)],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
