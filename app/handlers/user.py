@@ -102,6 +102,7 @@ from app.moon_calendar import (
     generate_moon_compact_table_text,
     generate_moon_table_text,
     normalize_moon_focus,
+    resolve_moon_style,
 )
 from app.natal import build_natal_summary
 from app.natal_sphere_qa import (
@@ -924,9 +925,11 @@ async def glossary_help_callback_handler(callback: CallbackQuery) -> None:
     topic = parts[1]
     back_data = ":".join(parts[2:])
     locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    timezone_name = resolve_user_timezone(profile, locale) if profile else "UTC"
     moon_sign_key = None
     if topic in {"moon", "horo"}:
-        moon_data = build_moon_day_data(date.today())
+        moon_data = build_moon_day_data(date.today(), timezone_name=timezone_name)
         if moon_data is not None:
             moon_sign_key = moon_data.moon_sign
 
@@ -2059,9 +2062,14 @@ def _moon_picker_text(locale: str) -> str:
     return f"{t(locale, 'choose_moon_period')}\n\n{t(locale, 'moon_planning_blocks')}"
 
 
-async def render_moon_style_picker(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:
+async def render_moon_style_picker(
+    user_id: int,
+    locale: str,
+    *,
+    return_to: str = "picker",
+) -> tuple[str, InlineKeyboardMarkup]:
     profile = await db.get_user(user_id)
-    style = profile.natal_style or "terms" if profile else "terms"
+    style = resolve_moon_style(profile)
     style_label = (
         t(locale, "natal_style_label_terms")
         if style == "terms"
@@ -2072,7 +2080,13 @@ async def render_moon_style_picker(user_id: int, locale: str) -> tuple[str, Inli
         f"{t(locale, 'choose_moon_style')}\n\n"
         f"{t(locale, 'natal_style_current', style=style_label)}"
     )
-    return text, moon_style_picker_keyboard(locale, current_style=style)
+    return text, moon_style_picker_keyboard(locale, current_style=style, return_to=return_to)
+
+
+def _moon_style_label(locale: str, style: str) -> str:
+    if style == "plain":
+        return t(locale, "natal_style_label_plain")
+    return t(locale, "natal_style_label_terms")
 
 
 def _moon_focus_label(locale: str, focus: str) -> str:
@@ -2089,7 +2103,8 @@ async def _show_moon_view_callback(
 ) -> None:
     profile = await db.get_user(user_id)
     focus = normalize_moon_focus(profile.moon_focus if profile else None)
-    style = profile.natal_style or "terms" if profile else "terms"
+    style = resolve_moon_style(profile)
+    timezone_name = resolve_user_timezone(profile, locale)
     premium_active = bool(profile and is_premium_active(profile.premium_until))
 
     if view == "back":
@@ -2119,7 +2134,12 @@ async def _show_moon_view_callback(
                 premium_upsell_keyboard(locale, back_data="nav:moon"),
             )
             return
-        text = generate_moon_compact_table_text(locale=locale, days=30)
+        text = generate_moon_compact_table_text(
+            locale=locale,
+            days=30,
+            style=style,
+            timezone_name=timezone_name,
+        )
         details_keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text=t(locale, "moon_details_day"), callback_data="moon:details")],
@@ -2158,18 +2178,21 @@ async def _show_moon_view_callback(
         return
 
     if view == "7":
-        text = generate_moon_table_text(locale=locale, days=7, focus=focus)
+        text = generate_moon_table_text(
+            locale=locale,
+            days=7,
+            focus=focus,
+            style=style,
+            timezone_name=timezone_name,
+        )
         content_action = "moon:7"
     else:
-        show_all = premium_active
         text = generate_moon_calendar_text(
             locale=locale,
             focus=focus,
-            show_all_focuses=show_all,
             style=style,
+            timezone_name=timezone_name,
         )
-        if show_all:
-            text = f"{t(locale, 'moon_premium_all_focuses')}\n\n{text}"
         content_action = "moon:today"
 
     await edit_or_send(
@@ -2196,19 +2219,28 @@ async def moon_period_callback_handler(callback: CallbackQuery, state: FSMContex
         return
 
     if len(parts) >= 3 and parts[1] == "style":
+        return_to = parts[3] if len(parts) >= 4 else "picker"
+        if return_to not in {"picker", "today", "7", "30"}:
+            return_to = "picker"
         if parts[2] == "picker":
             await callback.answer()
-            text, keyboard = await render_moon_style_picker(user.id, locale)
+            text, keyboard = await render_moon_style_picker(
+                user.id,
+                locale,
+                return_to=return_to,
+            )
             await edit_or_send(callback, text, inline_keyboard=keyboard)
             return
         if parts[2] in {"plain", "terms"}:
-            await db.set_natal_style(user.id, parts[2])
-            await callback.answer()
+            await db.set_moon_style(user.id, parts[2])
+            await callback.answer(
+                t(locale, "moon_style_saved", style=_moon_style_label(locale, parts[2]))
+            )
             await _show_moon_view_callback(
                 callback,
                 user.id,
                 locale,
-                "picker",
+                return_to,
                 state=state,
             )
             return
@@ -2262,6 +2294,7 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
         return
     raw_text = (message.text or "").strip()
     focus = normalize_moon_focus(profile.moon_focus)
+    timezone_name = resolve_user_timezone(profile, locale)
     if not re.match(r"^\d{2}\.\d{2}$", raw_text):
         await show_panel_from_message(
             message,
@@ -2283,10 +2316,9 @@ async def moon_details_day_handler(message: Message, state: FSMContext) -> None:
         locale=locale,
         for_date=target.date(),
         focus=focus,
-        show_all_focuses=True,
-        style=profile.natal_style or "terms",
+        style=resolve_moon_style(profile),
+        timezone_name=timezone_name,
     )
-    text = f"{t(locale, 'moon_premium_all_focuses')}\n\n{text}"
     await state.clear()
     await show_panel_from_message(
         message,

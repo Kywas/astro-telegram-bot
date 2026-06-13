@@ -17,6 +17,7 @@ from app.moon_calendar import (
     format_lunar_preview_notification,
     major_lunar_phase_on,
     normalize_moon_focus,
+    resolve_moon_style,
 )
 from app.premium import is_premium_active
 from app.premium_lifecycle import (
@@ -131,7 +132,8 @@ async def _send_lunar_preview(
         days_left=days_left,
         early=early,
         focus=normalize_moon_focus(user.moon_focus),
-        style=user.natal_style or "terms",
+        style=resolve_moon_style(user),
+        timezone_name=user.timezone,
     )
     try:
         await bot.send_message(
@@ -159,7 +161,7 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
 
         if is_premium_active(user.premium_until):
             preview_date = local_today + timedelta(days=LUNAR_PREVIEW_DAYS)
-            phase_preview = major_lunar_phase_on(preview_date)
+            phase_preview = major_lunar_phase_on(preview_date, user.timezone)
             if phase_preview:
                 await _send_lunar_preview(
                     db,
@@ -173,7 +175,7 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
                 )
 
         preview_date = local_today + timedelta(days=LUNAR_PREVIEW_FREE_DAYS)
-        phase_preview = major_lunar_phase_on(preview_date)
+        phase_preview = major_lunar_phase_on(preview_date, user.timezone)
         if phase_preview:
             await _send_lunar_preview(
                 db,
@@ -191,8 +193,8 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
             continue
 
         focus = normalize_moon_focus(user.moon_focus)
-        style = user.natal_style or "terms"
-        phase_today = major_lunar_phase_on(local_today)
+        style = resolve_moon_style(user)
+        phase_today = major_lunar_phase_on(local_today, user.timezone)
         if phase_today:
             text = format_lunar_day_notification(
                 phase_today,
@@ -200,6 +202,7 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
                 local_today,
                 focus=focus,
                 style=style,
+                timezone_name=user.timezone,
             )
         else:
             text = format_lunar_daily_reminder(
@@ -207,6 +210,7 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
                 local_today,
                 focus=focus,
                 style=style,
+                timezone_name=user.timezone,
             )
 
         try:

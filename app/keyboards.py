@@ -877,7 +877,12 @@ def build_telegram_share_url(*, text: str, url: str) -> str:
     return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
 
 
-def moon_style_picker_keyboard(locale: str, *, current_style: str) -> InlineKeyboardMarkup:
+def moon_style_picker_keyboard(
+    locale: str,
+    *,
+    current_style: str,
+    return_to: str = "picker",
+) -> InlineKeyboardMarkup:
     style = "plain" if current_style == "plain" else "terms"
     plain_mark = "✓ " if style == "plain" else ""
     terms_mark = "✓ " if style == "terms" else ""
@@ -886,14 +891,19 @@ def moon_style_picker_keyboard(locale: str, *, current_style: str) -> InlineKeyb
             [
                 InlineKeyboardButton(
                     text=f"{plain_mark}{t(locale, 'natal_style_plain')}",
-                    callback_data="moon:style:plain",
+                    callback_data=f"moon:style:plain:{return_to}",
                 ),
                 InlineKeyboardButton(
                     text=f"{terms_mark}{t(locale, 'natal_style_terms')}",
-                    callback_data="moon:style:terms",
+                    callback_data=f"moon:style:terms:{return_to}",
                 ),
             ],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "back"),
+                    callback_data=f"moon:{return_to}" if return_to != "picker" else "nav:home",
+                )
+            ],
         ]
     )
 
@@ -937,7 +947,7 @@ def moon_period_keyboard(
                 InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
             ],
             _moon_focus_row(locale, current_focus, "picker"),
-            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data="moon:style:picker")],
+            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data="moon:style:picker:picker")],
             [glossary_help_button(locale, "moon", help_back)],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
@@ -959,7 +969,7 @@ def moon_content_keyboard(
                 InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
             ],
             _moon_focus_row(locale, current_focus, return_to),
-            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data="moon:style:picker")],
+            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data=f"moon:style:picker:{return_to}")],
             [glossary_help_button(locale, "moon", content_action)],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]

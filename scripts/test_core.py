@@ -78,6 +78,7 @@ def test_referral_profile_requirements() -> None:
         last_mood_date=None,
         lunar_notify_enabled=True,
         moon_focus="practices",
+        moon_style="terms",
         premium_until=None,
         trial_used=False,
         natal_mode="full",

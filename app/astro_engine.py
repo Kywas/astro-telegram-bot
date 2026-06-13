@@ -847,6 +847,19 @@ def compute_sun_sign(
 
 
 SYNODIC_MONTH_DAYS = 29.530588853
+LUNAR_DAYS_PER_CYCLE = 30
+LUNAR_DAY_ARC_DEGREES = 360.0 / LUNAR_DAYS_PER_CYCLE
+LUNAR_DAY_MEAN_HOURS = SYNODIC_MONTH_DAYS / LUNAR_DAYS_PER_CYCLE * 24.0
+# Mean shift of the lunar-day boundary vs civil midnight (~22–23 min/day).
+LUNAR_DAY_DRIFT_MINUTES = round((24.0 - LUNAR_DAY_MEAN_HOURS) * 60.0, 1)
+# Primary phases from Swiss Ephemeris (JPL DE); matches USNO/NASA lunar calculators.
+MAJOR_PHASE_KEYS = ("new_moon", "first_quarter", "full_moon", "last_quarter")
+MAJOR_PHASE_ELONGATION = {
+    "new_moon": 0.0,
+    "first_quarter": 90.0,
+    "full_moon": 180.0,
+    "last_quarter": 270.0,
+}
 
 
 @dataclass
@@ -860,36 +873,193 @@ class MoonDayData:
     moon_sign: str
     next_phase_key: str
     next_phase_days: int
+    next_phase_jd: float
+    new_moon_jd: float
+    lunar_day_start_jd: float
+    next_lunar_day_start_jd: float
+    timezone_name: str
 
 
-def _date_to_jd_utc_noon(for_date: date) -> float:
-    return swe.julday(for_date.year, for_date.month, for_date.day, 12.0)
+def _elongation_delta(elongation: float, target: float) -> float:
+    return (elongation - target + 180.0) % 360.0 - 180.0
+
+
+def _phase_delta(jd: float, target_elongation: float) -> float:
+    return _elongation_delta(_moon_elongation_ahead(jd), target_elongation)
+
+
+def _bisect_phase_crossing(left: float, right: float, target_elongation: float) -> float:
+    for _ in range(64):
+        mid = (left + right) / 2.0
+        mid_delta = _phase_delta(mid, target_elongation)
+        if abs(mid_delta) < 1e-4:
+            return mid
+        if _phase_delta(left, target_elongation) * mid_delta <= 0:
+            right = mid
+        else:
+            left = mid
+    return (left + right) / 2.0
+
+
+def _find_phase_jd(
+    near_jd: float,
+    target_elongation: float,
+    *,
+    search_backward: bool = False,
+    window_days: float | None = None,
+) -> float:
+    max_scan = window_days if window_days is not None else SYNODIC_MONTH_DAYS / 4.0 + 1.5
+    step = 0.25
+    if search_backward:
+        probe = near_jd - max_scan
+        limit = near_jd
+    else:
+        probe = near_jd
+        limit = near_jd + max_scan
+
+    prev_jd = probe
+    prev_delta = _phase_delta(prev_jd, target_elongation)
+    probe += step
+    while probe <= limit + 1e-9:
+        cur_delta = _phase_delta(probe, target_elongation)
+        if abs(cur_delta) < 0.01:
+            return probe
+        if prev_delta * cur_delta <= 0 and abs(prev_delta - cur_delta) > 0.05:
+            return _bisect_phase_crossing(prev_jd, probe, target_elongation)
+        prev_jd = probe
+        prev_delta = cur_delta
+        probe += step
+
+    left, right = (near_jd - max_scan, near_jd) if search_backward else (near_jd, near_jd + max_scan)
+
+    def error(jd: float) -> float:
+        return abs(_phase_delta(jd, target_elongation))
+
+    golden = (5**0.5 - 1) / 2
+    for _ in range(64):
+        probe_a = right - golden * (right - left)
+        probe_b = left + golden * (right - left)
+        if error(probe_a) < error(probe_b):
+            right = probe_b
+        else:
+            left = probe_a
+    return (left + right) / 2.0
+
+
+def _find_last_new_moon_jd(julian_day: float) -> float:
+    return _find_phase_jd(
+        julian_day,
+        0.0,
+        search_backward=True,
+        window_days=SYNODIC_MONTH_DAYS + 1.0,
+    )
+
+
+def _lunar_day_from_elongation(elongation: float) -> int:
+    return min(LUNAR_DAYS_PER_CYCLE, int(elongation / LUNAR_DAY_ARC_DEGREES) + 1)
+
+
+def _lunar_day_start_jd(new_moon_jd: float, lunar_day: int) -> float:
+    if lunar_day <= 1:
+        return new_moon_jd
+    target = (lunar_day - 1) * LUNAR_DAY_ARC_DEGREES
+    estimate = new_moon_jd + (lunar_day - 1) * (SYNODIC_MONTH_DAYS / LUNAR_DAYS_PER_CYCLE)
+    return _find_phase_jd(
+        estimate - 0.5,
+        target,
+        search_backward=False,
+        window_days=1.5,
+    )
+
+
+def _lunar_day_bounds(
+    julian_day: float,
+    new_moon_jd: float,
+) -> tuple[int, float, float]:
+    elongation = _moon_elongation_ahead(julian_day)
+    lunar_day = _lunar_day_from_elongation(elongation)
+    start_jd = _lunar_day_start_jd(new_moon_jd, lunar_day)
+    if lunar_day >= LUNAR_DAYS_PER_CYCLE:
+        next_start = _refine_forward_phase(julian_day, 0.0)
+    else:
+        next_start = _lunar_day_start_jd(new_moon_jd, lunar_day + 1)
+    return lunar_day, start_jd, next_start
+
+
+def _evaluation_jd(for_date: date, timezone_name: str) -> float:
+    tz = ZoneInfo(normalize_timezone(timezone_name))
+    now_local = datetime.now(tz)
+    if for_date == now_local.date():
+        return _local_moment_jd(
+            for_date,
+            timezone_name,
+            hour=now_local.hour,
+            minute=now_local.minute,
+        )
+    return _local_moment_jd(for_date, timezone_name, hour=12, minute=0)
+
+
+def _refine_forward_phase(from_jd: float, target_elongation: float) -> float:
+    elongation = _moon_elongation_ahead(from_jd)
+    delta_deg = (target_elongation - elongation) % 360.0
+    if delta_deg < 1e-3:
+        delta_deg = 360.0
+    estimate = from_jd + delta_deg / 360.0 * SYNODIC_MONTH_DAYS
+    return _find_phase_jd(
+        estimate - 1.5,
+        target_elongation,
+        search_backward=False,
+        window_days=3.0,
+    )
+
+
+def _next_major_phase(julian_day: float) -> tuple[str, int, float]:
+    best_jd: float | None = None
+    best_key: str | None = None
+    for phase_key in MAJOR_PHASE_KEYS:
+        target = MAJOR_PHASE_ELONGATION[phase_key]
+        candidate = _refine_forward_phase(julian_day, target)
+        if candidate <= julian_day + 1e-6:
+            continue
+        if best_jd is None or candidate < best_jd:
+            best_jd = candidate
+            best_key = phase_key
+    assert best_jd is not None and best_key is not None
+    return best_key, max(0, round(best_jd - julian_day)), best_jd
+
+
+def jd_to_local_datetime(julian_day: float, timezone_name: str) -> datetime:
+    year, month, day, hour = swe.revjul(julian_day, swe.GREG_CAL)
+    hour_int = int(hour)
+    minute = int(round((hour - hour_int) * 60.0))
+    if minute >= 60:
+        minute = 0
+        hour_int += 1
+    utc_moment = datetime(year, month, day, hour_int, minute, tzinfo=timezone.utc)
+    return utc_moment.astimezone(ZoneInfo(normalize_timezone(timezone_name)))
+
+
+def major_phase_on_local_date(for_date: date, timezone_name: str) -> str | None:
+    tz = normalize_timezone(timezone_name)
+    day_start = _local_moment_jd(for_date, tz, hour=0, minute=0)
+    day_end = _local_moment_jd(for_date + timedelta(days=1), tz, hour=0, minute=0)
+    for phase_key in MAJOR_PHASE_KEYS:
+        target = MAJOR_PHASE_ELONGATION[phase_key]
+        phase_jd = _find_phase_jd(
+            day_end - 1e-8,
+            target,
+            search_backward=True,
+            window_days=1.0,
+        )
+        if day_start <= phase_jd < day_end and abs(_phase_delta(phase_jd, target)) < 3.0:
+            return phase_key
+    return None
 
 
 def _moon_elongation_ahead(julian_day: float) -> float:
     sun_lon = _planet_longitude(julian_day, swe.SUN)
     moon_lon = _planet_longitude(julian_day, swe.MOON)
     return (moon_lon - sun_lon) % 360
-
-
-def _elongation_from_conjunction(julian_day: float) -> float:
-    elongation = _moon_elongation_ahead(julian_day)
-    return elongation if elongation <= 180 else 360 - elongation
-
-
-def _find_last_new_moon_jd(julian_day: float) -> float:
-    start = julian_day - SYNODIC_MONTH_DAYS
-    end = julian_day
-    golden = (5**0.5 - 1) / 2
-    left, right = start, end
-    for _ in range(48):
-        probe_a = right - golden * (right - left)
-        probe_b = left + golden * (right - left)
-        if _elongation_from_conjunction(probe_a) < _elongation_from_conjunction(probe_b):
-            right = probe_b
-        else:
-            left = probe_a
-    return (left + right) / 2
 
 
 def _phase_key_from_elongation(elongation: float) -> str:
@@ -915,33 +1085,23 @@ def _moon_illumination_percent(julian_day: float) -> int:
     return round(float(result[1]) * 100)
 
 
-def _next_major_phase(elongation: float) -> tuple[str, int]:
-    targets = [
-        ("new_moon", 0.0),
-        ("first_quarter", 90.0),
-        ("full_moon", 180.0),
-        ("last_quarter", 270.0),
-    ]
-    candidates: list[tuple[str, float]] = []
-    for phase_key, target in targets:
-        delta_degrees = (target - elongation) % 360
-        delta_days = delta_degrees / 360.0 * SYNODIC_MONTH_DAYS
-        if delta_days < 0.2:
-            delta_days += SYNODIC_MONTH_DAYS
-        candidates.append((phase_key, delta_days))
-    phase_key, days_left = min(candidates, key=lambda item: item[1])
-    return phase_key, round(days_left)
-
-
-def build_moon_day_data(for_date: date) -> MoonDayData | None:
+def build_moon_day_data(
+    for_date: date,
+    *,
+    timezone_name: str = "UTC",
+) -> MoonDayData | None:
     try:
-        julian_day = _date_to_jd_utc_noon(for_date)
+        tz = normalize_timezone(timezone_name)
+        julian_day = _evaluation_jd(for_date, tz)
         elongation = _moon_elongation_ahead(julian_day)
         new_moon_jd = _find_last_new_moon_jd(julian_day)
         age_days = max(0.0, julian_day - new_moon_jd)
-        lunar_day = int(age_days) + 1
+        lunar_day, lunar_day_start_jd, next_lunar_day_start_jd = _lunar_day_bounds(
+            julian_day,
+            new_moon_jd,
+        )
         moon_lon = _planet_longitude(julian_day, swe.MOON)
-        next_phase_key, next_phase_days = _next_major_phase(elongation)
+        next_phase_key, next_phase_days, next_phase_jd = _next_major_phase(julian_day)
         return MoonDayData(
             for_date=for_date,
             phase_key=_phase_key_from_elongation(elongation),
@@ -952,9 +1112,19 @@ def build_moon_day_data(for_date: date) -> MoonDayData | None:
             moon_sign=_longitude_to_sign(moon_lon),
             next_phase_key=next_phase_key,
             next_phase_days=next_phase_days,
+            next_phase_jd=next_phase_jd,
+            new_moon_jd=new_moon_jd,
+            lunar_day_start_jd=lunar_day_start_jd,
+            next_lunar_day_start_jd=next_lunar_day_start_jd,
+            timezone_name=tz,
         )
     except Exception:
-        logger.warning("moon day data failed for_date=%s", for_date, exc_info=True)
+        logger.warning(
+            "moon day data failed for_date=%s timezone=%s",
+            for_date,
+            timezone_name,
+            exc_info=True,
+        )
         return None
 
 
@@ -1008,7 +1178,7 @@ def build_evening_snapshot(
             resolved_tz,
             birth_time=birth_time,
         )
-        moon_data = build_moon_day_data(for_date)
+        moon_data = build_moon_day_data(for_date, timezone_name=tz)
         phase_key = moon_data.phase_key if moon_data else "waxing_gibbous"
         energy_score = _domain_score(_domain_hits(hits, "energy"))
         challenging_count = sum(1 for hit in hits if hit[3] in {"square", "opposition"})

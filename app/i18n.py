@@ -140,8 +140,10 @@ TEXTS = {
         "choose_moon_period": "Выбери период лунного календаря:",
         "choose_moon_style": (
             "Как описывать лунный календарь?\n\n"
-            "📖 С терминами — лунный день, фазы, освещённость, знак Луны.\n"
-            "💬 Простым языком — те же смыслы без астрологического жаргона."
+            "📖 С терминами — лунный день, фазы, «Луна в знаке», советы с опорой на цикл.\n"
+            "Пример: «18-й лунный день · Убывающая Луна · Луна в Раке»\n\n"
+            "💬 Простым языком — без жаргона, короткие бытовые формулировки.\n"
+            "Пример: «18-й день цикла · Отпускание · Настроение дня — Рак: забота о доме»"
         ),
         "btn_moon_style": "📝 Стиль описания",
         "moon_planning_blocks": (
@@ -154,6 +156,7 @@ TEXTS = {
         "moon_focus_health": "💚 Здоровье",
         "moon_focus_creativity": "✨ Творчество",
         "moon_focus_saved": "Фокус: {focus}",
+        "moon_style_saved": "Стиль: {style}",
         "moon_premium_all_focuses": "Premium: ниже все три блока планирования.",
         "moon_7_days": "7 дней",
         "moon_30_days": "30 дней ⭐",
@@ -524,8 +527,10 @@ TEXTS = {
         "choose_moon_period": "Choose moon calendar period:",
         "choose_moon_style": (
             "How should the moon calendar be written?\n\n"
-            "📖 With terms — lunar day, phases, illumination, Moon sign.\n"
-            "💬 Plain language — same meanings without astrological jargon."
+            "📖 With terms — lunar day, phases, «Moon in sign», cycle-based tips.\n"
+            "Example: «Lunar day 18 · Waning Moon · Moon in Cancer»\n\n"
+            "💬 Plain language — no jargon, short everyday wording.\n"
+            "Example: «Cycle day 18 · Release · Daily mood — Cancer: home and care»"
         ),
         "btn_moon_style": "📝 Description style",
         "moon_planning_blocks": (
@@ -538,6 +543,7 @@ TEXTS = {
         "moon_focus_health": "💚 Health",
         "moon_focus_creativity": "✨ Creativity",
         "moon_focus_saved": "Focus: {focus}",
+        "moon_style_saved": "Style: {style}",
         "moon_premium_all_focuses": "Premium: all three planning blocks below.",
         "moon_7_days": "7 days",
         "moon_30_days": "30 days ⭐",
