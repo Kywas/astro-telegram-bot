@@ -1,6 +1,7 @@
 """Step 10 synastry: final compatibility summary table and interpretation."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -1091,52 +1092,211 @@ def _tone_icon(tone: str) -> str:
     return "⚪"
 
 
+def _clean_plain_indicator(indicator: str) -> str:
+    cleaned = indicator.strip()
+    if cleaned in ("—", "-", ""):
+        return ""
+    cleaned = re.sub(r"\d+\.?\d*%\s*(?:гарм\.|harm\.)?", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"[☉☽♀♂]", "", cleaned)
+    cleaned = re.sub(r",?\s*\d+\s*дом", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r",?\s*h\d+", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\([^)]*\)", "", cleaned)
+    cleaned = re.sub(r"\d+", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ·,")
+    return cleaned
+
+
+def _join_plain_phrases(phrases: list[str]) -> str:
+    if not phrases:
+        return ""
+    first = phrases[0]
+    if first:
+        first = first[0].upper() + first[1:]
+    if len(phrases) == 1:
+        return first
+    return first + ", " + ", ".join(phrases[1:])
+
+
+def _plain_row_phrase(locale: str, row: SummaryRow) -> str | None:
+    if row.indicator.strip() in ("—", "-", ""):
+        return None
+    lang = _lang(locale)
+    crit = row.criterion.lower()
+    ind = _clean_plain_indicator(row.indicator)
+
+    if lang == "ru":
+        if row.tone == "tension":
+            if "печат" in crit or "seal" in crit:
+                return "иногда попадаете в болезненную точку — лучше проговорить, чем копить молча"
+            if "характер" in crit:
+                tail = f" ({ind})" if ind else ""
+                return f"по характеру вы не клоны друг друга{tail} — и иногда это бесит, это нормально"
+            if "образ" in crit or "self" in crit:
+                return "вы по-разному «заходите» друг к другу — нужна пара минут на перевод"
+            if "карт" in crit or "tarot" in crit:
+                return "карты намекают на пару слабых мест — не игнорируйте, но и не драматизируйте"
+            return "есть темы, где темп не совпадает — не пугайтесь, это про привычки, не про «не судьба»"
+        if row.tone == "harmony":
+            if "характер" in crit:
+                tail = f" — {ind}" if ind else ""
+                return f"по характеру есть общая почва{tail}"
+            if "связ" in crit or "planet" in crit:
+                return "между вами много живого контакта — разговор, тепло, «мы снова на одной волне»"
+            if "союз" in crit or "union" in crit or "композит" in crit:
+                return "союз у вас не «фоновая музыка» — может стать одной из главных линий"
+            if "сфер" in crit or "life area" in crit or "дом" in crit or "house" in crit:
+                return "пара ощущается в важных сферах жизни — не на заднем плане"
+            if "лун" in crit or "moon" in crit or "венер" in crit or "venus" in crit:
+                return "эмоции и нежность складываются удачно — есть за что держаться"
+            if "карт" in crit or "tarot" in crit or "card" in crit:
+                return "карты намекают: опора есть, не всё на одних надеждах"
+            if "числ" in crit or "number" in crit:
+                return "числа тут не против — скорее кивают в вашу сторону"
+            if "энерг" in crit or "energy" in crit:
+                return "энергии дополняют друг друга — не тянете в разные стороны"
+            if "печат" in crit or "seal" in crit:
+                return "есть моменты радости, которые стоит беречь"
+            return None
+        return None
+
+    if row.tone == "tension":
+        if "seal" in crit or "unhapp" in crit:
+            return "sometimes you hit a sore spot — talk it out before it piles up"
+        if "character" in crit:
+            tail = f" ({ind})" if ind else ""
+            return f"you're not clones{tail} — different pace, sometimes annoying, that's normal"
+        return "some topics run on different rhythms — habits, not «not meant to be»"
+    if row.tone == "harmony":
+        if "character" in crit:
+            tail = f" — {ind}" if ind else ""
+            return f"you share common ground in character{tail}"
+        if "link" in crit or "planet" in crit:
+            return "lots of real contact between you — talk, warmth, feeling in sync again"
+        if "union" in crit or "composite" in crit:
+            return "your bond isn't background noise — it can be a main storyline"
+        if "life area" in crit or "house" in crit:
+            return "you show up in each other's important life areas — not background noise"
+        if "moon" in crit or "venus" in crit:
+            return "feelings and tenderness line up — something solid to hold onto"
+        if "card" in crit or "tarot" in crit:
+            return "the cards hint there's support here, not just wishful thinking"
+        if "number" in crit:
+            return "the numbers aren't fighting the picture — they nod your way"
+        if "energy" in crit:
+            return "your energies complement each other — not pulling opposite ways"
+        return None
+    return None
+
+
+def _format_plain_step10_narrative(locale: str, summary: SynastrySummary) -> str:
+    lang = _lang(locale)
+    tension = [_plain_row_phrase(locale, row) for row in summary.rows if row.tone == "tension"]
+    harmony = [_plain_row_phrase(locale, row) for row in summary.rows if row.tone == "harmony"]
+    tension = [line for line in tension if line]
+    harmony = [line for line in harmony if line]
+
+    if summary.level == CompatibilityLevel.HIGH:
+        opening = (
+            "Скажу прямо: вы друг другу реально зашли. Не идеальные копии — но картина очень тёплая."
+            if lang == "ru"
+            else "Straight talk: you genuinely click. Not perfect clones — but a very warm picture."
+        )
+        closing = (
+            "Если совсем коротко: берегите то, что уже работает. "
+            "И иногда спрашивайте «ты как?» — это бесплатно и работает лучше, чем телепатия."
+            if lang == "ru"
+            else "In short: protect what already works. And ask «how are you?» — free, beats telepathy."
+        )
+    elif summary.level == CompatibilityLevel.MODERATE:
+        opening = (
+            "Скажу прямо: не сказка и не катастрофа — как в нормальной жизни. "
+            "И это уже неплохо, можно не искать подвох на ровном месте."
+            if lang == "ru"
+            else "Straight talk: not a fairy tale, not a disaster — real life. "
+            "That's already decent; no need to hunt for drama."
+        )
+        closing = (
+            "Если совсем коротко: складывается неплохо. "
+            "Опирайтесь на то, что уже работает — ссора не всегда «не люблю», иногда просто устали."
+            if lang == "ru"
+            else "In short: looking decent. Lean on what works — a fight isn't always «I don't love you», "
+            "sometimes you're just tired."
+        )
+    else:
+        opening = (
+            "Скажу прямо: легко не будет — зато картина честная. "
+            "Лучше знать заранее, где не молчать до взрыва."
+            if lang == "ru"
+            else "Straight talk: it won't be effortless — but the picture is honest. "
+            "Better to know where not to stay silent until you blow up."
+        )
+        closing = (
+            "Если совсем коротко: терпение и разговоры. Карта не приговор — "
+            "но «само рассосётся» тоже редко срабатывает как план."
+            if lang == "ru"
+            else "In short: patience and talking. The chart isn't a verdict — "
+            "but «it'll fix itself» rarely works as a strategy."
+        )
+
+    parts = [opening]
+    if tension:
+        lead = "Где может зацепить: " if lang == "ru" else "Where it might snag: "
+        body = _join_plain_phrases(tension[:2])
+        suffix = (
+            ". Это не «вы несовместимы» — просто разный темп."
+            if lang == "ru"
+            else ". That doesn't mean «incompatible» — just different rhythms."
+        )
+        parts.append(lead + body + suffix)
+    if harmony:
+        lead = "Что работает: " if lang == "ru" else "What works: "
+        body = _join_plain_phrases(harmony[:3])
+        suffix = (
+            ". На это можно опираться — не только на надежду."
+            if lang == "ru"
+            else ". You can lean on that — not just on hope."
+        )
+        parts.append(lead + body + suffix)
+    elif not tension:
+        fallback = (
+            "Между вами есть общий язык — главное не забывать его включать."
+            if lang == "ru"
+            else "You share a language — main thing is remembering to use it."
+        )
+        parts.append(fallback)
+    parts.append(closing)
+    return "\n\n".join(parts)
+
+
 def format_synastry_step10_section(
     locale: str,
     summary: SynastrySummary,
     *,
     style: str = "terms",
 ) -> str:
+    if not use_synastry_terms(style):
+        return _format_plain_step10_narrative(locale, summary)
+
     lang = _lang(locale)
     lines: list[str] = []
 
     if lang == "ru":
-        lines.append(
-            "📊 Шаг 10. Итоговая карта совместимости"
-            if use_synastry_terms(style)
-            else "📊 Шаг 10. Итог для пары"
-        )
+        lines.append("📊 Шаг 10. Итоговая карта совместимости")
         lines.append(f"Общий балл: {summary.score}/100 — {summary.level_label}")
         lines.append(
             f"Суммарный баланс: {summary.net_balance:+d} "
             f"(гармония +1, напряжение −1)"
-            if use_synastry_terms(style)
-            else f"Balance: {summary.net_balance:+d}"
         )
         lines.append("")
-        lines.append(
-            "Критерий · Показатель · Балл"
-            if use_synastry_terms(style)
-            else "Criterion · Indicator · Score"
-        )
+        lines.append("Критерий · Показатель · Балл")
     else:
-        lines.append(
-            "📊 Step 10. Compatibility scorecard"
-            if use_synastry_terms(style)
-            else "📊 Step 10. Pair summary"
-        )
+        lines.append("📊 Step 10. Compatibility scorecard")
         lines.append(f"Overall: {summary.score}/100 — {summary.level_label}")
         lines.append(
             f"Net balance: {summary.net_balance:+d} (harmony +1, tension −1)"
-            if use_synastry_terms(style)
-            else f"Balance: {summary.net_balance:+d}"
         )
         lines.append("")
-        lines.append(
-            "Criterion · Indicator · Score"
-            if use_synastry_terms(style)
-            else "Item · Indicator · Score"
-        )
+        lines.append("Criterion · Indicator · Score")
 
     current_tier: AssessmentTier | None = None
     for row in summary.rows:
@@ -1154,10 +1314,7 @@ def format_synastry_step10_section(
 
         icon = _tone_icon(row.tone)
         score_label = _points_label(row.tone)
-        if use_synastry_terms(style):
-            lines.append(f"{icon} {row.criterion} · {row.indicator} · {score_label}")
-        else:
-            lines.append(f"{icon} {row.criterion} · {row.indicator} · {row.rating} ({score_label})")
+        lines.append(f"{icon} {row.criterion} · {row.indicator} · {score_label}")
 
     lines.append("")
     if lang == "ru":

@@ -203,8 +203,13 @@ def compat_result_header(
     sign_b = get_sign_name(syn.partner_sign, locale)
     mode_label = compat_mode_label(locale, mode)
     if compact:
+        if use_synastry_terms(style):
+            return p(
+                b(f"💞 {mode_label} · {syn.score}/100"),
+                h(f"{sign_a} + {partner_name} ({sign_b})"),
+            )
         return p(
-            b(f"💞 {mode_label} · {syn.score}/100"),
+            b(f"💞 {mode_label}"),
             h(f"{sign_a} + {partner_name} ({sign_b})"),
         )
     score_hook = compat_score_hook(locale, syn.score, mode, style=style)

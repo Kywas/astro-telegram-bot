@@ -503,7 +503,7 @@ def compact_plain_theme_body(text: str, theme_key: str, locale: str) -> str:
                     kept_blocks.append(ln)
                     bullets_used += 1
             elif theme_key == "result" and prose:
-                kept_blocks.append("\n".join(prose[:2]))
+                kept_blocks.append("\n".join(prose))
 
     result = re.sub(r"\n{3,}", "\n\n", "\n\n".join(kept_blocks).strip())
     return result.strip()

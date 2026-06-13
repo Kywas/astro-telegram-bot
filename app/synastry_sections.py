@@ -57,7 +57,7 @@ THEME_LABELS = {
         "bond": "🤝 Союз",
         "depth": "🌑 Глубина и карма",
         "symbols": "🔢 Числа и Таро",
-        "result": "📊 Итог и совет",
+        "result": "💬 Итог и совет",
     },
     "en": {
         "overview": "📋 Pair overview",
@@ -109,7 +109,7 @@ THEME_LABELS_PLAIN = {
         "bond": "🤝 Как живёте «мы»",
         "depth": "🌑 О чём молчат",
         "symbols": "🔢 Числа и карты",
-        "result": "📊 Итог и совет",
+        "result": "💬 Итог и совет",
     },
     "en": {
         "overview": "📋 Who you are together",
@@ -117,7 +117,7 @@ THEME_LABELS_PLAIN = {
         "bond": "🤝 Living as «we»",
         "depth": "🌑 What's unsaid",
         "symbols": "🔢 Numbers and cards",
-        "result": "📊 Wrap-up and tip",
+        "result": "💬 Wrap-up and tip",
     },
 }
 

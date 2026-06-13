@@ -217,6 +217,10 @@ def test_synastry_style() -> None:
     plain_total = sum(len(theme.body) for theme in plain_syn.themes)
     terms_total = sum(len(theme.body) for theme in terms_syn.themes)
     assert plain_total < terms_total // 2
+    result_plain = next(theme for theme in plain_syn.themes if theme.key == "result")
+    assert "/100" not in result_plain.body
+    assert "Базовый уровень" not in result_plain.body
+    assert "Скажу прямо" in result_plain.body
 
 
 def test_horoscope_style() -> None:
@@ -600,6 +604,12 @@ def test_synastry_summary() -> None:
     assert "Базовый уровень" in text
     assert "Эзотерический уровень" in text
     assert "Интерпретация" in text
+    plain_text = format_synastry_step10_section("ru", summary, style="plain")
+    assert "Шаг 10" not in plain_text
+    assert "/100" not in plain_text
+    assert "Суммарный баланс" not in plain_text
+    assert "Базовый уровень" not in plain_text
+    assert "Скажу прямо" in plain_text or "Straight talk" in plain_text
     assert "Овен + Весы" in text
     assert any(row.criterion == "Луна↔Венера" for row in summary.rows)
     assert any(row.criterion == "Нумерология" for row in summary.rows)
