@@ -479,20 +479,33 @@ def popular_question_text(locale: str, question_id: str) -> str:
     return popular_block(locale, question_id).question
 
 
+BUTTON_TEXT_MAX = 64
+
+
+def truncate_button_text(text: str, *, max_len: int = BUTTON_TEXT_MAX) -> str:
+    text = " ".join(text.split())
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1].rstrip() + "…"
+
+
+def format_numbered_questions(questions: tuple[str, ...] | list[str]) -> str:
+    return "\n\n".join(f"{idx + 1}️⃣ {question}" for idx, question in enumerate(questions))
+
+
 def popular_button_label(locale: str, question_id: str) -> str:
-    return popular_block(locale, question_id).number
+    block = popular_block(locale, question_id)
+    return truncate_button_text(f"{block.emoji} {block.title}")
 
 
 def format_popular_block(block: PopularBlock) -> str:
-    return f"{block.number}️⃣"
+    return f"{block.number}️⃣ {block.emoji} {block.title}\n{block.question}"
 
 
-def numbered_questions_list(count: int) -> str:
-    return "\n\n".join(f"{idx + 1}️⃣" for idx in range(count))
-
-
-def question_number_label(index: int) -> str:
-    return str(index + 1)
+def question_button_label(index: int, question: str) -> str:
+    prefix = f"{index + 1}. "
+    budget = BUTTON_TEXT_MAX - len(prefix)
+    return f"{prefix}{truncate_button_text(question, max_len=budget)}"
 
 
 def family_questions(locale: str) -> tuple[str, str, str, str, str]:
@@ -651,7 +664,7 @@ def family_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def finance_picker_intro(locale: str) -> str:
@@ -674,7 +687,7 @@ def finance_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def karma_picker_intro(locale: str) -> str:
@@ -697,7 +710,7 @@ def karma_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def traits_picker_intro(locale: str) -> str:
@@ -718,7 +731,7 @@ def traits_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def lineage_picker_intro(locale: str) -> str:
@@ -739,7 +752,7 @@ def lineage_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def health_picker_intro(locale: str) -> str:
@@ -762,7 +775,7 @@ def health_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def purpose_picker_intro(locale: str) -> str:
@@ -785,7 +798,7 @@ def purpose_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def dharma_picker_intro(locale: str) -> str:
@@ -808,7 +821,7 @@ def dharma_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def travel_picker_intro(locale: str) -> str:
@@ -831,7 +844,7 @@ def travel_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def upaya_picker_intro(locale: str) -> str:
@@ -852,7 +865,7 @@ def upaya_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
+    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
 
 
 def popular_blocks_text(locale: str) -> str:
@@ -2888,6 +2901,7 @@ def build_popular_answer(
 
 def questions_intro(locale: str, house: int, *, style: str) -> str:
     sphere = _sphere_label(locale, house, style=style)
+    questions = sphere_questions(locale, house)
     if _lang(locale) == "ru":
-        return f"Сфера: {sphere}\n\nВыбери вопрос:"
-    return f"Sphere: {sphere}\n\nPick a question:"
+        return f"Сфера: {sphere}\n\n{format_numbered_questions(questions)}"
+    return f"Sphere: {sphere}\n\n{format_numbered_questions(questions)}"

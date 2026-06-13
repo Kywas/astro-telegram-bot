@@ -111,10 +111,10 @@ def _premium_invoice_copy(locale: str) -> tuple[str, str]:
     if locale == "ru":
         return (
             f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} дн.",
-            "Натальная карта, неделя/месяц, совместимость, луна на 30 дней, напоминания за 7 дней.",
+            "Натальная карта, неделя/месяц, совместимость, лунный календарь, напоминания за 7 дней.",
         )
     return (
         f"AstroPulse Premium · {PREMIUM_PERIOD_DAYS} days",
-        "Full natal chart, week/month horoscope, compatibility, 30-day moon, 7-day lunar alerts.",
+        "Full natal chart, week/month horoscope, compatibility, moon calendar, 7-day lunar alerts.",
     )
 

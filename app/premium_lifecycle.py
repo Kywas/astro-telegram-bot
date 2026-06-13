@@ -62,12 +62,12 @@ def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str)
         if days_left == 0:
             return (
                 f"⏳ Premium заканчивается сегодня ({until}).\n\n"
-                "Продли сейчас — неделя/месяц, полная карта и луна на 30 дней."
+                "Продли сейчас — неделя/месяц, полная карта и лунный календарь."
             )
         if days_left == 1:
             return (
                 f"⏳ Premium заканчивается завтра ({until}).\n\n"
-                "Продли сейчас — неделя/месяц, полная карта и луна на 30 дней."
+                "Продли сейчас — неделя/месяц, полная карта и лунный календарь."
             )
         return (
             f"⏳ Premium заканчивается через {days_left} дня ({until}).\n\n"
@@ -76,12 +76,12 @@ def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str)
     if days_left == 1:
         return (
             f"⏳ Premium expires tomorrow ({until}).\n\n"
-            "Renew now to keep week/month horoscopes, full chart, and 30-day moon."
+            "Renew now to keep week/month horoscopes, full chart, and moon calendar."
         )
     if days_left == 0:
         return (
             f"⏳ Premium expires today ({until}).\n\n"
-            "Renew now to keep week/month horoscopes, full chart, and 30-day moon."
+            "Renew now to keep week/month horoscopes, full chart, and moon calendar."
         )
     return (
         f"⏳ Premium expires in {days_left} days ({until}).\n\n"

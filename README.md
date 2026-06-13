@@ -8,7 +8,7 @@ Astrology Telegram bot on Python + aiogram: horoscopes, compatibility, moon cale
 - Onboarding (`/start`) with birth date, time, city, and zodiac sign
 - Daily / weekly horoscope (`/today`) with personalization by goal and relationship status
 - Compatibility / synastry (`/compat`) with saved partners (up to 2 free, 10 with Premium)
-- Moon calendar (`/moon`) — 7 days free, 30 days in Premium
+- Moon calendar (`/moon`) — today free, 7 and 30 days in Premium
 - Natal chart (`/natal`) — short free, full in Premium
 - Mood tracker (`/mood`) and evening check-in with streak counter
 - Daily auto-delivery, evening check-in, and lunar notifications (`/daily`)

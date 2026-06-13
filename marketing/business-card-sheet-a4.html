@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AstroPulse — лист A4 с визитками</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 794px;
+      height: 1123px;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    body {
+      background: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .sheet {
+      position: relative;
+      width: 794px;
+      height: 1123px;
+      padding: 89px 57px;
+      background: #ffffff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 340px 340px;
+      grid-template-rows: repeat(5, 189px);
+      gap: 0;
+      width: 680px;
+      margin: 0 auto;
+    }
+
+    .cell {
+      width: 340px;
+      height: 189px;
+      overflow: hidden;
+    }
+
+    .cell img {
+      display: block;
+      width: 340px;
+      height: 189px;
+    }
+
+    .cut-mark {
+      position: absolute;
+      background: #cccccc;
+    }
+
+    .cut-mark.h {
+      height: 1px;
+      left: 57px;
+      right: 57px;
+    }
+
+    .cut-mark.v {
+      width: 1px;
+      top: 89px;
+      bottom: 89px;
+    }
+
+    .cut-mark.row-1 { top: calc(89px + 189px); }
+    .cut-mark.row-2 { top: calc(89px + 189px * 2); }
+    .cut-mark.row-3 { top: calc(89px + 189px * 3); }
+    .cut-mark.row-4 { top: calc(89px + 189px * 4); }
+    .cut-mark.col-1 { left: calc(57px + 340px); }
+
+    .note {
+      position: absolute;
+      left: 57px;
+      right: 57px;
+      bottom: 24px;
+      text-align: center;
+      font: 10px/1.3 "Segoe UI", Arial, sans-serif;
+      color: #888888;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="grid">
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+      <div class="cell"><img src="business-card.png" alt=""></div>
+    </div>
+
+    <div class="cut-mark h row-1"></div>
+    <div class="cut-mark h row-2"></div>
+    <div class="cut-mark h row-3"></div>
+    <div class="cut-mark h row-4"></div>
+    <div class="cut-mark v col-1"></div>
+
+    <p class="note">10 визиток · 90×50 мм · AstroPulse · режьте по линиям</p>
+  </div>
+</body>
+</html>

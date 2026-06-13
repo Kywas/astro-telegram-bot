@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Карманный астролог — AstroPulse</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 794px;
+      height: 1123px;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #f7f2ff;
+      background: #0b0618;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .flyer {
+      position: relative;
+      width: 794px;
+      height: 1123px;
+      overflow: hidden;
+      padding: 60px 68px 53px;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(167, 139, 250, 0.28), transparent 28%),
+        radial-gradient(circle at 85% 18%, rgba(56, 189, 248, 0.18), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(124, 58, 237, 0.22), transparent 42%),
+        linear-gradient(160deg, #120824 0%, #1a0f33 38%, #0d0820 100%);
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.55;
+      background-image:
+        radial-gradient(1px 1px at 20mm 30mm, #fff, transparent),
+        radial-gradient(1px 1px at 42mm 18mm, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 68mm 24mm, #fff, transparent),
+        radial-gradient(1px 1px at 92mm 12mm, #fff, transparent),
+        radial-gradient(1px 1px at 118mm 28mm, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 156mm 16mm, #fff, transparent),
+        radial-gradient(1px 1px at 178mm 34mm, #fff, transparent),
+        radial-gradient(1px 1px at 34mm 210mm, #fff, transparent),
+        radial-gradient(1px 1px at 72mm 248mm, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 128mm 262mm, #fff, transparent),
+        radial-gradient(1px 1px at 168mm 228mm, #fff, transparent);
+    }
+
+    .glow-ring {
+      position: absolute;
+      top: 8mm;
+      right: -18mm;
+      width: 90mm;
+      height: 90mm;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 40mm rgba(139, 92, 246, 0.18);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 38px;
+      font-size: 19px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+
+    .brand-mark {
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .hero {
+      flex: 0 0 auto;
+      margin-bottom: 30px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 19px;
+      padding: 6px 15px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #ddd6fe;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    h1 {
+      max-width: 570px;
+      font-size: 70px;
+      line-height: 0.98;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-shadow: 0 0 68px rgba(167, 139, 250, 0.25);
+    }
+
+    .subtitle {
+      margin-top: 19px;
+      max-width: 500px;
+      font-size: 20px;
+      line-height: 1.45;
+      color: #ddd6fe;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 13px;
+      margin: 38px 0 34px;
+      list-style: none;
+    }
+
+    .features li {
+      padding: 13px 15px;
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 16px;
+      line-height: 1.35;
+      color: #f3ecff;
+    }
+
+    .features li strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 17px;
+      color: #ffffff;
+    }
+
+    .cta-block {
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: 196px 1fr;
+      gap: 38px;
+      align-items: center;
+      padding: 30px;
+      border-radius: 23px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(4px);
+    }
+
+    .qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .qr-frame {
+      padding: 11px;
+      border-radius: 15px;
+      background: #ffffff;
+      box-shadow: 0 15px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .qr-frame img {
+      display: block;
+      width: 166px;
+      height: 166px;
+    }
+
+    .scan-label {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+
+    .cta-text h2 {
+      font-size: 30px;
+      line-height: 1.05;
+      margin-bottom: 11px;
+      color: #ffffff;
+    }
+
+    .cta-text p {
+      font-size: 18px;
+      line-height: 1.45;
+      color: #e9ddff;
+      margin-bottom: 15px;
+    }
+
+    .bot-link {
+      display: inline-block;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fde68a;
+      letter-spacing: 0.02em;
+    }
+
+    .footer {
+      margin-top: 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #a78bfa;
+    }
+
+    .tagline {
+      font-size: 15px;
+      color: #ddd6fe;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="flyer">
+    <div class="stars"></div>
+    <div class="glow-ring"></div>
+
+    <div class="content">
+      <div class="brand">
+        <span class="brand-mark">🌌</span>
+        <span>AstroPulse</span>
+      </div>
+
+      <section class="hero">
+        <div class="eyebrow">Telegram-бот</div>
+        <h1>Карманный астролог</h1>
+        <p class="subtitle">
+          Персональный гороскоп, лунный календарь и натальная карта —
+          всегда под рукой, прямо в Telegram.
+        </p>
+      </section>
+
+      <ul class="features">
+        <li>
+          <strong>🪐 Гороскоп</strong>
+          Прогноз по вашей дате, времени и городу рождения
+        </li>
+        <li>
+          <strong>🌙 Лунный календарь</strong>
+          Фазы Луны и рекомендации на каждый день
+        </li>
+        <li>
+          <strong>✨ Натальная карта</strong>
+          Планеты, аспекты и ключевые темы личности
+        </li>
+        <li>
+          <strong>💫 Совместимость</strong>
+          Сравнение карт и подсказки для отношений
+        </li>
+      </ul>
+
+      <section class="cta-block">
+        <div class="qr-wrap">
+          <div class="qr-frame">
+            <img src="qr-code.png" alt="QR-код для перехода в AstroPulse">
+          </div>
+          <div class="scan-label">Сканируйте</div>
+        </div>
+
+        <div class="cta-text">
+          <h2>Начните за 10 секунд</h2>
+          <p>Откройте камеру телефона, наведите на QR-код и нажмите «Открыть Telegram».</p>
+          <div class="bot-link">@AstroPulsee_bot</div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span class="tagline">Там, где звёзды встречаются с вашим путём</span>
+        <span>t.me/AstroPulsee_bot</span>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

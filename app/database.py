@@ -36,6 +36,7 @@ class UserProfile:
     moon_focus: str
     moon_style: str
     horoscope_style: str
+    compat_style: str
     premium_until: Optional[str]
     trial_used: bool
     natal_mode: str
@@ -170,6 +171,7 @@ class Database:
                 "moon_focus": "TEXT DEFAULT 'practices'",
                 "moon_style": "TEXT",
                 "horoscope_style": "TEXT",
+                "compat_style": "TEXT",
                 "premium_until": "TEXT",
                 "trial_used": "INTEGER DEFAULT 0",
                 "natal_mode": "TEXT DEFAULT 'full'",
@@ -419,6 +421,7 @@ class Database:
                     moon_focus=row["moon_focus"] if row["moon_focus"] else "practices",
                     moon_style=row["moon_style"] if row["moon_style"] else (row["natal_style"] if row["natal_style"] else "terms"),
                     horoscope_style=row["horoscope_style"] if row["horoscope_style"] else (row["natal_style"] if row["natal_style"] else "terms"),
+                    compat_style=row["compat_style"] if row["compat_style"] else (row["horoscope_style"] if row["horoscope_style"] else (row["natal_style"] if row["natal_style"] else "terms")),
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
@@ -629,6 +632,7 @@ class Database:
                     moon_focus=row["moon_focus"] if row["moon_focus"] else "practices",
                     moon_style=row["moon_style"] if row["moon_style"] else (row["natal_style"] if row["natal_style"] else "terms"),
                     horoscope_style=row["horoscope_style"] if row["horoscope_style"] else (row["natal_style"] if row["natal_style"] else "terms"),
+                    compat_style=row["compat_style"] if row["compat_style"] else (row["horoscope_style"] if row["horoscope_style"] else (row["natal_style"] if row["natal_style"] else "terms")),
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
@@ -754,6 +758,15 @@ class Database:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 "UPDATE users SET horoscope_style = ? WHERE user_id = ?",
+                (normalized, user_id),
+            )
+            await db.commit()
+
+    async def set_compat_style(self, user_id: int, style: str) -> None:
+        normalized = "plain" if style == "plain" else "terms"
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET compat_style = ? WHERE user_id = ?",
                 (normalized, user_id),
             )
             await db.commit()

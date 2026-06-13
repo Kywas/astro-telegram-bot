@@ -70,6 +70,19 @@ PERIOD_HEADERS = {
     },
 }
 
+PLAIN_PERIOD_HEADERS = {
+    "ru": {
+        "day": "💬 Прогноз на сегодня · простым языком",
+        "week": "💬 Прогноз на неделю · простым языком",
+        "month": "💬 Прогноз на месяц · простым языком",
+    },
+    "en": {
+        "day": "💬 Forecast for today · plain language",
+        "week": "💬 Forecast for the week · plain language",
+        "month": "💬 Forecast for the month · plain language",
+    },
+}
+
 DOMAIN_SECTION_KEYS = {
     "energy": "energy_title",
     "work": "work_title",
@@ -256,6 +269,12 @@ def _resolve_birth_fields(
     )
 
 
+def _period_header(locale: str, period: str, *, style: str = "terms") -> str:
+    if style == "plain":
+        return PLAIN_PERIOD_HEADERS[locale][period]
+    return PERIOD_HEADERS[locale][period]
+
+
 def _format_forecast(
     forecast: AstroForecast,
     locale: str,
@@ -263,9 +282,10 @@ def _format_forecast(
     *,
     goal: str | None,
     personalization: PersonalizationContext | None,
+    style: str = "terms",
 ) -> str:
     labels = SECTION_TEMPLATES[locale]
-    parts = [PERIOD_HEADERS[locale][period]]
+    parts = [_period_header(locale, period, style=style)]
 
     opening = format_forecast_opening(
         locale,
@@ -274,6 +294,7 @@ def _format_forecast(
         accent_line=_summary_accent(forecast.summary_lines),
         period_start=forecast.period_start,
         period_end=forecast.period_end,
+        style=style,
     )
     parts.append(opening)
 
@@ -344,6 +365,8 @@ def generate_home_teaser(
     if profile is not None and relationship_status is None:
         relationship_status = getattr(profile, "relationship_status", None)
 
+    resolved_style = resolve_horoscope_style(profile)
+
     forecast = build_astro_forecast(
         birth_date=resolved_birth_date,
         birth_time=resolved_birth_time,
@@ -358,6 +381,7 @@ def generate_home_teaser(
         lat=resolved_lat,
         lon=resolved_lon,
         birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
+        style=resolved_style,
     )
 
     prefix = f"{sign_emoji} " if sign_emoji else ""
@@ -447,6 +471,7 @@ def generate_horoscope(
         current_period,
         goal=ctx_goal,
         personalization=personalization,
+        style=resolved_style,
     )
 
 

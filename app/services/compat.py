@@ -7,9 +7,10 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from app.bot_context import FREE_PARTNER_LIMIT, PREMIUM_PARTNER_LIMIT, SIGN_EN, SIGN_RU, db
 from app.geo import resolve_city
 from app.i18n import t
-from app.keyboards import breadcrumb, glossary_help_button, premium_upsell_keyboard
+from app.keyboards import breadcrumb, compat_style_picker_keyboard, glossary_help_button, premium_upsell_keyboard
 from app.premium import is_premium_active
 from app.synastry import build_synastry, build_synastry_for_partner_profile
+from app.synastry_style import resolve_compat_style
 from app.timezones import user_local_date_key
 from app.ui import edit_or_send, render_inline_panel, show_panel_from_message, show_ui_panel
 from app.zodiac import resolve_sun_sign
@@ -98,6 +99,9 @@ def compat_menu_keyboard(locale: str, partners) -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton(text=t(locale, "compat_once"), callback_data="compat:once")])
     if partners:
         rows.append([InlineKeyboardButton(text=t(locale, "compat_manage"), callback_data="compat:manage")])
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "btn_compat_style"), callback_data="compat:style:picker:menu")]
+    )
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -129,6 +133,29 @@ async def show_compat_menu(*, user_id: int, locale: str, message: Message | None
         await render_inline_panel(callback, text, keyboard)
     elif message is not None:
         await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+def compat_style_label(locale: str, style: str) -> str:
+    if style == "plain":
+        return t(locale, "natal_style_label_plain")
+    return t(locale, "natal_style_label_terms")
+
+
+async def render_compat_style_picker(
+    user_id: int,
+    locale: str,
+    *,
+    return_to: str = "menu",
+) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    style = resolve_compat_style(profile)
+    style_label = compat_style_label(locale, style)
+    text = (
+        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
+        f"{t(locale, 'choose_compat_style')}\n\n"
+        f"{t(locale, 'natal_style_current', style=style_label)}"
+    )
+    return text, compat_style_picker_keyboard(locale, current_style=style, return_to=return_to)
 
 
 async def show_compat_mode_panel(
@@ -170,6 +197,7 @@ async def deliver_compat_result(
     )
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text=t(locale, "btn_compat_style"), callback_data="compat:style:picker:menu")],
             [glossary_help_button(locale, "compat", "nav:compat")],
             [InlineKeyboardButton(text=t(locale, "btn_compat"), callback_data="nav:compat")],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
@@ -217,6 +245,7 @@ async def run_once_compat_synastry(
         profile.sign or "",
         partner_birth_date,
         mode,
+        style=resolve_compat_style(profile),
         user_birth_date=profile.birth_date,
         user_birth_time=profile.birth_time,
         user_city=profile.city,
@@ -279,7 +308,13 @@ async def run_saved_partner_compat(
             await show_compat_menu(user_id=user_id, locale=locale, message=message)
         return False
 
-    syn = build_synastry_for_partner_profile(locale, profile, partner, mode)
+    syn = build_synastry_for_partner_profile(
+        locale,
+        profile,
+        partner,
+        mode,
+        style=resolve_compat_style(profile),
+    )
     if state is not None:
         await state.clear()
     await deliver_compat_result(

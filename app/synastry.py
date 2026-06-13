@@ -1,8 +1,15 @@
 from dataclasses import dataclass
 from datetime import date, time
 
+from app.sun_sign_compat import (
+    analyze_sun_sign_compat,
+    format_sun_sign_compat_section,
+    normalize_sign_key,
+    sun_sign_base_score,
+)
 from app.astro_engine import build_synastry_analysis
 from app.compatibility import compatibility_summary
+from app.synastry_style import apply_synastry_style
 from app.zodiac import resolve_sun_sign
 
 
@@ -36,6 +43,7 @@ def build_synastry(
     partner_lon: float | None = None,
     partner_birth_timezone: str | None = None,
     partner_name: str | None = None,
+    style: str = "terms",
 ) -> SynastryResult:
     if user_birth_date is None:
         partner_sign = resolve_sun_sign(
@@ -47,16 +55,41 @@ def build_synastry(
             lon=partner_lon,
             birth_timezone=partner_birth_timezone,
         )
-        unavailable = (
-            "Синастрия недоступна — заполните дату рождения в профиле."
-            if locale == "ru"
-            else "Synastry unavailable — complete your birth date in profile."
+        user_sign_key = normalize_sign_key(user_sign)
+        sun_compat = (
+            analyze_sun_sign_compat(user_sign_key or user_sign, partner_sign)
+            if user_sign_key or user_sign
+            else None
         )
+        if sun_compat is None:
+            unavailable = (
+                "Синастрия недоступна — заполните дату рождения в профиле."
+                if locale == "ru"
+                else "Synastry unavailable — complete your birth date in profile."
+            )
+            return SynastryResult(
+                score=0,
+                relation_mode=relation_mode,
+                partner_sign=partner_sign,
+                details=unavailable,
+                partner_name=partner_name,
+            )
+        details_lines = [
+            apply_synastry_style(format_sun_sign_compat_section(locale, sun_compat), locale, style),
+            "",
+            (
+                "ℹ️ Это базовый уровень по солнечным знакам. "
+                "Укажите дату рождения в профиле — откроется полная синастрия по планетам."
+                if locale == "ru"
+                else "ℹ️ Sun-sign baseline only. Add your birth date in profile for full planetary synastry."
+            ),
+        ]
+        score = sun_sign_base_score(sun_compat)
         return SynastryResult(
-            score=0,
+            score=score,
             relation_mode=relation_mode,
             partner_sign=partner_sign,
-            details=unavailable,
+            details="\n".join(details_lines),
             partner_name=partner_name,
         )
 
@@ -78,6 +111,7 @@ def build_synastry(
         partner_lat=partner_lat,
         partner_lon=partner_lon,
         partner_birth_timezone=partner_birth_timezone,
+        style=style,
     )
     if analysis is None:
         partner_sign = resolve_sun_sign(
@@ -117,12 +151,15 @@ def build_synastry_for_partner_profile(
     user_profile,
     partner,
     relation_mode: str,
+    *,
+    style: str = "terms",
 ) -> SynastryResult:
     return build_synastry(
         locale,
         user_profile.sign or "",
         partner.birth_date,
         relation_mode,
+        style=style,
         user_birth_date=user_profile.birth_date,
         user_birth_time=user_profile.birth_time,
         user_city=user_profile.city,

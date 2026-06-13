@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AstroPulse — пост 1</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1080px;
+      height: 1080px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #f7f2ff;
+      background: #0b0618;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .post {
+      position: relative;
+      width: 1080px;
+      height: 1080px;
+      overflow: hidden;
+      padding: 72px 68px 64px;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(167, 139, 250, 0.32), transparent 30%),
+        radial-gradient(circle at 88% 14%, rgba(56, 189, 248, 0.18), transparent 26%),
+        radial-gradient(circle at 50% 100%, rgba(124, 58, 237, 0.24), transparent 42%),
+        linear-gradient(160deg, #120824 0%, #1a0f33 42%, #0d0820 100%);
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.55;
+      background-image:
+        radial-gradient(1.5px 1.5px at 80px 120px, #fff, transparent),
+        radial-gradient(1px 1px at 220px 80px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 420px 140px, #fff, transparent),
+        radial-gradient(1px 1px at 760px 90px, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 920px 180px, #fff, transparent),
+        radial-gradient(1px 1px at 160px 820px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 540px 900px, #fff, transparent),
+        radial-gradient(1px 1px at 880px 780px, #fff, transparent);
+    }
+
+    .glow-ring {
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 120px rgba(139, 92, 246, 0.22);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+
+    .brand-mark { font-size: 34px; line-height: 1; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 22px;
+      padding: 10px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #ddd6fe;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    h1 {
+      max-width: 860px;
+      font-size: 78px;
+      line-height: 0.98;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-shadow: 0 0 80px rgba(167, 139, 250, 0.28);
+      margin-bottom: 24px;
+    }
+
+    .subtitle {
+      max-width: 780px;
+      font-size: 28px;
+      line-height: 1.42;
+      color: #ddd6fe;
+      margin-bottom: 42px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      list-style: none;
+      margin-bottom: auto;
+    }
+
+    .features li {
+      padding: 18px 20px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 20px;
+      line-height: 1.35;
+      color: #f3ecff;
+    }
+
+    .features li strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 22px;
+      color: #ffffff;
+    }
+
+    .cta {
+      margin-top: 34px;
+      padding: 28px 32px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .cta-text h2 {
+      font-size: 34px;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .cta-text p {
+      font-size: 22px;
+      color: #e9ddff;
+    }
+
+    .bot-link {
+      font-size: 30px;
+      font-weight: 700;
+      color: #fde68a;
+      white-space: nowrap;
+    }
+
+    .gift {
+      margin-top: 18px;
+      font-size: 20px;
+      color: #c4b5fd;
+    }
+  </style>
+</head>
+<body>
+  <div class="post">
+    <div class="stars"></div>
+    <div class="glow-ring"></div>
+    <div class="content">
+      <div class="brand">
+        <span class="brand-mark">🌌</span>
+        <span>AstroPulse</span>
+      </div>
+
+      <div class="eyebrow">Telegram-бот</div>
+      <h1>Карманный астролог</h1>
+      <p class="subtitle">
+        Гороскоп, луна, совместимость и натальная карта —
+        всегда под рукой в Telegram.
+      </p>
+
+      <ul class="features">
+        <li><strong>✨ Гороскоп</strong>Персонально по дате, времени и городу</li>
+        <li><strong>🌙 Лунный календарь</strong>Фазы и подсказки на каждый день</li>
+        <li><strong>🪐 Натальная карта</strong>Swiss Ephemeris, не «из головы»</li>
+        <li><strong>💞 Совместимость</strong>Любовь, дружба, работа</li>
+      </ul>
+
+      <div class="cta">
+        <div class="cta-text">
+          <h2>Начни за минуту</h2>
+          <p>7 дней Premium в подарок после регистрации</p>
+          <div class="gift">🎁 Бесплатный прогноз на сегодня</div>
+        </div>
+        <div class="bot-link">@AstroPulsee_bot</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

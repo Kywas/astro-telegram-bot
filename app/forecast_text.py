@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint
+from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint, sign_tone_hint
 
 SIGN_ELEMENTS = {
     "Aries": "fire",
@@ -469,6 +469,19 @@ SUN_MOON_RELATION = {
     },
 }
 
+SUN_MOON_RELATION_PLAIN = {
+    "ru": {
+        "harmony": "Настроение дня и ваш характер в одном ключе — день звучит цельно.",
+        "support": "Эмоциональный фон помогает действовать последовательно.",
+        "tension": "Внутренний ритм и внешние задачи тянут в разные стороны — держи баланс.",
+    },
+    "en": {
+        "harmony": "Today's mood and your temperament share the same tone — the day feels coherent.",
+        "support": "The emotional backdrop helps you act consistently.",
+        "tension": "Inner rhythm and outer tasks pull in different directions — keep balance.",
+    },
+}
+
 
 TRANSIT_PREFIX = {
     "ru": {
@@ -696,6 +709,21 @@ def format_plain_accent(
     return mapping.get(aspect, f"{scope.capitalize()} accent — {role}.")
 
 
+def _moon_opening_phrase(locale: str, moon_sign: str, *, style: str = "terms") -> str:
+    lang = _lang(locale)
+    if _use_terms(style):
+        return format_moon_in_sign_short(locale, moon_sign)
+    hint = moon_in_sign_hint(locale, moon_sign)
+    if hint:
+        return hint[0].upper() + hint[1:] if lang == "ru" else hint
+    tone = sign_tone_hint(locale, moon_sign)
+    if tone:
+        return tone[0].upper() + tone[1:] if lang == "ru" else tone
+    if lang == "ru":
+        return "эмоциональный фон спокойный и ровный"
+    return "the emotional backdrop stays calm and steady"
+
+
 def format_forecast_opening(
     locale: str,
     period: str,
@@ -704,38 +732,68 @@ def format_forecast_opening(
     *,
     period_start: date | None = None,
     period_end: date | None = None,
+    style: str = "terms",
 ) -> str:
     lang = _lang(locale)
-    moon = format_moon_in_sign_short(locale, moon_sign)
-    hint = moon_in_sign_hint(locale, moon_sign)
+    moon = _moon_opening_phrase(locale, moon_sign, style=style)
+    hint = moon_in_sign_hint(locale, moon_sign) if _use_terms(style) else ""
     if period == "week" and period_start and period_end:
         if lang == "ru":
-            period_line = (
-                f"На этой неделе ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
-                f"старт с {moon.lower()}."
-            )
+            if _use_terms(style):
+                period_line = (
+                    f"На этой неделе ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"старт с {moon.lower()}."
+                )
+            else:
+                period_line = (
+                    f"На этой неделе ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"настроение такое: {moon.lower()}."
+                )
         else:
-            period_line = (
-                f"This week ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
-                f"opens with {moon.lower()}."
-            )
+            if _use_terms(style):
+                period_line = (
+                    f"This week ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"opens with {moon.lower()}."
+                )
+            else:
+                period_line = (
+                    f"This week ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"the mood runs like this: {moon.lower()}."
+                )
     elif period == "month" and period_start and period_end:
         if lang == "ru":
-            period_line = (
-                f"В этом месяце ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
-                f"тон задаёт {moon.lower()}."
-            )
+            if _use_terms(style):
+                period_line = (
+                    f"В этом месяце ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"тон задаёт {moon.lower()}."
+                )
+            else:
+                period_line = (
+                    f"В этом месяце ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"общий настрой такой: {moon.lower()}."
+                )
         else:
-            period_line = (
-                f"This month ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
-                f"— tone from {moon.lower()}."
-            )
+            if _use_terms(style):
+                period_line = (
+                    f"This month ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"— tone from {moon.lower()}."
+                )
+            else:
+                period_line = (
+                    f"This month ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                    f"the overall mood: {moon.lower()}."
+                )
     else:
         period_word = {
             "ru": {"day": "Сегодня", "week": "На этой неделе", "month": "В этом месяце"},
             "en": {"day": "Today", "week": "This week", "month": "This month"},
         }[lang][period]
-        period_line = f"{period_word} {moon.lower()}."
+        if _use_terms(style):
+            period_line = f"{period_word} {moon.lower()}."
+        elif lang == "ru":
+            period_line = f"{period_word} настроение такое: {moon.lower()}."
+        else:
+            period_line = f"{period_word} the mood runs like this: {moon.lower()}."
 
     parts = [period_line]
     if hint:
@@ -746,19 +804,32 @@ def format_forecast_opening(
     if accent_line:
         parts.append(accent_line)
     elif lang == "ru":
-        if period == "week":
-            parts.append("Ярких транзитов мало — выстраивай неделю без рывков.")
+        if _use_terms(style):
+            if period == "week":
+                parts.append("Ярких транзитов мало — выстраивай неделю без рывков.")
+            elif period == "month":
+                parts.append("Ярких транзитов мало — держи ровный месячный ритм.")
+            else:
+                parts.append("Ярких транзитов нет — держи свой обычный ритм.")
+        elif period == "week":
+            parts.append("Ярких акцентов мало — выстраивай неделю без рывков.")
         elif period == "month":
-            parts.append("Ярких транзитов мало — держи ровный месячный ритм.")
+            parts.append("Ярких акцентов мало — держи ровный месячный ритм.")
         else:
-            parts.append("Ярких транзитов нет — держи свой обычный ритм.")
-    else:
+            parts.append("Ярких акцентов нет — держи свой обычный ритм.")
+    elif _use_terms(style):
         if period == "week":
             parts.append("Few strong transits — pace the week without forcing.")
         elif period == "month":
             parts.append("Few strong transits — keep a steady monthly rhythm.")
         else:
             parts.append("No strong transits — keep your usual rhythm.")
+    elif period == "week":
+        parts.append("Few strong themes — pace the week without forcing.")
+    elif period == "month":
+        parts.append("Few strong themes — keep a steady monthly rhythm.")
+    else:
+        parts.append("No strong themes — keep your usual rhythm.")
     return " ".join(parts)
 
 
@@ -769,24 +840,38 @@ def format_neutral_domain(
     natal_sun_sign: str,
     *,
     period: str = "day",
+    style: str = "terms",
 ) -> str:
     lang = _lang(locale)
     element = SIGN_ELEMENTS.get(moon_sign, "air")
     clause = MOON_ELEMENT_DOMAIN[lang][element][domain]
     relation = _element_relation(moon_sign, natal_sun_sign)
-    relation_line = SUN_MOON_RELATION[lang][relation]
-    moon = _sign_label(locale, moon_sign)
+    relation_table = SUN_MOON_RELATION if _use_terms(style) else SUN_MOON_RELATION_PLAIN
+    relation_line = relation_table[lang][relation]
+    if _use_terms(style):
+        moon = _sign_label(locale, moon_sign)
+        if lang == "ru":
+            if period == "week":
+                return f"На неделе в {moon} тон такой: {clause}. {relation_line}"
+            if period == "month":
+                return f"В месяце при {moon} тон такой: {clause}. {relation_line}"
+            return f"Луна в {moon} задаёт тон: {clause}. {relation_line}"
+        if period == "week":
+            return f"This week in {moon} the tone is: {clause}. {relation_line}"
+        if period == "month":
+            return f"This month with {moon} the tone is: {clause}. {relation_line}"
+        return f"Moon in {moon} sets the tone: {clause}. {relation_line}"
     if lang == "ru":
         if period == "week":
-            return f"На неделе в {moon} тон такой: {clause}. {relation_line}"
+            return f"На неделе в этой сфере: {clause}. {relation_line}"
         if period == "month":
-            return f"В месяце при {moon} тон такой: {clause}. {relation_line}"
-        return f"Луна в {moon} задаёт тон: {clause}. {relation_line}"
+            return f"В месяце в этой сфере: {clause}. {relation_line}"
+        return f"Сегодня в этой сфере: {clause}. {relation_line}"
     if period == "week":
-        return f"This week in {moon} the tone is: {clause}. {relation_line}"
+        return f"This week in this area: {clause}. {relation_line}"
     if period == "month":
-        return f"This month with {moon} the tone is: {clause}. {relation_line}"
-    return f"Moon in {moon} sets the tone: {clause}. {relation_line}"
+        return f"This month in this area: {clause}. {relation_line}"
+    return f"Today in this area: {clause}. {relation_line}"
 
 
 def format_domain_section(
@@ -807,6 +892,7 @@ def format_domain_section(
             moon_sign,
             natal_sun_sign,
             period=period,
+            style=style,
         )
 
     orb, transit, natal, aspect = hits[0]
@@ -847,21 +933,39 @@ def format_summary_aspect(
     return format_plain_accent(locale, transit, natal, aspect, orb, period=period)
 
 
-def format_avoid(locale: str, hits: list[Hit], *, period: str = "day") -> str:
+def format_avoid(
+    locale: str,
+    hits: list[Hit],
+    *,
+    period: str = "day",
+    style: str = "terms",
+) -> str:
     lang = _lang(locale)
     challenging = [hit for hit in hits if hit[3] in {"square", "opposition"}]
     if not challenging:
         if lang == "ru":
+            if _use_terms(style):
+                if period == "week":
+                    return "Острых аспектов на неделе мало — обычная осмотрительность."
+                if period == "month":
+                    return "Острых аспектов в месяце мало — обычная осмотрительность."
+                return "Острых аспектов в прогнозе нет — придерживайся обычной осмотрительности."
             if period == "week":
-                return "Острых аспектов на неделе мало — обычная осмотрительность."
+                return "Острых напряжений на неделе мало — обычная осмотрительность."
             if period == "month":
-                return "Острых аспектов в месяце мало — обычная осмотрительность."
-            return "Острых аспектов в прогнозе нет — придерживайся обычной осмотрительности."
+                return "Острых напряжений в месяце мало — обычная осмотрительность."
+            return "Острых напряжений в прогнозе нет — придерживайся обычной осмотрительности."
+        if _use_terms(style):
+            if period == "week":
+                return "Few sharp aspects this week — keep your usual caution."
+            if period == "month":
+                return "Few sharp aspects this month — keep your usual caution."
+            return "No sharp aspects in the forecast — keep your usual caution."
         if period == "week":
-            return "Few sharp aspects this week — keep your usual caution."
+            return "Few sharp tensions this week — keep your usual caution."
         if period == "month":
-            return "Few sharp aspects this month — keep your usual caution."
-        return "No sharp aspects in the forecast — keep your usual caution."
+            return "Few sharp tensions this month — keep your usual caution."
+        return "No sharp tensions in the forecast — keep your usual caution."
 
     orb, transit, natal, aspect = challenging[0]
     role = _natal_role_short(locale, natal)
@@ -890,21 +994,44 @@ def format_avoid(locale: str, hits: list[Hit], *, period: str = "day") -> str:
     return f"Avoid extremes — {role} need balance."
 
 
-def format_advice(locale: str, hits: list[Hit], moon_sign: str, *, period: str = "day") -> str:
+def format_advice(
+    locale: str,
+    hits: list[Hit],
+    moon_sign: str,
+    *,
+    period: str = "day",
+    style: str = "terms",
+) -> str:
     lang = _lang(locale)
     if not hits:
-        moon = format_moon_in_sign_short(locale, moon_sign)
+        if _use_terms(style):
+            moon = format_moon_in_sign_short(locale, moon_sign)
+            if lang == "ru":
+                if period == "week":
+                    return f"Точных аспектов мало — выстраивай неделю по ритму ({moon.lower()})."
+                if period == "month":
+                    return f"Точных аспектов мало — планируй месяц по ритму ({moon.lower()})."
+                return (
+                    f"Точных аспектов мало — ориентируйся на ритм ({moon.lower()}) "
+                    "и не разгоняй день искусственно."
+                )
+            if period == "week":
+                return f"Few exact aspects — pace the week with {moon.lower()}."
+            if period == "month":
+                return f"Few exact aspects — plan the month with {moon.lower()}."
+            return f"Few exact aspects — follow the rhythm ({moon.lower()}) and don't force the pace."
+        mood = _moon_opening_phrase(locale, moon_sign, style=style).lower()
         if lang == "ru":
             if period == "week":
-                return f"Точных аспектов мало — выстраивай неделю по ритму ({moon.lower()})."
+                return f"Ярких подсказок мало — выстраивай неделю по настроению: {mood}."
             if period == "month":
-                return f"Точных аспектов мало — планируй месяц по ритму ({moon.lower()})."
-            return f"Точных аспектов мало — ориентируйся на ритм ({moon.lower()}) и не разгоняй день искусственно."
+                return f"Ярких подсказок мало — планируй месяц с учётом настроения: {mood}."
+            return f"Ярких подсказок мало — ориентируйся на настроение ({mood}) и не разгоняй день."
         if period == "week":
-            return f"Few exact aspects — pace the week with {moon.lower()}."
+            return f"Few clear cues — pace the week with this mood: {mood}."
         if period == "month":
-            return f"Few exact aspects — plan the month with {moon.lower()}."
-        return f"Few exact aspects — follow the rhythm ({moon.lower()}) and don't force the pace."
+            return f"Few clear cues — plan the month around this mood: {mood}."
+        return f"Few clear cues — follow the mood ({mood}) and don't force the pace."
 
     orb, transit, natal, aspect = hits[0]
     role = _natal_role_short(locale, natal)

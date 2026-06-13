@@ -14,8 +14,22 @@ from app.forecast_text import (
     format_avoid,
     format_domain_section,
     format_summary_aspect,
+    _use_terms,
 )
 from app.synastry_text import format_synastry_report
+from app.sun_sign_compat import analyze_sun_sign_compat
+from app.synastry_seals import analyze_synastry_seals, seal_score_delta
+from app.synastry_houses import build_house_overlay, house_score_delta
+from app.synastry_elements import analyze_element_balance, element_score_delta
+from app.synastry_numerology import analyze_relationship_numerology, numerology_score_delta
+from app.synastry_tarot import analyze_couple_tarot_spread, tarot_score_delta
+from app.synastry_composite import build_composite_analysis, composite_score_delta
+from app.synastry_progressions import analyze_synastry_progressions, progressions_score_delta
+from app.synastry_fictitious import analyze_fictitious_synastry, fictitious_score_delta
+from app.synastry_asc import analyze_asc_dsc_synastry, asc_dsc_score_delta
+from app.synastry_karma import analyze_karmic_synastry, karmic_score_delta
+from app.synastry_moon_venus import analyze_moon_venus_links, moon_venus_score_delta
+from app.synastry_transits import analyze_synastry_transits, transits_score_delta
 from app.timezones import normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -72,6 +86,16 @@ ASPECTS = (
     ("trine", 120, 8),
     ("opposition", 180, 8),
 )
+
+LUCKY_TIME_ORB = 4.0
+LUCKY_HARMONIOUS = frozenset({"conjunction", "trine", "sextile"})
+LUCKY_TRANSIT_PLANETS = ("MOON", "SUN", "VENUS", "JUPITER")
+LUCKY_NATAL_TARGETS = ("SUN", "VENUS", "JUPITER", "MOON")
+LUCKY_ASPECT_WEIGHT = {
+    "trine": 3.0,
+    "sextile": 2.5,
+    "conjunction": 2.0,
+}
 
 PLANET_DOMAINS: dict[str, list[str]] = {
     "SUN": ["energy"],
@@ -609,6 +633,66 @@ def _format_hour_ranges(hours: list[int], locale: str) -> str:
     return connector.join(parts)
 
 
+def _lucky_aspect_strength(transit_lon: float, natal_lon: float) -> float:
+    diff = _angle_diff(transit_lon, natal_lon)
+    best = 0.0
+    for name, exact, _orb in ASPECTS:
+        if name not in LUCKY_HARMONIOUS:
+            continue
+        delta = abs(diff - exact)
+        if delta <= LUCKY_TIME_ORB:
+            weight = LUCKY_ASPECT_WEIGHT[name]
+            best = max(best, weight * (1.0 - delta / LUCKY_TIME_ORB))
+    return best
+
+
+def _lucky_hour_score(
+    julian_day: float,
+    natal_longitudes: dict[str, float],
+    *,
+    birth_time: time | None,
+) -> float:
+    natal_targets = [key for key in LUCKY_NATAL_TARGETS if key in natal_longitudes]
+    if not natal_targets:
+        natal_targets = ["SUN"]
+
+    score = 0.0
+    for transit_key in LUCKY_TRANSIT_PLANETS:
+        if transit_key not in PLANETS:
+            continue
+        transit_lon = _planet_longitude(julian_day, PLANETS[transit_key])
+        for natal_key in natal_targets:
+            if natal_key == "MOON" and birth_time is None:
+                continue
+            score += _lucky_aspect_strength(transit_lon, natal_longitudes[natal_key])
+    return score
+
+
+def _lucky_peak_for_day(
+    for_date: date,
+    timezone_name: str,
+    natal_longitudes: dict[str, float],
+    *,
+    birth_time: time | None,
+) -> tuple[list[int], float]:
+    hourly: list[tuple[int, float]] = []
+    for hour in range(7, 22):
+        jd = _local_moment_jd(for_date, timezone_name, hour=hour, minute=0)
+        hourly.append((hour, _lucky_hour_score(jd, natal_longitudes, birth_time=birth_time)))
+
+    peak_score = max((score for _, score in hourly), default=0.0)
+    if peak_score <= 0:
+        return [], 0.0
+
+    peak_hour = max(hourly, key=lambda item: item[1])[0]
+    threshold = peak_score * 0.82
+    lucky = [hour for hour, score in hourly if score >= threshold]
+
+    if len(lucky) > 3:
+        lucky = list(range(max(7, peak_hour - 1), min(21, peak_hour + 2)))
+    return lucky, peak_score
+
+
 def _lucky_hours_for_day(
     for_date: date,
     timezone_name: str,
@@ -616,21 +700,12 @@ def _lucky_hours_for_day(
     *,
     birth_time: time | None,
 ) -> list[int]:
-    lucky: list[int] = []
-    natal_targets = [key for key in ("SUN", "VENUS", "JUPITER") if key in natal_longitudes]
-    if not natal_targets:
-        natal_targets = ["SUN"]
-
-    for hour in range(7, 22):
-        jd = _local_moment_jd(for_date, timezone_name, hour=hour, minute=0)
-        moon_lon = _planet_longitude(jd, PLANETS["MOON"])
-        for natal_key in natal_targets:
-            if natal_key == "MOON" and birth_time is None:
-                continue
-            aspect_info = _find_aspect(moon_lon, natal_longitudes[natal_key])
-            if aspect_info and aspect_info[0] in {"trine", "sextile", "conjunction"}:
-                lucky.append(hour)
-                break
+    lucky, _peak = _lucky_peak_for_day(
+        for_date,
+        timezone_name,
+        natal_longitudes,
+        birth_time=birth_time,
+    )
     return lucky
 
 
@@ -644,7 +719,7 @@ def _lucky_time_text(
     birth_time: time | None,
 ) -> str:
     if period == "day":
-        hours = _lucky_hours_for_day(
+        hours, _peak = _lucky_peak_for_day(
             period_dates[0],
             timezone_name,
             natal_longitudes,
@@ -654,11 +729,18 @@ def _lucky_time_text(
 
     best_date = period_dates[0]
     best_hours: list[int] = []
+    best_peak = -1.0
     for day in period_dates:
-        hours = _lucky_hours_for_day(day, timezone_name, natal_longitudes, birth_time=birth_time)
-        if len(hours) > len(best_hours):
+        hours, peak = _lucky_peak_for_day(
+            day,
+            timezone_name,
+            natal_longitudes,
+            birth_time=birth_time,
+        )
+        if peak > best_peak:
             best_date = day
             best_hours = hours
+            best_peak = peak
 
     hours_text = _format_hour_ranges(best_hours, locale)
     lang = _lang(locale)
@@ -680,8 +762,9 @@ def _avoid_text(
     locale: str,
     *,
     period: str = "day",
+    style: str = "terms",
 ) -> str:
-    return format_avoid(locale, hits, period=period)
+    return format_avoid(locale, hits, period=period, style=style)
 
 
 def _affirmation_text(
@@ -699,8 +782,9 @@ def _advice_text(
     *,
     moon_sign: str,
     period: str = "day",
+    style: str = "terms",
 ) -> str:
-    return format_advice(locale, hits, moon_sign, period=period)
+    return format_advice(locale, hits, moon_sign, period=period, style=style)
 
 
 def _aspect_phrase(
@@ -777,27 +861,54 @@ def _build_summary_lines(
             else "ℹ️ Solar-sign only — add your birth date for a personal chart."
         )
     elif has_asc:
-        summary.append(
-            "ℹ️ Персональный расчёт: транзиты к вашей карте (планеты + ASC)."
-            if lang == "ru"
-            else "ℹ️ Personal chart: transits to your planets and Ascendant."
-        )
+        if _use_terms(style):
+            summary.append(
+                "ℹ️ Персональный расчёт: транзиты к вашей карте (планеты + ASC)."
+                if lang == "ru"
+                else "ℹ️ Personal chart: transits to your planets and Ascendant."
+            )
+        else:
+            summary.append(
+                "ℹ️ Персональный расчёт по вашей дате, времени и месту рождения."
+                if lang == "ru"
+                else "ℹ️ Personal forecast from your birth date, time, and place."
+            )
     elif birth_time is None:
-        summary.append(
-            "ℹ️ Без времени рождения Луна и ASC не участвуют — добавьте время в профиле."
-            if lang == "ru"
-            else "ℹ️ Without birth time, Moon and Ascendant are omitted — add time in profile."
-        )
+        if _use_terms(style):
+            summary.append(
+                "ℹ️ Без времени рождения Луна и ASC не участвуют — добавьте время в профиле."
+                if lang == "ru"
+                else "ℹ️ Without birth time, Moon and Ascendant are omitted — add time in profile."
+            )
+        else:
+            summary.append(
+                "ℹ️ Без времени рождения часть расчёта упрощена — добавьте время в профиле."
+                if lang == "ru"
+                else "ℹ️ Without birth time, part of the forecast is simplified — add time in profile."
+            )
     else:
-        summary.append(
-            "ℹ️ Персональный расчёт по дате, времени и планетам. Проверьте город для ASC."
-            if lang == "ru"
-            else "ℹ️ Personal chart from date, time, and planets. Check city for Ascendant."
-        )
-    if period == "day" and not solar_only and lang == "ru":
-        summary.append("ℹ️ На «сегодня» учтены транзиты Луны и актуальное локальное время.")
-    elif period == "day" and not solar_only:
-        summary.append("ℹ️ For today: Moon transits and your current local time are included.")
+        if _use_terms(style):
+            summary.append(
+                "ℹ️ Персональный расчёт по дате, времени и планетам. Проверьте город для ASC."
+                if lang == "ru"
+                else "ℹ️ Personal chart from date, time, and planets. Check city for Ascendant."
+            )
+        else:
+            summary.append(
+                "ℹ️ Персональный расчёт по дате, времени и месту. Проверьте город в профиле."
+                if lang == "ru"
+                else "ℹ️ Personal forecast from date, time, and place. Check city in profile."
+            )
+    if period == "day" and not solar_only:
+        if _use_terms(style):
+            if lang == "ru":
+                summary.append("ℹ️ На «сегодня» учтены транзиты Луны и актуальное локальное время.")
+            else:
+                summary.append("ℹ️ For today: Moon transits and your current local time are included.")
+        elif lang == "ru":
+            summary.append("ℹ️ Прогноз на сегодня учитывает смену настроения и ваше местное время.")
+        else:
+            summary.append("ℹ️ Today's forecast includes mood shifts and your local time.")
     elif period == "week" and lang == "ru":
         summary.append("ℹ️ Недельный прогноз: каждый блок — свой пик дня, не копия «сегодня».")
     elif period == "week":
@@ -983,13 +1094,14 @@ def build_astro_forecast(
             social=sections["social"],
             health=sections["health"],
             lucky_time=lucky_time,
-            avoid=_avoid_text(advice_hits, locale, period=period_key),
+            avoid=_avoid_text(advice_hits, locale, period=period_key, style=style),
             affirmation=_affirmation_text(advice_hits, locale, period=period_key),
             advice=_advice_text(
                 advice_hits,
                 locale,
                 moon_sign=opening_moon_sign,
                 period=period_key,
+                style=style,
             ),
             moon_sign=opening_moon_sign,
             period_key=period_key,
@@ -1550,12 +1662,36 @@ def build_evening_snapshot(
         return None
 
 
-SYNASTRY_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
+SYNASTRY_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
 
 MODE_PLANET_WEIGHT: dict[str, dict[str, float]] = {
-    "love": {"SUN": 1.0, "MOON": 2.0, "MERCURY": 0.8, "VENUS": 2.5, "MARS": 1.5},
-    "friendship": {"SUN": 1.5, "MOON": 1.2, "MERCURY": 2.0, "VENUS": 1.0, "MARS": 0.8},
-    "work": {"SUN": 1.2, "MOON": 0.6, "MERCURY": 2.2, "VENUS": 0.8, "MARS": 1.5},
+    "love": {
+        "SUN": 1.0,
+        "MOON": 2.0,
+        "MERCURY": 0.8,
+        "VENUS": 2.5,
+        "MARS": 1.5,
+        "JUPITER": 0.6,
+        "SATURN": 0.6,
+    },
+    "friendship": {
+        "SUN": 1.5,
+        "MOON": 1.2,
+        "MERCURY": 2.0,
+        "VENUS": 1.0,
+        "MARS": 0.8,
+        "JUPITER": 0.5,
+        "SATURN": 0.5,
+    },
+    "work": {
+        "SUN": 1.2,
+        "MOON": 0.6,
+        "MERCURY": 2.2,
+        "VENUS": 0.8,
+        "MARS": 1.5,
+        "JUPITER": 0.5,
+        "SATURN": 0.7,
+    },
 }
 
 MODE_LABELS = {
@@ -1580,7 +1716,7 @@ def _natal_chart(
     lat: float | None = None,
     lon: float | None = None,
     birth_timezone: str | None = None,
-) -> tuple[dict[str, float], str]:
+) -> tuple[dict[str, float], str, list[float] | None]:
     tz = normalize_timezone(birth_timezone or timezone_name)
     _lat, _lon, resolved_tz = resolve_birth_location(
         city,
@@ -1593,7 +1729,11 @@ def _natal_chart(
     keys = SYNASTRY_POINTS if birth_time is not None else tuple(k for k in SYNASTRY_POINTS if k != "MOON")
     longitudes = _collect_longitudes(natal_jd, keys)
     sun_sign = _longitude_to_sign(longitudes["SUN"])
-    return longitudes, sun_sign
+    house_cusps: list[float] | None = None
+    if birth_time is not None and _lat is not None and _lon is not None:
+        raw_cusps, _ascmc = swe.houses(natal_jd, _lat, _lon, b"P")
+        house_cusps = [float(raw_cusps[i]) for i in range(12)]
+    return longitudes, sun_sign, house_cusps
 
 
 def _collect_synastry_hits(
@@ -1643,6 +1783,49 @@ def _synastry_score(hits: list[tuple[float, float, str, str, str]], mode: str) -
     return max(35, min(98, round(total)))
 
 
+def _clamp_synastry_score(score: int) -> int:
+    return max(35, min(98, score))
+
+
+def _compute_comprehensive_synastry_score(
+    *,
+    hits: list[tuple[float, float, str, str, str]],
+    mode: str,
+    user_sign_key: str,
+    partner_sign_key: str,
+    asc_dsc: AscDscAnalysis,
+    composite: CompositeAnalysis,
+    seals: SynastrySeals,
+    house_overlay: SynastryHouseOverlay,
+    element_balance: ElementBalance,
+    moon_venus: MoonVenusAnalysis,
+    karma: KarmicAnalysis,
+    fictitious: FictitiousAnalysis,
+    progressions: ProgressionsAnalysis,
+    numerology: NumerologyCompat,
+    tarot: TarotCompatSpread,
+    transits: SynastryTransitAnalysis,
+) -> int:
+    """Aggregate every compatibility module into the base /100 score (before scorecard nudge)."""
+    score = _synastry_score(hits, mode)
+    sun_compat = analyze_sun_sign_compat(user_sign_key, partner_sign_key)
+    if sun_compat is not None:
+        score = _clamp_synastry_score(score + sun_compat.score_delta)
+    score = _clamp_synastry_score(score + asc_dsc_score_delta(asc_dsc))
+    score = _clamp_synastry_score(score + composite_score_delta(composite))
+    score = _clamp_synastry_score(score + seal_score_delta(seals))
+    score = _clamp_synastry_score(score + house_score_delta(house_overlay))
+    score = _clamp_synastry_score(score + element_score_delta(element_balance))
+    score = _clamp_synastry_score(score + moon_venus_score_delta(moon_venus))
+    score = _clamp_synastry_score(score + karmic_score_delta(karma))
+    score = _clamp_synastry_score(score + fictitious_score_delta(fictitious))
+    score = _clamp_synastry_score(score + progressions_score_delta(progressions))
+    score = _clamp_synastry_score(score + numerology_score_delta(numerology))
+    score = _clamp_synastry_score(score + tarot_score_delta(tarot))
+    score = _clamp_synastry_score(score + transits_score_delta(transits))
+    return score
+
+
 def build_synastry_analysis(
     *,
     user_birth_date: date,
@@ -1662,12 +1845,13 @@ def build_synastry_analysis(
     partner_lat: float | None = None,
     partner_lon: float | None = None,
     partner_birth_timezone: str | None = None,
+    style: str = "terms",
 ) -> SynastryAnalysis | None:
     try:
         mode = relation_mode if relation_mode in MODE_PLANET_WEIGHT else "love"
         partner_tz = partner_birth_timezone or partner_timezone or user_birth_timezone or user_timezone
 
-        user_chart, user_sign_key = _natal_chart(
+        user_chart, user_sign_key, user_cusps = _natal_chart(
             user_birth_date,
             user_birth_time,
             user_city,
@@ -1676,7 +1860,7 @@ def build_synastry_analysis(
             lon=user_lon,
             birth_timezone=user_birth_timezone,
         )
-        partner_chart, partner_sign_key = _natal_chart(
+        partner_chart, partner_sign_key, partner_cusps = _natal_chart(
             partner_birth_date,
             partner_birth_time,
             partner_city,
@@ -1685,8 +1869,94 @@ def build_synastry_analysis(
             lon=partner_lon,
             birth_timezone=partner_birth_timezone,
         )
+        house_overlay = build_house_overlay(
+            user_chart,
+            partner_chart,
+            user_cusps,
+            partner_cusps,
+        )
+        asc_dsc = analyze_asc_dsc_synastry(user_cusps, partner_cusps)
+        user_has_moon = user_birth_time is not None
+        partner_has_moon = partner_birth_time is not None
+        composite = build_composite_analysis(
+            user_chart,
+            partner_chart,
+            user_cusps,
+            partner_cusps,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        element_balance = analyze_element_balance(user_chart, partner_chart)
+        user_jd = _natal_julian_day(
+            user_birth_date,
+            user_birth_time,
+            user_birth_timezone or user_timezone,
+        )
+        partner_jd = _natal_julian_day(partner_birth_date, partner_birth_time, partner_tz)
+        karma = analyze_karmic_synastry(
+            user_chart,
+            partner_chart,
+            user_julian_day=user_jd,
+            partner_julian_day=partner_jd,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        fictitious = analyze_fictitious_synastry(
+            user_chart,
+            partner_chart,
+            user_julian_day=user_jd,
+            partner_julian_day=partner_jd,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        transits = analyze_synastry_transits(
+            user_chart,
+            partner_chart,
+            timezone_name=user_birth_timezone or user_timezone,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        progressions = analyze_synastry_progressions(
+            user_birth_date=user_birth_date,
+            partner_birth_date=partner_birth_date,
+            user_julian_day=user_jd,
+            partner_julian_day=partner_jd,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        numerology = analyze_relationship_numerology(user_birth_date, partner_birth_date)
+        tarot = analyze_couple_tarot_spread(
+            user_birth_date,
+            partner_birth_date,
+            locale=locale,
+        )
         hits = _collect_synastry_hits(user_chart, partner_chart)
-        score = _synastry_score(hits, mode)
+
+        all_hits = [(item[0], item[2], item[3], item[4]) for item in hits]
+        moon_venus = analyze_moon_venus_links(
+            all_hits,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+        )
+        seals = analyze_synastry_seals(all_hits)
+        score = _compute_comprehensive_synastry_score(
+            hits=hits,
+            mode=mode,
+            user_sign_key=user_sign_key,
+            partner_sign_key=partner_sign_key,
+            asc_dsc=asc_dsc,
+            composite=composite,
+            seals=seals,
+            house_overlay=house_overlay,
+            element_balance=element_balance,
+            moon_venus=moon_venus,
+            karma=karma,
+            fictitious=fictitious,
+            progressions=progressions,
+            numerology=numerology,
+            tarot=tarot,
+            transits=transits,
+        )
 
         ranked = sorted(
             hits,
@@ -1695,19 +1965,36 @@ def build_synastry_analysis(
             reverse=True,
         )
         ranked_hits = [(item[0], item[2], item[3], item[4]) for item in ranked]
-        details = format_synastry_report(
+        details, summary = format_synastry_report(
             locale,
             mode=mode,
             score=score,
             hits=ranked_hits,
+            seals=seals,
+            asc_dsc=asc_dsc,
+            composite=composite,
+            house_overlay=house_overlay,
+            element_balance=element_balance,
+            moon_venus=moon_venus,
+            karma=karma,
+            fictitious=fictitious,
+            progressions=progressions,
+            numerology=numerology,
+            tarot=tarot,
+            transits=transits,
             user_sign=_sign_label(locale, user_sign_key),
             partner_sign=_sign_label(locale, partner_sign_key),
-            user_has_moon=user_birth_time is not None,
-            partner_has_moon=partner_birth_time is not None,
+            user_sign_key=user_sign_key,
+            partner_sign_key=partner_sign_key,
+            user_birth_date=user_birth_date,
+            partner_birth_date=partner_birth_date,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+            style=style,
         )
 
         return SynastryAnalysis(
-            score=score,
+            score=summary.score,
             details=details,
             partner_sign=partner_sign_key,
         )

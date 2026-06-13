@@ -31,7 +31,7 @@ TEXTS = {
             "💞 Совместимость с полным профилем партнёра\n"
             "🌙 Лунный календарь и ежедневные напоминания\n"
             "🪐 Натальная карта по Swiss Ephemeris\n\n"
-            "⭐ Premium: неделя и месяц, полная карта, луна 30 дней, "
+            "⭐ Premium: неделя и месяц, полная карта, лунный календарь, "
             "безлимит совместимости — Stars / ₽ / $\n\n"
             "🌍 RU / EN"
         ),
@@ -132,6 +132,15 @@ TEXTS = {
         ),
         "btn_horoscope_style": "📝 Стиль описания",
         "horoscope_style_saved": "Стиль: {style}",
+        "choose_compat_style": (
+            "Как описывать совместимость?\n\n"
+            "📖 С терминами — планеты, аспекты, дома, печати, узлы.\n"
+            "Пример: «ваша Луна, трин к Венере партнёра — душевная близость»\n\n"
+            "💬 Простым языком — без жаргона, коротко и по смыслу.\n"
+            "Пример: «лёгкая поддержка между вашими чувствами и его/её заботой»"
+        ),
+        "btn_compat_style": "📝 Стиль описания",
+        "compat_style_saved": "Стиль: {style}",
         "share_horoscope": "📤 Поделиться прогнозом",
         "back": "⬅ Назад",
         "crumb_root": "Главная",
@@ -147,6 +156,7 @@ TEXTS = {
         "crumb_relationship": "Статус",
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
+        "choose_moon_period_free": "Бесплатно — только сегодня. 7 и 30 дней — в Premium.",
         "choose_moon_style": (
             "Как описывать лунный календарь?\n\n"
             "📖 С терминами — лунный день, фазы, «Луна в знаке», советы с опорой на цикл.\n"
@@ -167,7 +177,7 @@ TEXTS = {
         "moon_focus_saved": "Фокус: {focus}",
         "moon_style_saved": "Стиль: {style}",
         "moon_premium_all_focuses": "Premium: ниже все три блока планирования.",
-        "moon_7_days": "7 дней",
+        "moon_7_days": "7 дней ⭐",
         "moon_30_days": "30 дней ⭐",
         "btn_glossary_help": "❓ Что это значит?",
         "moon_today": "Сегодня",
@@ -278,13 +288,13 @@ TEXTS = {
         "premium_payment_error": "Оплата не прошла, попробуй ещё раз позже.",
         "premium_trial_granted": (
             "🎁 Premium на {days} дней в подарок!\n\n"
-            "Попробуй неделю и месяц, полную карту, луну на 30 дней и безлимит совместимости.\n"
+            "Попробуй неделю и месяц, полную карту, лунный календарь и безлимит совместимости.\n"
             "Действует до {until}."
         ),
         "premium_required_full_natal": "Полный разбор (3 части) доступен в Premium. Сейчас — часть 1.",
         "premium_required_horo_period": "Неделя и месяц доступны в Premium.",
         "premium_required_compat_daily_limit": "Лимит бесплатных совместимостей на сегодня исчерпан ({limit}/день).",
-        "premium_required_moon_30": "Лунный календарь на 30 дней и разбор по дню — в Premium.",
+        "premium_required_moon_30": "Лунный календарь на 7 и 30 дней и разбор по дню — в Premium.",
         "premium_menu_title": "⭐ Premium",
         "premium_features": (
             "🌠 Что откроет Premium:\n\n"
@@ -294,7 +304,7 @@ TEXTS = {
             "💫 Совместимость без лимита · до 10 партнёров\n"
             "📬 Недельный гороскоп в авторассылке\n"
             "🌙 Напоминание о фазах за 7 дней\n"
-            "📅 Лунный календарь на 30 дней"
+            "📅 Лунный календарь на 7 и 30 дней и разбор по дню"
         ),
         "premium_buy_button": "🌟 Открыть Premium",
         "premium_renew_button": "🌟 Продлить Premium",
@@ -427,7 +437,7 @@ TEXTS = {
             "💞 Compatibility with full partner profile\n"
             "🌙 Moon calendar and daily lunar reminders\n"
             "🪐 Natal chart via Swiss Ephemeris\n\n"
-            "⭐ Premium: week and month, full chart, 30-day moon, "
+            "⭐ Premium: week and month, full chart, moon calendar, "
             "unlimited compatibility — Stars / ₽ / $\n\n"
             "🌍 RU / EN"
         ),
@@ -528,6 +538,15 @@ TEXTS = {
         ),
         "btn_horoscope_style": "📝 Description style",
         "horoscope_style_saved": "Style: {style}",
+        "choose_compat_style": (
+            "How should compatibility read?\n\n"
+            "📖 With terms — planets, aspects, houses, seals, nodes.\n"
+            "Example: “your Moon trine partner's Venus — emotional closeness”\n\n"
+            "💬 Plain language — no jargon, short and clear.\n"
+            "Example: “easy support between your feelings and their care”"
+        ),
+        "btn_compat_style": "📝 Description style",
+        "compat_style_saved": "Style: {style}",
         "share_horoscope": "📤 Share forecast",
         "back": "⬅ Back",
         "crumb_root": "Home",
@@ -543,6 +562,7 @@ TEXTS = {
         "crumb_relationship": "Status",
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
+        "choose_moon_period_free": "Free — today only. 7 and 30 days are Premium.",
         "choose_moon_style": (
             "How should the moon calendar be written?\n\n"
             "📖 With terms — lunar day, phases, «Moon in sign», cycle-based tips.\n"
@@ -563,7 +583,7 @@ TEXTS = {
         "moon_focus_saved": "Focus: {focus}",
         "moon_style_saved": "Style: {style}",
         "moon_premium_all_focuses": "Premium: all three planning blocks below.",
-        "moon_7_days": "7 days",
+        "moon_7_days": "7 days ⭐",
         "moon_30_days": "30 days ⭐",
         "btn_glossary_help": "❓ What does this mean?",
         "moon_today": "Today",
@@ -674,13 +694,13 @@ TEXTS = {
         "premium_payment_error": "Payment failed, please try again later.",
         "premium_trial_granted": (
             "🎁 {days}-day Premium trial unlocked!\n\n"
-            "Try week/month horoscopes, full chart, 30-day moon, and unlimited compatibility.\n"
+            "Try week/month horoscopes, full chart, moon calendar, and unlimited compatibility.\n"
             "Valid until {until}."
         ),
         "premium_required_full_natal": "Full reading (3 parts) is Premium. Part 1 is shown now.",
         "premium_required_horo_period": "Week and month horoscopes are Premium features.",
         "premium_required_compat_daily_limit": "Free compatibility limit for today is reached ({limit}/day).",
-        "premium_required_moon_30": "30-day moon calendar and day details are Premium features.",
+        "premium_required_moon_30": "7-day and 30-day moon calendar and day details are Premium features.",
         "premium_menu_title": "⭐ Premium",
         "premium_features": (
             "🌠 What Premium unlocks:\n\n"
@@ -690,7 +710,7 @@ TEXTS = {
             "💫 Unlimited compatibility · up to 10 partners\n"
             "📬 Weekly horoscope in daily delivery\n"
             "🌙 Lunar phase reminders 7 days ahead\n"
-            "📅 30-day moon calendar"
+            "📅 7- and 30-day moon calendar and day details"
         ),
         "premium_buy_button": "🌟 Unlock Premium",
         "premium_renew_button": "🌟 Renew Premium",

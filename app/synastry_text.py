@@ -1,7 +1,29 @@
 from __future__ import annotations
 
+from datetime import date
 
 from app.forecast_text import _aspect_label
+from app.sun_sign_compat import analyze_sun_sign_compat, format_sun_sign_compat_section
+from app.synastry_numerology import NumerologyCompat, format_synastry_numerology_section
+from app.synastry_tarot import TarotCompatSpread, format_synastry_tarot_section
+from app.synastry_asc import AscDscAnalysis, format_synastry_step2_section
+from app.synastry_composite import CompositeAnalysis, format_synastry_composite_section
+from app.synastry_progressions import ProgressionsAnalysis, format_synastry_progressions_section
+from app.synastry_fictitious import FictitiousAnalysis, format_synastry_fictitious_section
+from app.synastry_style import (
+    format_comprehensive_scope_intro,
+    format_cross_link_line,
+    format_report_header,
+    use_synastry_terms,
+)
+from app.synastry_overlay import format_synastry_step3_section
+from app.synastry_karma import KarmicAnalysis, format_synastry_step8_section
+from app.synastry_moon_venus import MoonVenusAnalysis, format_synastry_step7_section
+from app.synastry_summary import build_synastry_summary, format_synastry_step10_section, SynastrySummary
+from app.synastry_transits import SynastryTransitAnalysis, format_synastry_step9_section
+from app.synastry_elements import ElementBalance, format_synastry_step6_section
+from app.synastry_houses import SynastryHouseOverlay, format_synastry_step5_section
+from app.synastry_seals import SynastrySeals, filter_hits_for_step3, format_synastry_step4_section
 
 SynastryHit = tuple[float, str, str, str]
 
@@ -12,6 +34,8 @@ PLANET_LABELS = {
         "MERCURY": "Меркурий",
         "VENUS": "Венера",
         "MARS": "Марс",
+        "JUPITER": "Юпитер",
+        "SATURN": "Сатурн",
     },
     "en": {
         "SUN": "Sun",
@@ -19,19 +43,8 @@ PLANET_LABELS = {
         "MERCURY": "Mercury",
         "VENUS": "Venus",
         "MARS": "Mars",
-    },
-}
-
-MODE_INTRO = {
-    "ru": {
-        "love": "Фокус на близости, эмоциях и притяжении.",
-        "friendship": "Фокус на общении, доверии и совместных интересах.",
-        "work": "Фокус на совместной работе, ритме и ролях.",
-    },
-    "en": {
-        "love": "Focus on closeness, emotions, and attraction.",
-        "friendship": "Focus on communication, trust, and shared interests.",
-        "work": "Focus on collaboration, pace, and roles.",
+        "JUPITER": "Jupiter",
+        "SATURN": "Saturn",
     },
 }
 
@@ -104,14 +117,6 @@ def _aspect_tone(locale: str, aspect: str, mode: str) -> str:
     return ASPECT_TONE[lang][mode_key][aspect]
 
 
-def _is_positive(aspect: str) -> bool:
-    return aspect in {"trine", "sextile", "conjunction"}
-
-
-def _is_challenging(aspect: str) -> bool:
-    return aspect in {"square", "opposition"}
-
-
 def format_synastry_aspect_line(
     locale: str,
     user_planet: str,
@@ -121,17 +126,18 @@ def format_synastry_aspect_line(
     orb: float,
     *,
     bullet: str = "",
+    style: str = "terms",
 ) -> str:
-    user_name = _planet_label(locale, user_planet)
-    partner_name = _planet_label(locale, partner_planet)
-    aspect_label = _aspect_label(locale, aspect)
-    orb_part = f" ({orb:.1f}°)" if orb <= 2.5 else ""
     tone = _aspect_tone(locale, aspect, mode)
-    lang = _lang(locale)
-    if lang == "ru":
-        core = f"ваше {user_name}, {aspect_label} к {partner_name} партнёра{orb_part} — {tone}"
-    else:
-        core = f"your {user_name} {aspect_label} partner's {partner_name}{orb_part} — {tone}"
+    core = format_cross_link_line(
+        locale,
+        user_planet,
+        partner_planet,
+        aspect,
+        tone,
+        orb,
+        style,
+    )
     if not bullet:
         return core
     return f"{bullet} {core}"
@@ -169,79 +175,199 @@ def format_synastry_advice(locale: str, mode: str, score: int) -> str:
     return "Agree on tasks first, then pick up the pace."
 
 
+def format_synastry_disclaimers(locale: str, *, style: str = "terms") -> str:
+    lang = _lang(locale)
+    if use_synastry_terms(style):
+        if lang == "ru":
+            return "\n".join(
+                [
+                    "📌 Важные рекомендации",
+                    "• Не зацикливайтесь на «плохих» показателях. Напряжённые аспекты дают рост, "
+                    "а идеальные карты без вызовов могут привести к застою.",
+                    "• Проверяйте интуицию. Если астрология говорит «да», а внутри дискомфорт — "
+                    "доверьтесь себе.",
+                    "• Избегайте фатализма. Карты показывают потенциал, а не судьбу.",
+                    "• Обновляйте анализ. Раз в 5–7 лет перепроверяйте синастрию — люди меняются.",
+                    "• Используйте методы как подсказки, а не догму. Эзотерика — инструмент "
+                    "самопознания, а не приговор.",
+                    "• Точность времени рождения сильно влияет на дома, Луну и ASC.",
+                ]
+            )
+        return "\n".join(
+            [
+                "📌 Important recommendations",
+                "• Don't fixate on «bad» scores. Tense aspects foster growth; "
+                "a perfect chart without challenges can lead to stagnation.",
+                "• Check your intuition. If astrology says «yes» but you feel uneasy — trust yourself.",
+                "• Avoid fatalism. The chart shows potential, not fate.",
+                "• Refresh the analysis. Revisit synastry every 5–7 years — people change.",
+                "• Use these methods as hints, not dogma. Esoteric tools are for self-knowledge, "
+                "not a verdict.",
+                "• Birth-time accuracy strongly affects houses, the Moon, and the Ascendant.",
+            ]
+        )
+    if lang == "ru":
+        return "\n".join(
+            [
+                "💡 Важные рекомендации",
+                "• Не цепляйтесь за «плохие» пункты — напряжение часто даёт рост.",
+                "• Если внутри дискомфорт — слушайте себя, а не только текст.",
+                "• Это не приговор и не судьба — только возможные сценарии.",
+                "• Имеет смысл пересматривать разбор раз в 5–7 лет.",
+                "• Используйте как подсказку для разговора с собой и партнёром.",
+            ]
+        )
+    return "\n".join(
+        [
+            "💡 Important recommendations",
+            "• Don't cling to «bad» lines — tension often means growth.",
+            "• If something feels off inside — listen to yourself, not only the text.",
+            "• This isn't fate — only possible scenarios.",
+            "• Revisit the reading every 5–7 years.",
+            "• Use it as a prompt for honest talk with yourself and your partner.",
+        ]
+    )
+
+
 def format_synastry_report(
     locale: str,
     *,
     mode: str,
     score: int,
     hits: list[SynastryHit],
+    seals: SynastrySeals,
+    asc_dsc: AscDscAnalysis,
+    composite: CompositeAnalysis,
+    house_overlay: SynastryHouseOverlay,
+    element_balance: ElementBalance,
+    moon_venus: MoonVenusAnalysis,
+    karma: KarmicAnalysis,
+    fictitious: FictitiousAnalysis,
+    progressions: ProgressionsAnalysis,
+    numerology: NumerologyCompat,
+    tarot: TarotCompatSpread,
+    transits: SynastryTransitAnalysis,
     user_sign: str,
     partner_sign: str,
+    user_sign_key: str,
+    partner_sign_key: str,
+    user_birth_date: date,
+    partner_birth_date: date,
     user_has_moon: bool,
     partner_has_moon: bool,
+    style: str = "terms",
 ) -> str:
     lang = _lang(locale)
     mode_key = mode if mode in MODE_LABELS[lang] else "love"
     lines: list[str] = []
 
-    if lang == "ru":
-        lines.append(f"Расчёт: Swiss Ephemeris · режим «{MODE_LABELS[lang][mode_key]}»")
-        lines.append(f"• {user_sign} + {partner_sign}")
-    else:
-        lines.append(f"Calculation: Swiss Ephemeris · {MODE_LABELS[lang][mode_key]} mode")
-        lines.append(f"• {user_sign} + {partner_sign}")
-
-    lines.append(MODE_INTRO[lang][mode_key])
-
-    if not user_has_moon:
-        lines.append(
-            "• Ваше время рождения не указано — ваша Луна не учитывается."
-            if lang == "ru"
-            else "• Your birth time is missing — your Moon is not included."
+    lines.extend(
+        format_report_header(
+            locale,
+            mode_label=MODE_LABELS[lang][mode_key],
+            user_sign=user_sign,
+            partner_sign=partner_sign,
+            style=style,
         )
-    if not partner_has_moon:
-        lines.append(
-            "• У партнёра нет времени рождения — Луна партнёра не учитывается."
-            if lang == "ru"
-            else "• Partner birth time is missing — partner Moon is not included."
-        )
+    )
 
-    if not hits:
-        lines.append(
-            "• Ярких межкартовых аспектов не найдено — связь более нейтральная."
-            if lang == "ru"
-            else "• No major cross-chart aspects — the connection is more neutral."
-        )
-    else:
+    lines.append("")
+    lines.append(format_comprehensive_scope_intro(locale, style=style))
+
+    sun_compat = analyze_sun_sign_compat(user_sign_key, partner_sign_key)
+    if sun_compat is not None:
         lines.append("")
-        for orb, user_planet, partner_planet, aspect in hits[:4]:
-            lines.append(
-                format_synastry_aspect_line(
-                    locale,
-                    user_planet,
-                    partner_planet,
-                    aspect,
-                    mode_key,
-                    orb,
-                )
-            )
+        lines.append(format_sun_sign_compat_section(locale, sun_compat, style=style))
 
-        positive = [hit for hit in hits if _is_positive(hit[3])][:2]
-        challenging = [hit for hit in hits if _is_challenging(hit[3])][:2]
+    lines.append("")
+    lines.append(
+        format_synastry_numerology_section(
+            locale,
+            numerology,
+            user_birth_date=user_birth_date,
+            partner_birth_date=partner_birth_date,
+            style=style,
+        )
+    )
 
-        if positive:
-            tones = [_aspect_tone(locale, hit[3], mode_key) for hit in positive]
-            label = "Сильные стороны" if lang == "ru" else "Strengths"
-            lines.append("")
-            lines.append(f"✅ {label}: {'; '.join(tones).capitalize()}.")
+    lines.append("")
+    lines.append(format_synastry_tarot_section(locale, tarot, style=style))
 
-        if challenging:
-            tones = [_aspect_tone(locale, hit[3], mode_key) for hit in challenging]
-            label = "Точки роста" if lang == "ru" else "Growth points"
-            lines.append(f"⚠️ {label}: {'; '.join(tones).capitalize()}.")
+    lines.append("")
+    lines.append(format_synastry_step2_section(locale, asc_dsc, style=style))
+
+    step3_hits = filter_hits_for_step3(hits, seals)
+    lines.append("")
+    lines.append(
+        format_synastry_step3_section(
+            locale,
+            mode=mode_key,
+            hits=step3_hits,
+            user_has_moon=user_has_moon,
+            partner_has_moon=partner_has_moon,
+            format_aspect_line=format_synastry_aspect_line,
+            aspect_tone=_aspect_tone,
+            style=style,
+        )
+    )
+
+    lines.append("")
+    lines.append(format_synastry_fictitious_section(locale, fictitious, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_composite_section(locale, composite, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_progressions_section(locale, progressions, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step4_section(locale, seals, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step5_section(locale, house_overlay, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step6_section(locale, element_balance, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step7_section(locale, moon_venus, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step8_section(locale, karma, style=style))
+
+    lines.append("")
+    lines.append(format_synastry_step9_section(locale, transits, style=style))
+
+    summary = build_synastry_summary(
+        locale=locale,
+        score=score,
+        hits=hits,
+        user_sign_key=user_sign_key,
+        partner_sign_key=partner_sign_key,
+        seals=seals,
+        asc_dsc=asc_dsc,
+        composite=composite,
+        house_overlay=house_overlay,
+        element_balance=element_balance,
+        moon_venus=moon_venus,
+        karma=karma,
+        fictitious=fictitious,
+        progressions=progressions,
+        numerology=numerology,
+        tarot=tarot,
+        transits=transits,
+        user_has_moon=user_has_moon,
+        partner_has_moon=partner_has_moon,
+        style=style,
+    )
+    lines.append("")
+    lines.append(format_synastry_step10_section(locale, summary, style=style))
 
     lines.append("")
     lines.append("💡 " + ("Совет" if lang == "ru" else "Advice"))
     lines.append(format_synastry_advice(locale, mode_key, score))
 
-    return "\n".join(lines)
+    lines.append("")
+    lines.append(format_synastry_disclaimers(locale, style=style))
+
+    return "\n".join(lines), summary

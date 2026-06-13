@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AstroPulse — MTS Telegram ad 1280×720</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #f7f2ff;
+      background: #0b0618;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .banner {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      padding: 56px 64px;
+      background:
+        radial-gradient(circle at 8% 20%, rgba(167, 139, 250, 0.35), transparent 32%),
+        radial-gradient(circle at 92% 18%, rgba(56, 189, 248, 0.22), transparent 28%),
+        radial-gradient(circle at 78% 88%, rgba(244, 114, 182, 0.14), transparent 34%),
+        radial-gradient(circle at 42% 100%, rgba(124, 58, 237, 0.28), transparent 42%),
+        linear-gradient(135deg, #120824 0%, #1a0f33 45%, #0d0820 100%);
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.6;
+      background-image:
+        radial-gradient(1.5px 1.5px at 120px 80px, #fff, transparent),
+        radial-gradient(1px 1px at 280px 140px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 520px 60px, #fff, transparent),
+        radial-gradient(1px 1px at 760px 110px, #fff, transparent),
+        radial-gradient(1.5px 1.5px at 980px 90px, #fff, transparent),
+        radial-gradient(1px 1px at 1140px 160px, #fff, transparent),
+        radial-gradient(1px 1px at 180px 580px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 620px 640px, #fff, transparent),
+        radial-gradient(1px 1px at 1080px 560px, #fff, transparent);
+    }
+
+    .moon {
+      position: absolute;
+      top: 48px;
+      right: 72px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.95), rgba(221, 214, 254, 0.5) 42%, transparent 70%),
+        radial-gradient(circle at 65% 70%, rgba(124, 58, 237, 0.35), transparent 55%);
+      box-shadow:
+        0 0 80px rgba(167, 139, 250, 0.45),
+        inset -24px -16px 40px rgba(91, 33, 182, 0.35);
+    }
+
+    .orbit {
+      position: absolute;
+      top: 24px;
+      right: 48px;
+      width: 268px;
+      height: 268px;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, 0.14);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 760px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+      font-size: 20px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+
+    .brand-mark { font-size: 32px; line-height: 1; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 8px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      font-size: 16px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #ddd6fe;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    h1 {
+      font-size: 72px;
+      line-height: 0.98;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-shadow: 0 0 60px rgba(167, 139, 250, 0.3);
+      margin-bottom: 18px;
+    }
+
+    .subtitle {
+      font-size: 28px;
+      line-height: 1.35;
+      color: #ddd6fe;
+      margin-bottom: 36px;
+      max-width: 680px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: auto;
+    }
+
+    .chip {
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 20px;
+      color: #f3ecff;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 22px 28px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .footer-text {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .footer-text span {
+      display: block;
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 400;
+      color: #fde68a;
+    }
+
+    .handle {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fde68a;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <div class="stars"></div>
+    <div class="orbit"></div>
+    <div class="moon"></div>
+
+    <div class="content">
+      <div class="brand">
+        <span class="brand-mark">🌌</span>
+        <span>AstroPulse</span>
+      </div>
+
+      <div class="eyebrow">Telegram · официальный канал</div>
+      <h1>Карманный астролог</h1>
+      <p class="subtitle">
+        Лунные дни, прогнозы, советы по отношениям и новости бота — всё в Telegram.
+      </p>
+
+      <div class="chips">
+        <div class="chip">✨ Гороскоп</div>
+        <div class="chip">🌙 Луна</div>
+        <div class="chip">💞 Совместимость</div>
+        <div class="chip">🎁 7 дней Premium</div>
+      </div>
+
+      <div class="footer">
+        <div class="footer-text">
+          Откройте бота
+          <span>бесплатный прогноз на сегодня</span>
+        </div>
+        <div class="handle">@AstroPulsee_bot</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

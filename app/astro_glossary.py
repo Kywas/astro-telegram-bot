@@ -394,8 +394,101 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
             blocks.extend(
                 [
                     (
-                        "Совместимость сравнивает вашу карту и карту партнёра. "
-                        "«Ваше Солнце — трин — Венера партнёра» — гармоничная связь между темами."
+                        "Шаг 1 — солнечные знаки: стихии (Огонь, Земля, Воздух, Вода), "
+                        "противоположные знаки и сочетания Огонь+Воздух / Земля+Вода."
+                    ),
+                    (
+                        "Шаг 2 — ASC и DSC: асцендент (как проявляетесь) и десцендент "
+                        "(куспид 7‑го дома — образ идеального партнёра). "
+                        "ASC одного = DSC другого — сильное притяжение; совпадение ASC — "
+                        "похожие темпераменты; противоположные ASC↔DSC — магнетизм дополняющих типов."
+                    ),
+                    (
+                        "Шаг 3 — синастрия: карты наложены друг на друга. "
+                        "Гармоничные углы (0°, 60°, 120°) — поддержка; "
+                        "напряжённые (90°, 180°) — рост. "
+                        "Ключевые пары: Солнце↔Луна, Венера↔Марс, Меркурий↔Меркурий."
+                    ),
+                    (
+                        "Фиктивные точки — Лилит (средняя Чёрная Луна): искушения и тень; "
+                        "аспект к личной планете партнёра — риск манипуляций или зависимости. "
+                        "Селена (противоположность Лилит): светлая карма; "
+                        "аспект к Солнцу/Луне партнёра — «ангельская» поддержка."
+                    ),
+                    (
+                        "Композитная карта — средняя точка между одинаковыми планетами: "
+                        "Солнце/Луна композита — ядро отношений; ASC композита (1‑й дом) — "
+                        "стиль пары «в мире»; планеты в угловых домах (1, 4, 7, 10) — "
+                        "ключевые темы союза (например, Солнце в 8‑м — трансформация)."
+                    ),
+                    (
+                        "Временные дирекции (вторичные прогрессии): 1 день = 1 год жизни; "
+                        "аспекты между прогрессивными планетами партнёров — важные этапы; "
+                        "смена знака прогрессивной Луны (~2,5 года) — эмоциональная перезагрузка; "
+                        "возвращение к натальной Луне — крупный цикл (~27 лет)."
+                    ),
+                    (
+                        "Нумерология отношений: все цифры даты рождения каждого сводятся "
+                        "к одной цифре; сумма двух чисел — число совместимости пары."
+                    ),
+                    (
+                        "Таро «Совместимость пары»: шесть карт — прошлое, настоящее, будущее, "
+                        "сильные и слабые стороны, совет. Расклад детерминирован датами рождения."
+                    ),
+                    (
+                        "Шаг 4 — печати: Юпитер→Солнце/Луна (счастье), "
+                        "Сатурн→Солнце/Луна (несчастье в квадрате/оппозиции)."
+                    ),
+                    (
+                        "Шаг 5 — синастрия по домам: какие планеты одного попадают в дома другого "
+                        "(1 — личность, 2 — финансы, 3 — общение, 4 — семья, 5 — любовь, "
+                        "7 — брак, 8 — трансформация, 9 — мировоззрение, 10 — карьера). "
+                        "Угловые дома (1, 4, 7, 10) дают наиболее сильное влияние. Placidus."
+                    ),
+                    (
+                        "Шаг 6 — баланс стихий: сколько планет в Огне, Земле, "
+                        "Воздухе и Воде у каждого и насколько вы дополняете друг друга."
+                    ),
+                    (
+                        "Шаг 7 — Луна↔Венера: гармония = душевная близость, "
+                        "напряжение = разные представления о заботе."
+                    ),
+                    (
+                        "Шаг 8 — узлы Раху/Кету: аспекты к личным планетам = кармическая "
+                        "задача; Раху↔Солнце/Луна = «предназначенная» связь."
+                    ),
+                    (
+                        "Шаг 9 — транзиты через синастрию: благоприятные периоды — "
+                        "Венера и планета расширения; испытания — Сатурн/Уран/Плутон "
+                        "по квадрату/оппозиции; карта на год — пики гармонии и напряжения."
+                    ),
+                    (
+                        "Шаг 10 — итоговая карта: четыре уровня оценки с баллами "
+                        "(гармония +1, напряжение −1, нейтрально 0). "
+                        "Базовый — солнечные знаки и ASC/DSC; средний — синастрия и дома; "
+                        "продвинутый — композит, прогрессии, фиктивные точки; "
+                        "эзотерический — нумерология, Таро, энергии стихий."
+                    ),
+                    (
+                        "Шаг 10 — итоговая таблица и интерпретация: высокая (>70% гармонии, "
+                        "печать счастья, стихии), умеренная (ключи Луна‑Венера и Солнце‑Луна), "
+                        "низкая (напряжение, печать несчастья, дисбаланс стихий)."
+                    ),
+                    (
+                        "Комплексная оценка учитывает все уровни: базовый, средний, "
+                        "продвинутый и эзотерический; итог — таблица +1/−1 и общий балл."
+                    ),
+                    (
+                        "Рекомендации: не зацикливаться на «плохих» показателях; доверять интуиции; "
+                        "избегать фатализма; обновлять синастрию раз в 5–7 лет; "
+                        "использовать эзотерику как подсказку, не догму."
+                    ),
+                    (
+                        "Оговорки: точность времени рождения."
+                    ),
+                    (
+                        "Стиль описания — «с терминами» или «простым языком» "
+                        "(кнопка в меню совместимости)."
                     ),
                     TRANSIT_LEGEND[lang],
                 ]
@@ -404,8 +497,101 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
             blocks.extend(
                 [
                     (
-                        "Compatibility compares your chart with your partner's. "
-                        "“Your Sun trine partner's Venus” is a harmonious link between themes."
+                        "Step 1 — Sun signs: elements (Fire, Earth, Air, Water), "
+                        "opposite signs, and Fire+Air / Earth+Water pairings."
+                    ),
+                    (
+                        "Step 2 — ASC and DSC: Ascendant (how you show up) and Descendant "
+                        "(7th-house cusp — ideal partner image). "
+                        "One ASC = other's DSC — strong pull; matching ASC — similar temperaments; "
+                        "opposite ASC↔DSC — complementary magnetism."
+                    ),
+                    (
+                        "Step 3 — synastry: charts overlaid. "
+                        "Harmonious angles (0°, 60°, 120°) support; "
+                        "tense ones (90°, 180°) mark growth zones. "
+                        "Key pairs: Sun↔Moon, Venus↔Mars, Mercury↔Mercury."
+                    ),
+                    (
+                        "Fictitious points — Lilith (mean Black Moon): temptations and shadow; "
+                        "aspect to a partner's personal planet — manipulation or dependency risk. "
+                        "Selena (opposite Lilith): light karma; "
+                        "aspect to partner's Sun/Moon — “angelic” support."
+                    ),
+                    (
+                        "Composite chart — midpoint between matching planets: "
+                        "composite Sun/Moon — core of the bond; composite Ascendant (1st house) — "
+                        "how the pair meets the world; planets in angular houses (1, 4, 7, 10) — "
+                        "key union themes (e.g. Sun in the 8th — transformation)."
+                    ),
+                    (
+                        "Temporary directions (secondary progressions): 1 day = 1 year of life; "
+                        "aspects between partners' progressed planets mark key stages; "
+                        "progressed Moon sign change (~2.5 years) — emotional reset; "
+                        "return to natal Moon — major cycle (~27 years)."
+                    ),
+                    (
+                        "Relationship numerology: reduce all birth-date digits to one digit per person; "
+                        "add both numbers and reduce again — the pair compatibility number."
+                    ),
+                    (
+                        "Tarot «Couple compatibility»: six cards — past, present, future, "
+                        "strengths, weaknesses, advice. The spread is fixed by birth dates."
+                    ),
+                    (
+                        "Step 4 — seals: Jupiter→Sun/Moon (happiness), "
+                        "Saturn→Sun/Moon (unhappiness in square/opposition)."
+                    ),
+                    (
+                        "Step 5 — house synastry: which planets of one partner fall into the other's houses "
+                        "(1 identity, 2 finances, 3 communication, 4 family, 5 love, "
+                        "7 marriage, 8 transformation, 9 worldview, 10 career). "
+                        "Angular houses (1, 4, 7, 10) have the strongest influence. Placidus."
+                    ),
+                    (
+                        "Step 6 — element balance: planet counts in Fire, Earth, "
+                        "Air, and Water for each chart and how you complement."
+                    ),
+                    (
+                        "Step 7 — Moon↔Venus: harmony = emotional closeness, "
+                        "tension = different ideas about care."
+                    ),
+                    (
+                        "Step 8 — Rahu/Ketu nodes: aspects to personal planets = karmic task; "
+                        "Rahu↔Sun/Moon = “destined” bond."
+                    ),
+                    (
+                        "Step 9 — synastry transits: Jupiter/Venus = favorable windows; "
+                        "Saturn/Uranus/Pluto square/opposition = tests; "
+                        "one-year map shows harmony and tension peaks."
+                    ),
+                    (
+                        "Step 10 — scorecard: four assessment levels with points "
+                        "(harmony +1, tension −1, neutral 0). "
+                        "Basic — Sun signs and ASC/DSC; medium — synastry and houses; "
+                        "advanced — composite, progressions, fictitious points; "
+                        "esoteric — numerology, Tarot, element energies."
+                    ),
+                    (
+                        "Step 10 — summary table and interpretation: high (>70% harmony, "
+                        "happiness seal, elements), moderate (Moon‑Venus and Sun‑Moon keys), "
+                        "low (tension, unhappiness seal, elemental imbalance)."
+                    ),
+                    (
+                        "The full assessment uses all four levels; the scorecard (+1/−1) "
+                        "feeds the headline /100 score."
+                    ),
+                    (
+                        "Recommendations: don't fixate on «bad» scores; trust your intuition; "
+                        "avoid fatalism; refresh synastry every 5–7 years; "
+                        "use esoteric tools as hints, not dogma."
+                    ),
+                    (
+                        "Notes: birth-time accuracy matters."
+                    ),
+                    (
+                        "Description style — “with terms” or “plain language” "
+                        "(button in the compatibility menu)."
                     ),
                     TRANSIT_LEGEND[lang],
                 ]

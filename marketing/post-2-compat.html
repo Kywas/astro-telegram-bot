@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>AstroPulse — пост 2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1080px;
+      height: 1080px;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #f7f2ff;
+      background: #0b0618;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .post {
+      position: relative;
+      width: 1080px;
+      height: 1080px;
+      overflow: hidden;
+      padding: 72px 68px 64px;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(244, 114, 182, 0.18), transparent 28%),
+        radial-gradient(circle at 82% 12%, rgba(167, 139, 250, 0.28), transparent 30%),
+        radial-gradient(circle at 50% 100%, rgba(124, 58, 237, 0.22), transparent 42%),
+        linear-gradient(160deg, #120824 0%, #1a0f33 42%, #0d0820 100%);
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.55;
+      background-image:
+        radial-gradient(1.5px 1.5px at 100px 160px, #fff, transparent),
+        radial-gradient(1px 1px at 300px 100px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 680px 130px, #fff, transparent),
+        radial-gradient(1px 1px at 940px 220px, #fff, transparent),
+        radial-gradient(1px 1px at 120px 860px, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 860px 840px, #fff, transparent);
+    }
+
+    .orbit {
+      position: absolute;
+      top: 120px;
+      right: 40px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      opacity: 0.8;
+    }
+
+    .orbit::before,
+    .orbit::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 18px rgba(167, 139, 250, 0.8);
+    }
+
+    .orbit::before {
+      width: 18px;
+      height: 18px;
+      top: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .orbit::after {
+      width: 14px;
+      height: 14px;
+      bottom: 28px;
+      left: 18px;
+      background: #fde68a;
+      box-shadow: 0 0 18px rgba(253, 230, 138, 0.8);
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 760px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #c4b5fd;
+    }
+
+    .brand-mark { font-size: 34px; line-height: 1; }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 22px;
+      padding: 10px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fbcfe8;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    h1 {
+      font-size: 68px;
+      line-height: 1.02;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-shadow: 0 0 80px rgba(244, 114, 182, 0.18);
+      margin-bottom: 24px;
+    }
+
+    .subtitle {
+      font-size: 28px;
+      line-height: 1.42;
+      color: #ddd6fe;
+      margin-bottom: 36px;
+    }
+
+    .bullets {
+      list-style: none;
+      display: grid;
+      gap: 14px;
+      margin-bottom: auto;
+    }
+
+    .bullets li {
+      padding: 16px 20px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 22px;
+      line-height: 1.35;
+      color: #f3ecff;
+    }
+
+    .price-row {
+      margin-top: 34px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+    }
+
+    .price-box {
+      padding: 24px 28px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .price-box .label {
+      font-size: 18px;
+      color: #c4b5fd;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .price-box .price {
+      font-size: 34px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .price-box .note {
+      font-size: 20px;
+      color: #e9ddff;
+    }
+
+    .bot-link {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fde68a;
+      text-align: right;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+<body>
+  <div class="post">
+    <div class="stars"></div>
+    <div class="orbit"></div>
+    <div class="content">
+      <div class="brand">
+        <span class="brand-mark">🌌</span>
+        <span>AstroPulse</span>
+      </div>
+
+      <div class="eyebrow">Совместимость · Premium</div>
+      <h1>Что звёзды говорят про вас двоих?</h1>
+      <p class="subtitle">
+        Синастрия, лунные дни и прогноз на неделю —
+        в одном боте, без десяти приложений.
+      </p>
+
+      <ul class="bullets">
+        <li>💞 Совместимость: любовь, дружба, работа</li>
+        <li>🔮 Прогноз под цель: любовь / карьера / деньги</li>
+        <li>🌙 Лунный календарь и напоминания о фазах</li>
+        <li>👥 Приведи друга — +7 дней Premium</li>
+      </ul>
+
+      <div class="price-row">
+        <div class="price-box">
+          <div class="label">Premium · 30 дней</div>
+          <div class="price">199 ₽ · 100 Stars</div>
+          <div class="note">Неделя и месяц · полная карта · до 10 партнёров</div>
+        </div>
+        <div class="bot-link">t.me/<br>AstroPulsee_bot</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

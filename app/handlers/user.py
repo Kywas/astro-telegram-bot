@@ -154,6 +154,8 @@ from app.services.compat import (
     run_saved_partner_compat,
     show_compat_menu,
     show_compat_mode_panel,
+    render_compat_style_picker,
+    compat_style_label,
 )
 from app.services.daily_panels import (
     render_daily_panel,
@@ -1106,6 +1108,27 @@ async def compat_action_callback_handler(callback: CallbackQuery, state: FSMCont
         return
 
     action = (callback.data or "").split(":", 1)[1]
+
+    if action.startswith("style:"):
+        parts = (callback.data or "").split(":")
+        if len(parts) >= 3 and parts[2] == "picker":
+            return_to = parts[3] if len(parts) > 3 else "menu"
+            text, keyboard = await render_compat_style_picker(
+                user.id,
+                locale,
+                return_to=return_to,
+            )
+            await callback.answer()
+            await render_inline_panel(callback, text, keyboard)
+            return
+        if len(parts) >= 3 and parts[2] in {"plain", "terms"}:
+            await db.set_compat_style(user.id, parts[2])
+            await callback.answer(
+                t(locale, "compat_style_saved", style=compat_style_label(locale, parts[2]))
+            )
+            await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
+            return
+
     await callback.answer()
 
     if action == "add":
@@ -2129,8 +2152,24 @@ async def natal_mode_callback_handler(callback: CallbackQuery) -> None:
     await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 
-def _moon_picker_text(locale: str) -> str:
-    return f"{t(locale, 'choose_moon_period')}\n\n{t(locale, 'moon_planning_blocks')}"
+MOON_PREMIUM_VIEWS = frozenset({"7", "30", "details"})
+
+
+def _moon_picker_text(locale: str, *, premium_active: bool = False) -> str:
+    text = f"{t(locale, 'choose_moon_period')}\n\n{t(locale, 'moon_planning_blocks')}"
+    if not premium_active:
+        text = f"{text}\n\n{t(locale, 'choose_moon_period_free')}"
+    return text
+
+
+async def _render_moon_premium_gate(callback: CallbackQuery, locale: str) -> None:
+    await render_inline_panel(
+        callback,
+        f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
+        f"{t(locale, 'premium_required_moon_30')}\n\n"
+        f"{t(locale, 'premium_features')}",
+        premium_upsell_keyboard(locale, back_data="nav:moon"),
+    )
 
 
 async def render_moon_style_picker(
@@ -2190,21 +2229,17 @@ async def _show_moon_view_callback(
     if view == "picker":
         await edit_or_send(
             callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n{_moon_picker_text(locale)}",
+            f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
+            f"{_moon_picker_text(locale, premium_active=premium_active)}",
             inline_keyboard=moon_period_keyboard(locale, current_focus=focus),
         )
         return
 
+    if view in MOON_PREMIUM_VIEWS and (profile is None or not premium_active):
+        await _render_moon_premium_gate(callback, locale)
+        return
+
     if view == "30":
-        if profile is None or not premium_active:
-            await render_inline_panel(
-                callback,
-                f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
-                f"{t(locale, 'premium_required_moon_30')}\n\n"
-                f"{t(locale, 'premium_features')}",
-                premium_upsell_keyboard(locale, back_data="nav:moon"),
-            )
-            return
         text = generate_moon_compact_table_text(
             locale=locale,
             days=30,
@@ -2227,15 +2262,6 @@ async def _show_moon_view_callback(
         return
 
     if view == "details":
-        if profile is None or not premium_active:
-            await render_inline_panel(
-                callback,
-                f"{breadcrumb(locale, t(locale, 'crumb_moon'))}\n\n"
-                f"{t(locale, 'premium_required_moon_30')}\n\n"
-                f"{t(locale, 'premium_features')}",
-                premium_upsell_keyboard(locale, back_data="nav:moon"),
-            )
-            return
         await state.set_state(MoonDetails.waiting_day_month)
         await edit_or_send(
             callback,
