@@ -898,8 +898,19 @@ def test_natal_qa_synthesis() -> None:
     assert love.count(".") >= 3
 
     finance = build_finance_answer(chart, "ru", 0, style="plain")
-    assert "С деньгами и ценностями" in finance
+    assert "С деньгами и ценностями" not in finance or "2-й" in finance or "Венера" in finance
     assert "В отношениях у тебя" not in finance
+    assert "важно, чтобы рядом было приятно" not in finance.lower()
+
+    finance_briefs = [
+        build_finance_answer(chart, "ru", i, style="plain").split("По карте")[0]
+        for i in range(5)
+    ]
+    assert len(set(finance_briefs)) == 5
+
+    sphere7 = build_sphere_answer(chart, "ru", 7, 0, style="plain")
+    assert "управитель" in sphere7.lower() or "7-" in sphere7
+    assert "важно, чтобы рядом было приятно" not in sphere7.lower()
 
     family_terms = build_family_answer(chart, "ru", 0, style="terms")
     assert "Ответ:" in family_terms

@@ -13,7 +13,8 @@ from app.jyotish_text import (
     _use_terms,
 )
 from app.family_qa_detail import build_family_structured
-from app.natal_qa_synthesis import QaSynthFocus, finish_qa_body, format_qa_body
+from app.natal_qa_synthesis import format_qa_body
+from app.natal_sphere_qa_detail import build_natal_sphere_structured
 from app.text_format import b, h, p, qa_response
 
 HOUSE_BUTTON = {
@@ -285,115 +286,34 @@ UPAYA_QUESTIONS: dict[str, tuple[str, str, str, str, str]] = {
     ),
 }
 
-FAMILY_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((7, 5), ("MOON", "VENUS")),
-    QaSynthFocus((7,), ("VENUS",)),
-    QaSynthFocus((7, 9), ("JUPITER",)),
-    QaSynthFocus((4,), ("MOON",)),
-    QaSynthFocus((4, 7), ("MARS", "SATURN", "RAHU"), "challenge"),
-)
 
-FINANCE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((2,), ("VENUS", "JUPITER")),
-    QaSynthFocus((10,), ("SUN", "SATURN")),
-    QaSynthFocus((5, 8), ("MARS", "RAHU"), "challenge"),
-    QaSynthFocus((2, 11), ("JUPITER",)),
-    QaSynthFocus((2, 8, 12), ("SATURN", "RAHU"), "challenge"),
-)
-
-KARMA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((12,), ("SATURN", "KETU")),
-    QaSynthFocus((12, 8), ("KETU", "RAHU")),
-    QaSynthFocus((9, 10), ("SATURN",)),
-    QaSynthFocus((12, 8), ("RAHU", "KETU")),
-    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
-)
-
-TRAITS_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((1,), ()),
-    QaSynthFocus((1,), ("SUN", "MARS"), "strength"),
-    QaSynthFocus((4,), ("MOON",)),
-    QaSynthFocus((3,), ("MARS", "MERCURY")),
-    QaSynthFocus((1,), ("SUN",), "strength"),
-)
-
-LINEAGE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((4,), ("MOON",)),
-    QaSynthFocus((9,), ("SUN",)),
-    QaSynthFocus((4, 9), ("MOON", "JUPITER")),
-    QaSynthFocus((4,), ("MOON",), "strength"),
-    QaSynthFocus((4, 9), ("SATURN", "RAHU"), "challenge"),
-)
-
-HEALTH_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((1,), ("SUN", "MARS")),
-    QaSynthFocus((6,), ("SATURN", "MARS")),
-    QaSynthFocus((1, 6), ("SUN",), "strength"),
-    QaSynthFocus((6, 8), ("SATURN",), "challenge"),
-    QaSynthFocus((6,), ("MOON",)),
-)
-
-PURPOSE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((9, 10), ("SUN", "JUPITER")),
-    QaSynthFocus((5,), ("SUN", "JUPITER"), "strength"),
-    QaSynthFocus((10,), ("SUN", "SATURN")),
-    QaSynthFocus((10, 12), ("SATURN",), "challenge"),
-    QaSynthFocus((5, 9), ("JUPITER",)),
-)
-
-DHARMA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
-    QaSynthFocus((9,), ("JUPITER",)),
-    QaSynthFocus((12,), ("KETU",)),
-    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
-    QaSynthFocus((9,), ("SUN", "JUPITER")),
-)
-
-TRAVEL_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((9, 12), ("RAHU", "JUPITER")),
-    QaSynthFocus((9,), ("JUPITER", "MOON")),
-    QaSynthFocus((9, 3), ("RAHU",)),
-    QaSynthFocus((12,), ("SATURN", "RAHU"), "challenge"),
-    QaSynthFocus((4, 12), ("MOON",)),
-)
-
-UPAYA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((1, 9), ("JUPITER", "SATURN")),
-    QaSynthFocus((), ("SATURN", "MARS", "RAHU"), "challenge"),
-    QaSynthFocus((1, 10), ("SUN", "JUPITER"), "strength"),
-    QaSynthFocus((9, 12), ("JUPITER", "SATURN")),
-    QaSynthFocus((), ("SATURN", "RAHU", "KETU")),
-)
-
-POPULAR_QA_SYNTH: dict[str, QaSynthFocus] = {
-    "love": QaSynthFocus((7,), ("VENUS", "MOON")),
-    "career": QaSynthFocus((10,), ("SUN", "SATURN")),
-    "money": QaSynthFocus((2,), ("VENUS", "JUPITER")),
-}
-
-
-def _qa_synth(
+def _wrap_structured(
     locale: str,
     question: str,
     chart: JyotishChart,
     evidence: str,
-    cfg: QaSynthFocus,
+    block: str,
+    question_index: int,
     *,
     style: str,
-    lagna_first: bool = False,
-    direct_answer: str | None = None,
+    **kwargs,
 ) -> str:
-    return finish_qa_body(
-        locale,
-        question,
+    structured = build_natal_sphere_structured(
+        block,
         chart,
-        evidence,
-        houses=cfg.houses,
-        planet_keys=cfg.planet_keys,
-        focus=cfg.focus,
+        locale,
+        question_index,
+        question,
         style=style,
-        lagna_first=lagna_first,
-        direct_answer=direct_answer,
+        **kwargs,
+    )
+    return format_qa_body(
+        locale,
+        structured.brief,
+        evidence,
+        style=style,
+        markers=structured.markers,
+        practice=structured.practice,
     )
 
 
@@ -1218,15 +1138,9 @@ def build_sphere_answer(
     if house == 1 and question_index == 0:
         body = f"{_house1_lagna_note(chart, locale, style=style)} {body}"
 
-    body = finish_qa_body(
-        locale,
-        question,
-        chart,
-        body,
-        houses=(house,),
-        focus=focus,
-        style=style,
-        lagna_first=(house == 1 and question_index == 0),
+    body = _wrap_structured(
+        locale, question, chart, body, "house", question_index,
+        style=style, house=house, focus=focus,
     )
 
     sphere = _sphere_label(locale, house, style=style)
@@ -1548,8 +1462,7 @@ def build_finance_answer(
             tail = " Watch hasty decisions and promises of «easy money»."
         body = f"{intro}{' '.join(bits[:3])}{tail}".strip()
 
-    cfg = FINANCE_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "finance", question_index, style=style)
 
     if lang == "ru":
         header = "💼 Финансы / Инвестиции / Карьера"
@@ -1693,8 +1606,7 @@ def build_karma_answer(
             f"{' '.join(bits)}{tail}"
         ).strip()
 
-    cfg = KARMA_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "karma", question_index, style=style)
 
     if lang == "ru":
         header = "🪷 Прошлые воплощения / Карма"
@@ -1834,16 +1746,7 @@ def build_traits_answer(
                 f"Harder to express: {_list_to_prose(weaknesses, lang)}."
             ).strip()
 
-    cfg = TRAITS_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(
-        locale,
-        question,
-        chart,
-        body,
-        cfg,
-        style=style,
-        lagna_first=(question_index == 0),
-    )
+    body = _wrap_structured(locale, question, chart, body, "traits", question_index, style=style)
 
     if lang == "ru":
         header = "✨ Твои изначальные характеристики"
@@ -1981,8 +1884,7 @@ def build_lineage_answer(
             tail = " Not a verdict — notice repeating patterns to heal rather than repeat."
         body = f"{intro}{' '.join(bits[:4])}{tail}".strip()
 
-    cfg = LINEAGE_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "lineage", question_index, style=style)
 
     if lang == "ru":
         header = "🌳 Род / Мать / Отец"
@@ -2120,8 +2022,7 @@ def build_health_answer(
             f"{_render_planet(locale, moon, style=style)}{tail}"
         ).strip()
 
-    cfg = HEALTH_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "health", question_index, style=style)
 
     if lang == "ru":
         header = "💪 Здоровье / Тело"
@@ -2329,8 +2230,7 @@ def build_purpose_answer(
             f"{intro}{focus}{tail} {_render_planet(locale, jupiter, style=style)}"
         ).strip()
 
-    cfg = PURPOSE_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "purpose", question_index, style=style)
 
     if lang == "ru":
         header = "🎯 Предназначение / Таланты / Реализация"
@@ -2463,8 +2363,7 @@ def build_dharma_answer(
             f"{_render_planet(locale, jupiter, style=style)}{tail}"
         ).strip()
 
-    cfg = DHARMA_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "dharma", question_index, style=style)
 
     if lang == "ru":
         header = "🕉️ Духовность / Путь / Дхарма"
@@ -2621,8 +2520,7 @@ def build_travel_answer(
             f"{' '.join(bits)}{tail}"
         ).strip()
 
-    cfg = TRAVEL_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "travel", question_index, style=style)
 
     if lang == "ru":
         header = "✈️ Эмиграция / Путешествия"
@@ -2762,8 +2660,7 @@ def build_upaya_answer(
             )
         body = f"{intro}{tail} {_render_planet(locale, focus, style=style)}".strip()
 
-    cfg = UPAYA_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    body = _wrap_structured(locale, question, chart, body, "upaya", question_index, style=style)
 
     if lang == "ru":
         header = "🪬 Гармонизация / Упайи"
@@ -2960,32 +2857,16 @@ def build_popular_answer(
 
     block = popular_block(locale, question_id)
     header = f"🔥 {block.emoji} {block.title}"
-    if question_id in {"theme", "strength"}:
-        body = finish_qa_body(
-            locale,
-            question,
-            chart,
-            "",
-            style=style,
-            direct_answer=body,
-        )
-    elif question_id in POPULAR_QA_SYNTH:
-        body = _qa_synth(
-            locale,
-            question,
-            chart,
-            body,
-            POPULAR_QA_SYNTH[question_id],
-            style=style,
-        )
-    else:
-        body = finish_qa_body(
-            locale,
-            question,
-            chart,
-            body,
-            style=style,
-        )
+    body = _wrap_structured(
+        locale,
+        question,
+        chart,
+        body,
+        "popular",
+        0,
+        style=style,
+        question_id=question_id,
+    )
     return qa_response(header, question, body)
 
 
