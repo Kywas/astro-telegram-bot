@@ -15,7 +15,7 @@ _PLAIN_ROLE = {
     "ru": {
         "SUN": "твоя суть",
         "MOON": "твои эмоции",
-        "MERCURY": "как ты думаешь и говоришь",
+        "MERCURY": "мышление и речь",
         "VENUS": "твоя нежность и вкус",
         "MARS": "твой напор",
         "JUPITER": "твоя надежда и рост",
@@ -26,7 +26,7 @@ _PLAIN_ROLE = {
     "en": {
         "SUN": "your core",
         "MOON": "your feelings",
-        "MERCURY": "how you think and talk",
+        "MERCURY": "thinking and speech",
         "VENUS": "your warmth and taste",
         "MARS": "your drive",
         "JUPITER": "your hope and growth",
@@ -128,9 +128,9 @@ def plain_placement_line(locale: str, pl: PlanetPlacement, *, hint: str = "") ->
     role = plain_role(locale, pl.key)
     area = plain_area(locale, pl.house)
     if lang == "ru":
-        line = f"{role.capitalize()} ({sign}) — про {area}"
+        line = f"{role.capitalize()} ({sign}) — про {area}."
     else:
-        line = f"{role.capitalize()} ({sign}) — about {area}"
+        line = f"{role.capitalize()} ({sign}) — about {area}."
     if hint:
         line = f"{line}. {hint}"
     return line
@@ -149,7 +149,7 @@ def plain_lord_line(locale: str, chart: JyotishChart, from_house: int) -> str:
             return f"Тема «{source}» у тебя звучит громко — {role} ({sign}) держит её в центре."
         return f"«{source}» is loud for you — {role} ({sign}) keeps it front and center."
     if lang == "ru":
-        return f"Тема «{source}» идёт через {target} — смотри на {role} ({sign})."
+        return f"Тема «{source}» идёт через {target} — обрати внимание на {role} ({sign})."
     return f"«{source}» runs through {target} — watch {role} ({sign})."
 
 
@@ -204,9 +204,9 @@ def compose_plain_qa_answer(
     markers: tuple[str, ...] = (),
     practice: str = "",
 ) -> str:
-    """Assemble a flowing plain answer: opening → detail → why → short summary → disclaimer."""
+    """Flowing plain answer: hook → story → extras → punchline → tip."""
     lang = _lang(locale)
-    core = humanize_natal_plain(strip_telegram_html(core_html), locale)
+    core = sanitize_plain_qa_text(strip_telegram_html(core_html), locale)
     sentences = [s.strip() for s in _SENTENCE_SPLIT.split(core) if s.strip()]
 
     blocks: list[str] = []
@@ -215,28 +215,46 @@ def compose_plain_qa_answer(
         blocks.append(h(sentences[0]))
         if len(sentences) > 1:
             rest = " ".join(sentences[1:])
-            if lang == "ru" and not rest.lower().startswith("скажу"):
-                lead = rest[0].lower() + rest[1:] if rest else rest
-                rest = f"Скажу прямо: {lead}"
-            elif lang == "en" and not rest.lower().startswith("to be clear"):
+            if lang == "ru":
+                if not any(rest.lower().startswith(p) for p in ("скажу", "короче", "если")):
+                    lead = rest[0].lower() + rest[1:] if rest else rest
+                    rest = f"Скажу прямо: {lead}"
+            elif not rest.lower().startswith("to be clear"):
                 rest = f"To be clear: {rest[0].lower()}{rest[1:]}" if rest else rest
             blocks.append(sentence_paragraphs(rest, sentences_per_para=2))
 
-    why_lines = [_marker_to_prose(locale, m) for m in markers if m.strip()]
-    why_lines = [line for line in why_lines if line]
-    if why_lines:
-        blocks.append(b("Почему так?" if lang == "ru" else "Why?"))
-        why_body = " ".join(why_lines)
-        blocks.append(sentence_paragraphs(why_body, sentences_per_para=2))
+    why_lines: list[str] = []
+    seen: set[str] = set()
+    core_lower = core.lower()
+    for marker in markers[:2]:
+        line = _marker_to_prose(locale, marker)
+        if not line or line.lower() in seen:
+            continue
+        if line.lower()[:40] in core_lower:
+            continue
+        seen.add(line.lower())
+        why_lines.append(line)
 
-    blocks.append(b("Если совсем коротко 🌙" if lang == "ru" else "In short 🌙"))
+    if why_lines:
+        header = "А вот откуда это 🌿" if lang == "ru" else "Where this comes from 🌿"
+        blocks.append(b(header))
+        blocks.append(h(" ".join(why_lines)))
+
+    blocks.append(b("Короче 🌙" if lang == "ru" else "Short version 🌙"))
     blocks.append(h(_build_summary(locale, sentences, markers)))
 
-    blocks.append(h(plain_disclaimer(locale)))
+    blocks.append(
+        h(
+            "Карта — подсказка, не приговор. Итог всё равно за тобой — и это, честно, хорошая новость."
+            if lang == "ru"
+            else "The chart is a hint, not a verdict. You're still in charge — honestly, good news."
+        )
+    )
 
-    practice_clean = humanize_natal_plain(strip_telegram_html(practice), locale)
+    practice_clean = sanitize_plain_qa_text(strip_telegram_html(practice), locale)
     if practice_clean:
-        blocks.append(h(practice_clean))
+        prefix = "💡 Попробуй на этой неделе: " if lang == "ru" else "💡 Try this week: "
+        blocks.append(h(prefix + practice_clean))
 
     return p(*blocks)
 
@@ -248,12 +266,12 @@ def plain_topic_hook(locale: str, question: str, *, hint: str = "") -> str:
     lang = _lang(locale)
     q = question.lower()
     if lang == "ru":
-        if any(w in q for w in ("люб", "роман", "брак", "партн", "отнош", "союз")):
-            base = "Начну с главного — про твою линию в любви и близости"
-        elif any(w in q for w in ("деньг", "доход", "финанс", "карьер", "работ")):
-            base = "Начну с главного — про твою линию с деньгами и делом"
-        elif any(w in q for w in ("здоров", "тело", "энерг")):
+        if any(w in q for w in ("здоров", "тело", "энерг", "рутин", "режим", "сон")):
             base = "Начну с главного — про твоё тело и ресурс сил"
+        elif any(w in q for w in ("деньг", "доход", "финанс", "карьер", "ценност", "инвест", "работ")):
+            base = "Начну с главного — про твою линию с деньгами и делом"
+        elif any(w in q for w in ("люб", "роман", "брак", "партн", "отношен", "союз")):
+            base = "Начну с главного — про твою линию в любви и близости"
         elif any(w in q for w in ("карм", "прошл", "урок", "воплощ")):
             base = "Начну с главного — про уроки, которые жизнь повторяет"
         else:
@@ -303,3 +321,30 @@ def humanize_natal_plain(text: str, locale: str) -> str:
     result = re.sub(r"\s+\.", ".", result)
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result.strip()
+
+
+def sanitize_plain_qa_text(text: str, locale: str) -> str:
+    """Strip leftover jargon and tighten plain Q&A prose."""
+    if not text.strip():
+        return text
+    lang = _lang(locale)
+    result = humanize_natal_plain(text, locale)
+    extra: tuple[tuple[str, str], ...] = (
+        (r"\b\d+\s*[-‑]?\s*(?:й|го)\s+дом\b", "эта сфера"),
+        (r"\(\s*\)", ""),
+        (r"\s{2,}", " "),
+        (r" · · ", " · "),
+    )
+    if lang == "ru":
+        extra = (
+            (r"управител\w*", "ключ"),
+            (r"стеллиум\w*", "скученность"),
+            (r"ретроград\w*", "внутренний разворот"),
+            (r"накшатр\w*", ""),
+            (r"джйотиш\w*", ""),
+            (r"ведическ\w*", ""),
+            *extra,
+        )
+    for pattern, replacement in extra:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    return result.strip(" ·,")

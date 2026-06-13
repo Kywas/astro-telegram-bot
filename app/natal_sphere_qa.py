@@ -311,7 +311,7 @@ def _wrap_structured(
     return format_qa_body(
         locale,
         structured.brief,
-        evidence,
+        "" if not _use_terms(style) else evidence,
         style=style,
         markers=structured.markers,
         practice=structured.practice,

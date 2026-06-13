@@ -707,6 +707,16 @@ def build_natal_sphere_structured(
     question_id: str = "",
 ) -> StructuredQaAnswer:
     idx = max(0, min(4, question_index))
+    if not _use_terms(style):
+        from app.natal_sphere_plain import build_plain_sphere_structured, plain_house
+
+        if block == "house":
+            if house is None:
+                raise ValueError("house required for block=house")
+            return plain_house(chart, locale, idx, question, house=house, focus=focus)
+        return build_plain_sphere_structured(
+            block, chart, locale, idx, question, question_id=question_id
+        )
     if block == "house":
         if house is None:
             raise ValueError("house required for block=house")

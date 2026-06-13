@@ -895,12 +895,12 @@ def test_natal_qa_synthesis() -> None:
     assert "Подробнее по карте:" not in family
     assert "Кратко" not in family
     assert "По карте" not in family
-    assert "Почему так" in family or "приговор" in family.lower()
+    assert "Почему так" not in family or "Короче" in family or "приговор" in family.lower()
     assert family.count(".") >= 3
     assert "❓" in family
 
     family_briefs = [
-        build_family_answer(chart, "ru", i, style="plain").split("Почему так")[0]
+        build_family_answer(chart, "ru", i, style="plain").split("Короче")[0]
         for i in range(5)
     ]
     assert len(set(family_briefs)) == 5
@@ -918,7 +918,7 @@ def test_natal_qa_synthesis() -> None:
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
     assert "Ответ:" not in sphere
     assert "Кратко" not in sphere
-    assert "приговор" in sphere.lower() or "Почему так" in sphere
+    assert "приговор" in sphere.lower() or "Короче" in sphere
     assert sphere.count(".") >= 3
 
     theme = build_popular_answer(chart, "ru", "theme", style="plain")
@@ -929,12 +929,14 @@ def test_natal_qa_synthesis() -> None:
     assert love.count(".") >= 3
 
     finance = build_finance_answer(chart, "ru", 0, style="plain")
-    assert "Венера" not in finance or "2-й" not in finance
+    assert "2-й" not in finance
+    assert "управитель" not in finance.lower()
     assert "В отношениях у тебя" not in finance
     assert "важно, чтобы рядом было приятно" not in finance.lower()
+    assert "Короче" in finance or "приговор" in finance.lower()
 
     finance_briefs = [
-        build_finance_answer(chart, "ru", i, style="plain").split("Почему так")[0]
+        build_finance_answer(chart, "ru", i, style="plain").split("Короче")[0]
         for i in range(5)
     ]
     assert len(set(finance_briefs)) == 5
