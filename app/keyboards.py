@@ -214,12 +214,12 @@ def natal_qa_popular_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup
 
 
 def natal_qa_family_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import family_questions, question_button_label
+    from app.natal_sphere_qa import family_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:fam:{idx}:{part}",
             )
         ]
@@ -240,12 +240,12 @@ def natal_qa_family_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
 
 
 def natal_qa_finance_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import finance_questions, question_button_label
+    from app.natal_sphere_qa import finance_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:fin:{idx}:{part}",
             )
         ]
@@ -266,12 +266,12 @@ def natal_qa_finance_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup
 
 
 def natal_qa_karma_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import karma_questions, question_button_label
+    from app.natal_sphere_qa import karma_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:kar:{idx}:{part}",
             )
         ]
@@ -292,12 +292,12 @@ def natal_qa_karma_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
 
 
 def natal_qa_traits_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import question_button_label, traits_questions
+    from app.natal_sphere_qa import question_number_label, traits_questions
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:trt:{idx}:{part}",
             )
         ]
@@ -318,12 +318,12 @@ def natal_qa_traits_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
 
 
 def natal_qa_lineage_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import lineage_questions, question_button_label
+    from app.natal_sphere_qa import lineage_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:lin:{idx}:{part}",
             )
         ]
@@ -344,12 +344,12 @@ def natal_qa_lineage_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup
 
 
 def natal_qa_health_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import health_questions, question_button_label
+    from app.natal_sphere_qa import health_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:hlt:{idx}:{part}",
             )
         ]
@@ -370,12 +370,12 @@ def natal_qa_health_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
 
 
 def natal_qa_purpose_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import purpose_questions, question_button_label
+    from app.natal_sphere_qa import purpose_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:pur:{idx}:{part}",
             )
         ]
@@ -396,12 +396,12 @@ def natal_qa_purpose_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup
 
 
 def natal_qa_dharma_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import dharma_questions, question_button_label
+    from app.natal_sphere_qa import dharma_questions, question_number_label
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:dhr:{idx}:{part}",
             )
         ]
@@ -422,12 +422,12 @@ def natal_qa_dharma_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
 
 
 def natal_qa_travel_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import question_button_label, travel_questions
+    from app.natal_sphere_qa import question_number_label, travel_questions
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:trv:{idx}:{part}",
             )
         ]
@@ -502,12 +502,12 @@ def natal_qa_travel_answer_keyboard(locale: str, *, part: int) -> InlineKeyboard
 
 
 def natal_qa_upaya_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import question_button_label, upaya_questions
+    from app.natal_sphere_qa import question_number_label, upaya_questions
 
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q, max_len=48),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:upa:{idx}:{part}",
             )
         ]
@@ -759,13 +759,13 @@ def natal_qa_questions_keyboard(
     house: int,
     part: int,
 ) -> InlineKeyboardMarkup:
-    from app.natal_sphere_qa import question_button_label, sphere_questions
+    from app.natal_sphere_qa import question_number_label, sphere_questions
 
     questions = sphere_questions(locale, house)
     rows = [
         [
             InlineKeyboardButton(
-                text=question_button_label(q),
+                text=question_number_label(idx),
                 callback_data=f"natal:qa:q:{house}:{idx}:{part}",
             )
         ]

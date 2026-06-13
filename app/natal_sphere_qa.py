@@ -480,16 +480,19 @@ def popular_question_text(locale: str, question_id: str) -> str:
 
 
 def popular_button_label(locale: str, question_id: str) -> str:
-    block = popular_block(locale, question_id)
-    return f"{block.number} {block.emoji} {block.title}"
+    return popular_block(locale, question_id).number
 
 
 def format_popular_block(block: PopularBlock) -> str:
-    return (
-        f"{block.number}️⃣ {block.emoji} {block.title}\n"
-        f"{block.hint}\n"
-        f"❓ {block.question}"
-    )
+    return f"{block.number}️⃣"
+
+
+def numbered_questions_list(count: int) -> str:
+    return "\n\n".join(f"{idx + 1}️⃣" for idx in range(count))
+
+
+def question_number_label(index: int) -> str:
+    return str(index + 1)
 
 
 def family_questions(locale: str) -> tuple[str, str, str, str, str]:
@@ -644,15 +647,11 @@ def family_picker_intro(locale: str) -> str:
             "Partnership, marriage, and family in your chart — "
             "house 7 (union), house 4 (home and roots), Venus and Moon.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def finance_picker_intro(locale: str) -> str:
@@ -671,15 +670,11 @@ def finance_picker_intro(locale: str) -> str:
             "house 2 (resources), house 10 (career), houses 5 and 11 (risk and income), "
             "Venus, Jupiter, Sun, and Saturn.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def karma_picker_intro(locale: str) -> str:
@@ -698,15 +693,11 @@ def karma_picker_intro(locale: str) -> str:
             "house 12 (past experience and release), house 8 (deep lessons), "
             "house 9 (dharma), Saturn, Rahu, and Ketu.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def traits_picker_intro(locale: str) -> str:
@@ -723,15 +714,11 @@ def traits_picker_intro(locale: str) -> str:
             "Inborn temperament and core self in the chart — "
             "Lagna and house 1, Sun, Moon, Mars, and Mercury.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def lineage_picker_intro(locale: str) -> str:
@@ -748,15 +735,11 @@ def lineage_picker_intro(locale: str) -> str:
             "Lineage, parents, and family roots in the chart — "
             "house 4 (mother, home), house 9 (father, lineage), Moon, Sun, and Jupiter.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def health_picker_intro(locale: str) -> str:
@@ -775,15 +758,11 @@ def health_picker_intro(locale: str) -> str:
             "house 1 (body), house 6 (health and routine), house 8 (deep processes), "
             "Sun, Moon, Mars, and Saturn.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def purpose_picker_intro(locale: str) -> str:
@@ -802,15 +781,11 @@ def purpose_picker_intro(locale: str) -> str:
             "house 9 (dharma), house 5 (talent), house 10 (work), "
             "Sun, Jupiter, and Lagna.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def dharma_picker_intro(locale: str) -> str:
@@ -829,15 +804,11 @@ def dharma_picker_intro(locale: str) -> str:
             "house 9 (faith, meaning, guidance), house 12 (moksha, solitude), "
             "Jupiter, Ketu, and Sun.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def travel_picker_intro(locale: str) -> str:
@@ -856,15 +827,11 @@ def travel_picker_intro(locale: str) -> str:
             "house 9 (long journeys), house 12 (life abroad), "
             "house 3 (the road), Rahu, Jupiter, and Moon.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def upaya_picker_intro(locale: str) -> str:
@@ -881,15 +848,11 @@ def upaya_picker_intro(locale: str) -> str:
             "Balance methods from your chart — planetary days, mantras, charity, "
             "and conscious work with weak and tense indicators.\n"
         )
-    lines = [
-        f"{idx + 1}️⃣ ❓ {question}"
-        for idx, question in enumerate(questions)
-    ]
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n" + "\n\n".join(lines)
+    return f"{title}\n\n{header}\n{numbered_questions_list(len(questions))}"
 
 
 def popular_blocks_text(locale: str) -> str:
@@ -968,12 +931,6 @@ def house_button_label(locale: str, house: int) -> str:
 def sphere_questions(locale: str, house: int) -> tuple[str, str, str]:
     lang = _lang(locale)
     return SPHERE_QUESTIONS[lang][house]
-
-
-def question_button_label(question: str, *, max_len: int = 42) -> str:
-    if len(question) <= max_len:
-        return question
-    return question[: max_len - 1].rstrip() + "…"
 
 
 def build_chart_from_profile(profile) -> JyotishChart | None:
