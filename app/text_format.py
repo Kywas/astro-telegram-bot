@@ -105,6 +105,46 @@ def _is_header_line(line: str) -> bool:
     return len(line) <= 80 and not line.endswith(".")
 
 
+def _format_bullet_line(line: str) -> str:
+    content = line.lstrip("•·- ").strip()
+    if not content:
+        return h(line)
+    for sep in (" — ", " – ", " - "):
+        if sep in content:
+            lead, rest = content.split(sep, 1)
+            if len(lead) <= 80:
+                return f"• {b(lead.strip())}{h(sep + rest.strip())}"
+    if " · " in content and content.count(" · ") == 1:
+        lead, rest = content.split(" · ", 1)
+        if len(lead) <= 60:
+            return f"• {b(lead.strip())} · {h(rest.strip())}"
+    return f"• {h(content)}"
+
+
+def _format_body_lines(body: str) -> str:
+    lines = [line.strip() for line in body.split("\n") if line.strip()]
+    if not lines:
+        return ""
+    if all(line.startswith(("•", "·", "-")) for line in lines):
+        return p(*(_format_bullet_line(line) for line in lines))
+    if any(line.startswith(("•", "·", "-")) for line in lines):
+        blocks: list[str] = []
+        buf: list[str] = []
+        for line in lines:
+            if line.startswith(("•", "·", "-")):
+                if buf:
+                    blocks.append(sentence_paragraphs("\n".join(buf)) if "." in "\n".join(buf) else h("\n".join(buf)))
+                    buf = []
+                blocks.append(_format_bullet_line(line))
+            else:
+                buf.append(line)
+        if buf:
+            body_text = "\n".join(buf)
+            blocks.append(sentence_paragraphs(body_text) if "." in body_text else h(body_text))
+        return p(*blocks)
+    return sentence_paragraphs(body) if "." in body else h(body)
+
+
 def _format_section(section: str) -> str:
     lines = [line.strip() for line in section.split("\n") if line.strip()]
     if not lines:
@@ -113,6 +153,8 @@ def _format_section(section: str) -> str:
         line = lines[0]
         if _is_header_line(line):
             return b(line)
+        if line.startswith(("•", "·", "-")):
+            return _format_bullet_line(line)
         if "." in line:
             return enrich_reading(line)
         return b(line)
@@ -125,8 +167,7 @@ def _format_section(section: str) -> str:
             continue
         body_lines.append(line)
     if body_lines:
-        body = "\n".join(body_lines)
-        blocks.append(sentence_paragraphs(body) if "." in body else h(body))
+        blocks.append(_format_body_lines("\n".join(body_lines)))
     if len(blocks) == 1:
         return blocks[0]
     return p(*blocks)

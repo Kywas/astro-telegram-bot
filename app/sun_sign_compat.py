@@ -220,64 +220,91 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
             )
 
     kind = compat.kind
+    plain = not use_synastry_terms(style)
     if kind == SunSignKind.SAME_SIGN:
         if lang == "ru":
             lines.append(
-                "• Один знак — усиливаете общие черты и быстро считываете друг друга. "
+                "• Один знак — вы похожи, быстро считываете друг друга. "
+                "Следите только, чтобы не повторять одни и те же ошибки."
+                if plain
+                else "• Один знак — усиливаете общие черты и быстро считываете друг друга. "
                 "Следите, чтобы не застревать в одинаковых слепых зонах."
             )
         else:
             lines.append(
-                "• Same sign — shared traits amplify and you read each other quickly. "
+                "• Same sign — you're alike and read each other fast. "
+                "Just watch you don't repeat the same mistakes together."
+                if plain
+                else "• Same sign — shared traits amplify and you read each other quickly. "
                 "Watch for the same blind spots in tandem."
             )
     elif kind == SunSignKind.OPPOSITE:
         if lang == "ru":
             lines.append(
-                f"• Противоположные знаки ({user_name} — {partner_name}) — "
+                f"• {user_name} и {partner_name} — противоположности. "
+                "Магнит работает, но без разговоров легко ссориться."
+                if plain
+                else f"• Противоположные знаки ({user_name} — {partner_name}) — "
                 "сильное притяжение через контраст: вы тянетесь друг к другу, "
                 "но без диалога легко спорить."
             )
         else:
             lines.append(
-                f"• Opposite signs ({user_name} — {partner_name}) — "
+                f"• {user_name} and {partner_name} — very different. "
+                "That pulls you together, but fights happen without honest talk."
+                if plain
+                else f"• Opposite signs ({user_name} — {partner_name}) — "
                 "strong pull through contrast: magnetic, but friction grows without dialogue."
             )
-        lines.append(f"• {_pair_element_hint(locale, compat.user_element, compat.partner_element)}")
+        if not plain:
+            lines.append(f"• {_pair_element_hint(locale, compat.user_element, compat.partner_element)}")
     elif kind == SunSignKind.SAME_ELEMENT:
-        element = _element_label(locale, compat.user_element)
-        signs_line = _signs_in_element(locale, compat.user_element)
         if lang == "ru":
             lines.append(
-                f"• Одна стихия ({element}: {signs_line}) — похожий темп и ценности, "
+                "• Похожий темп — легче понимать друг друга с полуслова."
+                if plain
+                else f"• Одна стихия ({_element_label(locale, compat.user_element)}: "
+                f"{_signs_in_element(locale, compat.user_element)}) — похожий темп и ценности, "
                 "общие черты усиливаются."
             )
         else:
             lines.append(
-                f"• Same element ({element}: {signs_line}) — similar pace and values; "
+                "• Similar pace and values — easier to understand each other."
+                if plain
+                else f"• Same element ({_element_label(locale, compat.user_element)}: "
+                f"{_signs_in_element(locale, compat.user_element)}) — similar pace and values; "
                 "shared traits amplify."
             )
     elif kind == SunSignKind.COMPATIBLE_ELEMENTS:
         if lang == "ru":
             lines.append(
-                f"• Сочетаемые стихии ({user_elem} + {partner_elem}) — "
+                "• Ваши типы характера хорошо сочетаются — обычно легче договориться."
+                if plain
+                else f"• Сочетаемые стихии ({user_elem} + {partner_elem}) — "
                 "естественное взаимопонимание и дополнение."
             )
         else:
             lines.append(
-                f"• Compatible elements ({user_elem} + {partner_elem}) — "
+                "• Your character types fit well — agreements usually come easier."
+                if plain
+                else f"• Compatible elements ({user_elem} + {partner_elem}) — "
                 "natural understanding and complement."
             )
-        lines.append(f"• {_pair_element_hint(locale, compat.user_element, compat.partner_element)}")
+        if not plain:
+            lines.append(f"• {_pair_element_hint(locale, compat.user_element, compat.partner_element)}")
     else:
         if lang == "ru":
             lines.append(
-                f"• Разные стихии ({user_elem} и {partner_elem}) — меньше автоматической "
+                "• Разный темп — нужно больше терпения и объяснений, зато можно дополнять друг друга."
+                if plain
+                else f"• Разные стихии ({user_elem} и {partner_elem}) — меньше автоматической "
                 "синхронности, зато вы дополняете друг друга, если договариваетесь."
             )
         else:
             lines.append(
-                f"• Different elements ({user_elem} and {partner_elem}) — less automatic sync, "
+                "• Different pace — more patience and explaining, but you can still complement each other."
+                if plain
+                else f"• Different elements ({user_elem} and {partner_elem}) — less automatic sync, "
                 "but you can complement each other with clear agreements."
             )
 

@@ -2806,6 +2806,16 @@ _CUSTOM_TOPIC_RULES: tuple[tuple[tuple[str, ...], tuple[int, ...], tuple[str, ..
         ("SUN", "JUPITER"),
     ),
     (
+        ("когда", "срок", "пора", "скоро", "when", "timing", "deadline"),
+        (10, 9),
+        ("SATURN", "JUPITER"),
+    ),
+    (
+        ("мешает", "блок", "препят", "почему не", "block", "obstacle", "holds me back"),
+        (6, 12),
+        ("SATURN", "RAHU"),
+    ),
+    (
         ("упай", "гармон", "remed", "mantra", "upaya", "harmon"),
         (9, 12),
         ("JUPITER", "SATURN"),
@@ -2830,18 +2840,29 @@ def _match_custom_topics(question: str) -> tuple[list[int], list[str]]:
     return best_houses, best_planets
 
 
+def _custom_focus(question: str) -> str:
+    q = question.lower()
+    if any(w in q for w in ("мешает", "меша", "блок", "препят", "почему не", "holds me back", "obstacle", "block")):
+        return "challenge"
+    if any(w in q for w in ("талант", "сильн", "удач", "strong", "talent", "gift")):
+        return "strength"
+    return "default"
+
+
 def custom_picker_intro(locale: str) -> str:
     if _lang(locale) == "ru":
         return (
             "✍️ Свой вопрос\n\n"
-            "Напиши свой вопрос одним сообщением — ответ построится по твоей карте.\n"
-            "Например: «Когда лучше менять работу?» или «Что мешает отношениям?»\n\n"
+            "Напиши вопрос одним сообщением — ответ будет в трёх блоках:\n"
+            "кратко · по карте · на практике.\n\n"
+            "Например: «Что мешает отношениям?» или «Когда менять работу?»\n\n"
             "⭐ Доступно в Premium."
         )
     return (
         "✍️ Your question\n\n"
-        "Send your question in one message — the answer comes from your chart.\n"
-        "For example: «When is it better to change jobs?» or «What blocks relationships?»\n\n"
+        "Send one message — the answer comes in three blocks:\n"
+        "short answer · chart markers · in practice.\n\n"
+        "For example: «What blocks relationships?» or «When to change jobs?»\n\n"
         "⭐ Premium only."
     )
 
@@ -2855,49 +2876,12 @@ def build_custom_answer(
 ) -> str:
     lang = _lang(locale)
     houses, planet_keys = _match_custom_topics(question)
-    bits: list[str] = []
-    seen: set[str] = set()
-
-    for house in houses[:2]:
-        planets = _planets_in_house(chart, house)
-        pl = planets[0] if planets else _lord_placement(chart, house)
-        if pl.key not in seen:
-            seen.add(pl.key)
-            bits.append(_render_planet(locale, pl, style=style))
-
-    for key in planet_keys:
-        if key in seen:
-            continue
-        seen.add(key)
-        bits.append(_render_planet(locale, chart.planets[key], style=style))
-
-    if lang == "ru":
-        if _use_terms(style):
-            intro = (
-                "По твоему вопросу смотрю ключевые дома и планеты карты — "
-                "ниже то, что ближе всего к теме формулировки. "
-            )
-        else:
-            intro = (
-                "По твоему вопросу смотрю главные темы карты — "
-                "ниже то, что ближе всего к формулировке. "
-            )
-        header = "✍️ Свой вопрос"
-    else:
-        intro = (
-            "For your question, I read the chart's key houses and planets — "
-            "below is what matches your wording most closely. "
-            if _use_terms(style)
-            else "For your question, I read the chart's main themes — "
-            "below is what matches your wording most closely. "
-        )
-        header = "✍️ Your question"
-
-    evidence = f"{intro}{' '.join(bits[:4])}".strip()
+    focus = _custom_focus(question)
     houses_tuple = tuple(houses[:2])
     planets_tuple = tuple(planet_keys[:4])
-    cfg = QaSynthFocus(houses_tuple, planets_tuple)
-    body = _qa_synth(locale, question, chart, evidence, cfg, style=style)
+    cfg = QaSynthFocus(houses_tuple, planets_tuple, focus)
+    body = _qa_synth(locale, question, chart, "", cfg, style=style)
+    header = "✍️ Свой вопрос" if lang == "ru" else "✍️ Your question"
     shown_q = question if len(question) <= 220 else question[:219].rstrip() + "…"
     return qa_response(header, shown_q, body)
 

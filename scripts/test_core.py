@@ -162,6 +162,7 @@ def test_synastry_style() -> None:
 
     profile = SimpleNamespace(compat_style="plain", horoscope_style="terms", natal_style="terms")
     assert resolve_compat_style(profile) == "plain"
+    assert resolve_compat_style(SimpleNamespace(compat_style=None, horoscope_style=None, natal_style=None)) == "plain"
 
     terms_line = format_cross_link_line(
         "ru", "MOON", "VENUS", "trine", "сильная поддержка", 1.0, "terms"
@@ -745,12 +746,49 @@ def test_synastry_overlay() -> None:
     assert "Меркурий ↔ Меркурий" in result.details
 
 
+def test_synastry_themes() -> None:
+    from datetime import date, time
+
+    from app.synastry import build_synastry
+
+    result = build_synastry(
+        "ru",
+        "Aries",
+        date(1995, 8, 20),
+        "love",
+        user_birth_date=date(1990, 3, 21),
+        user_birth_time=time(12, 0),
+        partner_birth_time=time(18, 30),
+    )
+    assert len(result.themes) >= 5
+    assert result.themes[0].key == "overview"
+    assert all(theme.title.strip() for theme in result.themes)
+    assert all(len(theme.body) < len(result.details) for theme in result.themes)
+    joined = "\n\n".join(theme.body for theme in result.themes)
+    assert len(joined) >= len(result.details) * 0.8
+
+
 def test_format_screen_body() -> None:
     from app.text_format import format_screen_body
 
     text = format_screen_body("🌙 Заголовок\n\nПервое предложение. Второе предложение.")
     assert "<b>" in text
     assert "\n\n" in text
+
+    bullets = format_screen_body("• Овен + Лев\n• Похожий темп — легче понимать друг друга.")
+    assert "<b>" in bullets
+    assert "Овен + Лев" in bullets
+
+
+def test_reading_voice() -> None:
+    from app.reading_voice import compat_score_hook, humanize_compat_plain, theme_opening_hook, theme_menu_teaser
+
+    hook = compat_score_hook("ru", 60, "love")
+    assert "ниже" not in hook.lower()
+    assert "разбер" in hook.lower() or "чест" in hook.lower()
+    assert theme_menu_teaser("ru", "attraction")
+    assert theme_opening_hook("ru", "result", "love", 80)
+    assert humanize_compat_plain("Итог: test", "ru").startswith("Короче")
 
 
 def test_split_telegram_text() -> None:
@@ -787,12 +825,23 @@ def test_natal_qa_synthesis() -> None:
     family = build_family_answer(chart, "ru", 0, style="plain")
     assert "Ответ:" not in family
     assert "Подробнее по карте:" not in family
+    assert "Кратко" in family
+    assert "По карте" in family
+    assert "На практике" in family
     assert family.count(".") >= 3
     assert "❓" in family
 
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
     assert "Ответ:" not in sphere
+    assert "Кратко" in sphere
     assert sphere.count(".") >= 3
+
+    from app.natal_sphere_qa import build_custom_answer
+
+    custom = build_custom_answer(chart, "ru", "Что мешает отношениям?", style="plain")
+    assert "Кратко" in custom
+    assert "мешает" in custom.lower() or "отношен" in custom.lower()
+    assert "•" in custom
 
     theme = build_popular_answer(chart, "ru", "theme", style="plain")
     assert "Ответ:" not in theme
@@ -835,6 +884,8 @@ def main() -> None:
     test_synastry_houses()
     test_synastry_seals()
     test_synastry_overlay()
+    test_synastry_themes()
+    test_reading_voice()
     test_split_telegram_text()
     test_format_screen_body()
     test_natal_qa_synthesis()

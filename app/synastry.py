@@ -10,6 +10,7 @@ from app.sun_sign_compat import (
 from app.astro_engine import build_synastry_analysis
 from app.compatibility import compatibility_summary
 from app.synastry_style import apply_synastry_style
+from app.synastry_sections import SynastrySection, SynastryTheme, group_synastry_themes
 from app.zodiac import resolve_sun_sign
 
 
@@ -20,6 +21,7 @@ class SynastryResult:
     partner_sign: str
     details: str
     partner_name: str | None = None
+    themes: tuple = ()
 
 
 def build_synastry(
@@ -43,7 +45,7 @@ def build_synastry(
     partner_lon: float | None = None,
     partner_birth_timezone: str | None = None,
     partner_name: str | None = None,
-    style: str = "terms",
+    style: str = "plain",
 ) -> SynastryResult:
     if user_birth_date is None:
         partner_sign = resolve_sun_sign(
@@ -74,23 +76,39 @@ def build_synastry(
                 details=unavailable,
                 partner_name=partner_name,
             )
-        details_lines = [
-            apply_synastry_style(format_sun_sign_compat_section(locale, sun_compat), locale, style),
-            "",
-            (
-                "ℹ️ Это базовый уровень по солнечным знакам. "
-                "Укажите дату рождения в профиле — откроется полная синастрия по планетам."
-                if locale == "ru"
-                else "ℹ️ Sun-sign baseline only. Add your birth date in profile for full planetary synastry."
-            ),
-        ]
+        if style == "plain":
+            details_lines = [
+                apply_synastry_style(format_sun_sign_compat_section(locale, sun_compat, style=style), locale, style),
+                "",
+                (
+                    "ℹ️ Это базовый разбор по знакам. "
+                    "Добавьте дату рождения в профиль — откроется полный разбор."
+                    if locale == "ru"
+                    else "ℹ️ Sun-sign baseline only. Add your birth date in profile for the full reading."
+                ),
+            ]
+        else:
+            details_lines = [
+                apply_synastry_style(format_sun_sign_compat_section(locale, sun_compat), locale, style),
+                "",
+                (
+                    "ℹ️ Это базовый уровень по солнечным знакам. "
+                    "Укажите дату рождения в профиле — откроется полная синастрия по планетам."
+                    if locale == "ru"
+                    else "ℹ️ Sun-sign baseline only. Add your birth date in profile for full planetary synastry."
+                ),
+            ]
         score = sun_sign_base_score(sun_compat)
+        body = "\n".join(details_lines)
+        basic_title = "☀️ Совместимость по знакам" if locale == "ru" else "☀️ Sun sign match"
+
         return SynastryResult(
             score=score,
             relation_mode=relation_mode,
             partner_sign=partner_sign,
-            details="\n".join(details_lines),
+            details=body,
             partner_name=partner_name,
+            themes=(SynastryTheme("basic", basic_title, body),),
         )
 
     analysis = build_synastry_analysis(
@@ -136,13 +154,26 @@ def build_synastry(
             partner_name=partner_name,
         )
 
-    details = f"{analysis.details}\n\n{compatibility_summary(locale, analysis.score)}"
+    summary_text = compatibility_summary(locale, analysis.score, style=style)
+    sections = (*analysis.sections, SynastrySection("compat_summary", summary_text))
+    themes = tuple(group_synastry_themes(locale, list(sections)))
+    if style == "plain":
+        themes = tuple(
+            SynastryTheme(
+                theme.key,
+                theme.title,
+                apply_synastry_style(theme.body, locale, style),
+            )
+            for theme in themes
+        )
+    details = apply_synastry_style(f"{analysis.details}\n\n{summary_text}", locale, style)
     return SynastryResult(
         score=analysis.score,
         relation_mode=relation_mode,
         partner_sign=analysis.partner_sign,
         details=details,
         partner_name=partner_name,
+        themes=themes,
     )
 
 
@@ -152,7 +183,7 @@ def build_synastry_for_partner_profile(
     partner,
     relation_mode: str,
     *,
-    style: str = "terms",
+    style: str = "plain",
 ) -> SynastryResult:
     return build_synastry(
         locale,

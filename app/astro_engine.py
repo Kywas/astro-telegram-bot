@@ -1705,6 +1705,7 @@ class SynastryAnalysis:
     score: int
     details: str
     partner_sign: str
+    sections: tuple = ()  # tuple[SynastrySection, ...]
 
 
 def _natal_chart(
@@ -1965,7 +1966,7 @@ def build_synastry_analysis(
             reverse=True,
         )
         ranked_hits = [(item[0], item[2], item[3], item[4]) for item in ranked]
-        details, summary = format_synastry_report(
+        details, summary, sections = format_synastry_report(
             locale,
             mode=mode,
             score=score,
@@ -1997,6 +1998,7 @@ def build_synastry_analysis(
             score=summary.score,
             details=details,
             partner_sign=partner_sign_key,
+            sections=tuple(sections),
         )
     except Exception:
         logger.warning(

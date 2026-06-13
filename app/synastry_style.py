@@ -41,42 +41,42 @@ PLAIN_ASPECT_NOUN = {
 
 USER_PLANET_PLAIN = {
     "ru": {
-        "SUN": "ваша суть и цели",
-        "MOON": "ваши эмоции",
-        "MERCURY": "ваш стиль общения",
-        "VENUS": "ваша забота и притяжение",
-        "MARS": "ваша энергия и инициатива",
-        "JUPITER": "ваш рост и опора",
-        "SATURN": "ваши границы и ответственность",
+        "SUN": "ваш характер",
+        "MOON": "ваши чувства",
+        "MERCURY": "как вы говорите",
+        "VENUS": "ваша нежность",
+        "MARS": "ваша активность",
+        "JUPITER": "ваша поддержка",
+        "SATURN": "ваши правила",
     },
     "en": {
-        "SUN": "your core and goals",
-        "MOON": "your emotions",
-        "MERCURY": "your communication style",
-        "VENUS": "your affection and attraction",
-        "MARS": "your drive and initiative",
-        "JUPITER": "your growth and support",
-        "SATURN": "your boundaries and responsibility",
+        "SUN": "your character",
+        "MOON": "your feelings",
+        "MERCURY": "how you talk",
+        "VENUS": "your warmth",
+        "MARS": "your drive",
+        "JUPITER": "your support",
+        "SATURN": "your boundaries",
     },
 }
 
 PARTNER_PLANET_PLAIN = {
     "ru": {
-        "SUN": "суть и цели партнёра",
-        "MOON": "эмоции партнёра",
-        "MERCURY": "стиль общения партнёра",
-        "VENUS": "забота и притяжение партнёра",
-        "MARS": "энергия партнёра",
-        "JUPITER": "рост и опора партнёра",
-        "SATURN": "границы партнёра",
+        "SUN": "характер партнёра",
+        "MOON": "чувства партнёра",
+        "MERCURY": "как говорит партнёр",
+        "VENUS": "нежность партнёра",
+        "MARS": "активность партнёра",
+        "JUPITER": "поддержка партнёра",
+        "SATURN": "правила партнёра",
     },
     "en": {
-        "SUN": "partner's core and goals",
-        "MOON": "partner's emotions",
-        "MERCURY": "partner's communication style",
-        "VENUS": "partner's affection and attraction",
+        "SUN": "partner's character",
+        "MOON": "partner's feelings",
+        "MERCURY": "how your partner talks",
+        "VENUS": "partner's warmth",
         "MARS": "partner's drive",
-        "JUPITER": "partner's growth and support",
+        "JUPITER": "partner's support",
         "SATURN": "partner's boundaries",
     },
 }
@@ -93,7 +93,7 @@ def _lang(locale: str) -> str:
     return "ru" if locale == "ru" else "en"
 
 
-def resolve_compat_style(profile, *, default: str = "terms") -> str:
+def resolve_compat_style(profile, *, default: str = "plain") -> str:
     if profile is None:
         return default
     style = (
@@ -205,12 +205,12 @@ def format_comprehensive_scope_intro(locale: str, *, style: str = "terms") -> st
         )
     if lang == "ru":
         return (
-            "Полный разбор: характер и образ пары, связи планет и дома, "
-            "глубинные и будущие темы, числа и карты — всё сводится в итоговую таблицу."
+            "Я разбил разбор на несколько коротких кусков — про характер, притяжение, быт и вывод. "
+            "Можно читать подряд, можно перепрыгнуть к тому, что зацепило."
         )
     return (
-        "Full reading: character and pair image, planet links and houses, "
-        "deeper and future themes, numbers and cards — all roll up into the final table."
+        "I split this into a few short chunks — character, pull, daily life, and the takeaway. "
+        "Read straight through or jump to what grabs you."
     )
 
 
@@ -235,12 +235,12 @@ def format_report_header(
         ]
     if lang == "ru":
         return [
-            "💬 Совместимость · простым языком",
-            f"• Режим «{mode_label}» · {user_sign} + {partner_sign}",
+            f"💞 Разбор пары · {mode_label}",
+            f"{user_sign} и {partner_sign}",
         ]
     return [
-        "💬 Compatibility · plain language",
-        f"• {mode_label} mode · {user_sign} + {partner_sign}",
+        f"💞 Pair reading · {mode_label}",
+        f"{user_sign} and {partner_sign}",
     ]
 
 
@@ -265,10 +265,9 @@ def format_cross_link_line(
 
     user_role = format_user_planet(locale, user_planet, style)
     partner_role = format_partner_planet(locale, partner_planet, style)
-    verb = format_aspect_verb(locale, aspect, style)
     if lang == "ru":
-        return f"{user_role.capitalize()} {verb} {partner_role} — {tone}"
-    return f"{user_role.capitalize()} {verb} {partner_role} — {tone}"
+        return f"Тут стыкуются {user_role} и {partner_role}. {tone.capitalize()}."
+    return f"Here your {user_role} meets {partner_role}. {tone.capitalize()}."
 
 
 def format_seal_link_line(
@@ -364,9 +363,73 @@ def format_transit_hit_line(
     return f"now {transit_plain} {verb} {target_plain}"
 
 
+_PLAIN_STEP_HEADER = re.compile(r"(^|\n)([☀️⚖️🏠🌐✨📊💞🔢🌑🤝📋][^\n]*?)Шаг \d+\.\s*", re.MULTILINE)
+
+
+def _plain_house_name(locale: str, house: str) -> str:
+    from app.synastry_houses import HOUSE_SECTION_PLAIN
+
+    lang = _lang(locale)
+    number = int(house)
+    entry = HOUSE_SECTION_PLAIN[lang].get(number)
+    if entry:
+        return entry[0].lower() if lang == "ru" else entry[0]
+    return f"сфера {number}" if lang == "ru" else f"area {number}"
+
+
+def _plain_house_replacer_ru(match: re.Match[str]) -> str:
+    return _plain_house_name("ru", match.group(1))
+
+
+def _plain_house_replacer_en(match: re.Match[str]) -> str:
+    return _plain_house_name("en", match.group(1))
+
+
+_PLAIN_REPLACEMENTS = {
+    "ru": (
+        (r"\bсинастри\w*", "связь"),
+        (r"\bкомпозит\w*", "союз"),
+        (r"\bнатальн\w*", ""),
+        (r"\bстихи\w*", "тип темпа"),
+        (r"\bASC\b", "образ"),
+        (r"\bDSC\b", "партнёр"),
+        (r"сфера (\d+)", _plain_house_replacer_ru),
+        (r"(\d+)‑й дом", _plain_house_replacer_ru),
+        (r"(\d+)-й дом", _plain_house_replacer_ru),
+        (r"Placidus", ""),
+        (r"Swiss Ephemeris", ""),
+        (r"  +", " "),
+    ),
+    "en": (
+        (r"\bsynastr\w*", "bond"),
+        (r"\bcomposite\b", "union"),
+        (r"\bnatal\b", ""),
+        (r"\belement\w*", "pace type"),
+        (r"\bASC\b", "self-image"),
+        (r"\bDSC\b", "partner"),
+        (r"area (\d+)", _plain_house_replacer_en),
+        (r"(\d+)th house", _plain_house_replacer_en),
+        (r"Placidus", ""),
+        (r"Swiss Ephemeris", ""),
+        (r"  +", " "),
+    ),
+}
+
+
 def apply_synastry_style(text: str, locale: str, style: str) -> str:
     if use_synastry_terms(style):
         return text
     result = _ORB_PATTERN.sub("", text)
-    result = re.sub(r"  +", " ", result)
-    return re.sub(r" +\n", "\n", result)
+    result = _PLAIN_STEP_HEADER.sub(r"\1\2", result)
+    lang = _lang(locale)
+    for pattern, replacement in _PLAIN_REPLACEMENTS[lang]:
+        if callable(replacement):
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+        else:
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    result = re.sub(r" — — ", " — ", result)
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    result = re.sub(r" +\n", "\n", result.strip())
+    from app.reading_voice import humanize_compat_plain
+
+    return humanize_compat_plain(result, locale)

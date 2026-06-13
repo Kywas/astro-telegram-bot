@@ -81,93 +81,146 @@ def _element_label(locale: str, element: str) -> str:
     return ELEMENT_LABELS[_lang(locale)][element]
 
 
-def _counts_line(locale: str, profile: ElementProfile) -> str:
+def _counts_line(locale: str, profile: ElementProfile, *, style: str = "terms") -> str:
+    from app.synastry_style import format_element_plain, use_synastry_terms
+
     lang = _lang(locale)
-    parts = [f"{_element_label(locale, e)} {profile.counts[e]}" for e in ELEMENT_ORDER]
+    if use_synastry_terms(style):
+        parts = [f"{_element_label(locale, e)} {profile.counts[e]}" for e in ELEMENT_ORDER]
+    else:
+        parts = [f"{format_element_plain(locale, e)} {profile.counts[e]}" for e in ELEMENT_ORDER]
     if lang == "ru":
         return " · ".join(parts) + f" (всего {profile.total})"
     return " · ".join(parts) + f" (total {profile.total})"
 
 
-def _dominant_line(locale: str, profile: ElementProfile) -> str:
+def _dominant_line(locale: str, profile: ElementProfile, *, style: str = "terms") -> str:
+    from app.synastry_style import format_element_plain, use_synastry_terms
+
     lang = _lang(locale)
-    element = _element_label(locale, profile.dominant)
+    if use_synastry_terms(style):
+        element = _element_label(locale, profile.dominant)
+        if lang == "ru":
+            return f"Преобладает: {element}"
+        return f"Dominant: {element}"
+    element = format_element_plain(locale, profile.dominant)
     if lang == "ru":
-        return f"Преобладает: {element}"
-    return f"Dominant: {element}"
+        return f"Главное: {element}"
+    return f"Main: {element}"
 
 
-def _gap_insights(locale: str, balance: ElementBalance) -> list[str]:
+def _gap_insights(locale: str, balance: ElementBalance, *, style: str = "terms") -> list[str]:
+    from app.synastry_style import format_element_plain, use_synastry_terms
+
     lang = _lang(locale)
     lines: list[str] = []
     for element in ELEMENT_ORDER:
         user_count = balance.user.counts[element]
         partner_count = balance.partner.counts[element]
-        label = _element_label(locale, element)
+        if use_synastry_terms(style):
+            label = _element_label(locale, element)
+        else:
+            label = format_element_plain(locale, element)
         if user_count >= 2 and partner_count == 0:
             if lang == "ru":
                 lines.append(
-                    f"У партнёра нет {label.lower()} в карте, у вас {user_count} — "
+                    f"У партнёра мало «{label}», у вас больше — можете не понять друг друга с первого раза."
+                    if not use_synastry_terms(style)
+                    else f"У партнёра нет {label.lower()} в карте, у вас {user_count} — "
                     "возможны разные темпы и непонимание мотивации."
                 )
             else:
                 lines.append(
-                    f"Partner has no {label.lower()} planets, you have {user_count} — "
+                    f"Your partner has little «{label}», you have more — "
+                    "you may not get each other at first."
+                    if not use_synastry_terms(style)
+                    else f"Partner has no {label.lower()} planets, you have {user_count} — "
                     "different rhythms may need translation."
                 )
         elif partner_count >= 2 and user_count == 0:
             if lang == "ru":
                 lines.append(
-                    f"У вас нет {label.lower()}, у партнёра {partner_count} — "
+                    f"У вас мало «{label}», у партнёра больше — не обесценивайте его/её способ жить."
+                    if not use_synastry_terms(style)
+                    else f"У вас нет {label.lower()}, у партнёра {partner_count} — "
                     "важно не обесценивать его/её способ действовать."
                 )
             else:
                 lines.append(
-                    f"You have no {label.lower()}, partner has {partner_count} — "
+                    f"You have little «{label}», your partner has more — "
+                    "don't dismiss their way of living."
+                    if not use_synastry_terms(style)
+                    else f"You have no {label.lower()}, partner has {partner_count} — "
                     "honor their way of moving through life."
                 )
     return lines[:2]
 
 
-def _complement_insights(locale: str, balance: ElementBalance) -> list[str]:
+def _complement_insights(locale: str, balance: ElementBalance, *, style: str = "terms") -> list[str]:
+    from app.synastry_style import format_element_plain, use_synastry_terms
+
     lang = _lang(locale)
     user_dom = balance.user.dominant
     partner_dom = balance.partner.dominant
     if (user_dom, partner_dom) in COMPATIBLE_ELEMENT_PAIRS:
         if lang == "ru":
+            if use_synastry_terms(style):
+                return [
+                    f"Доминанты дополняют друг друга ({_element_label(locale, user_dom)} + "
+                    f"{_element_label(locale, partner_dom)}) — классическое взаимное усиление."
+                ]
+            return ["Вы хорошо дополняете друг друга — одному легче там, где другому сложнее."]
+        if use_synastry_terms(style):
             return [
-                f"Доминанты дополняют друг друга ({_element_label(locale, user_dom)} + "
-                f"{_element_label(locale, partner_dom)}) — классическое взаимное усиление."
+                f"Dominants complement each other ({_element_label(locale, user_dom)} + "
+                f"{_element_label(locale, partner_dom)}) — classic mutual support."
             ]
-        return [
-            f"Dominants complement each other ({_element_label(locale, user_dom)} + "
-            f"{_element_label(locale, partner_dom)}) — classic mutual support."
-        ]
+        return ["You complement each other well — what's easy for one may be hard for the other."]
     if user_dom == partner_dom:
         if lang == "ru":
+            label = (
+                format_element_plain(locale, user_dom)
+                if not use_synastry_terms(style)
+                else _element_label(locale, user_dom).lower()
+            )
             return [
-                f"Оба с сильным {_element_label(locale, user_dom).lower()} — "
+                f"У обоих много «{label}» — понимаете друг друга, но можете застрять в одних ошибках."
+                if not use_synastry_terms(style)
+                else f"Оба с сильным {_element_label(locale, user_dom).lower()} — "
                 "понимаете друг друга, но риск одной «слепой зоны»."
             ]
+        label = (
+            format_element_plain(locale, user_dom)
+            if not use_synastry_terms(style)
+            else _element_label(locale, user_dom).lower()
+        )
         return [
-            f"Both strong in {_element_label(locale, user_dom).lower()} — "
+            f"You both have lots of «{label}» — you get each other, but may repeat the same mistakes."
+            if not use_synastry_terms(style)
+            else f"Both strong in {_element_label(locale, user_dom).lower()} — "
             "easy rapport, but shared blind spots are possible."
         ]
     if (user_dom, partner_dom) in CHALLENGING_ELEMENT_PAIRS:
         if lang == "ru":
+            if use_synastry_terms(style):
+                return [
+                    f"Стихии {_element_label(locale, user_dom).lower()} и "
+                    f"{_element_label(locale, partner_dom).lower()} тянут в разные стороны — "
+                    "ищите середину и общий язык."
+                ]
+            return ["Вы с разным темпом — ищите компромисс и говорите прямо."]
+        if use_synastry_terms(style):
             return [
-                f"Стихии {_element_label(locale, user_dom).lower()} и "
-                f"{_element_label(locale, partner_dom).lower()} тянут в разные стороны — "
-                "ищите середину и общий язык."
+                f"{_element_label(locale, user_dom)} and {_element_label(locale, partner_dom)} "
+                "pull in different directions — find middle ground."
             ]
-        return [
-            f"{_element_label(locale, user_dom)} and {_element_label(locale, partner_dom)} "
-            "pull in different directions — find middle ground."
-        ]
+        return ["Different pace — look for compromise and speak plainly."]
     return []
 
 
-def _balance_summary(locale: str, balance: ElementBalance) -> str:
+def _balance_summary(locale: str, balance: ElementBalance, *, style: str = "terms") -> str:
+    from app.synastry_style import use_synastry_terms
+
     lang = _lang(locale)
     user_missing = set(balance.user.missing)
     partner_missing = set(balance.partner.missing)
@@ -177,6 +230,13 @@ def _balance_summary(locale: str, balance: ElementBalance) -> str:
             complements += 1
         if balance.partner.counts[element] >= 1 and element in user_missing:
             complements += 1
+
+    if not use_synastry_terms(style):
+        if complements >= 2:
+            return "Вы друг друга хорошо дополняете — одному легче там, где другому сложнее." if lang == "ru" else "You complement each other — what's easy for one is hard for the other."
+        if not balance.user.missing and not balance.partner.missing:
+            return "У каждого свой набор качеств, но вместе картина полная." if lang == "ru" else "Different mixes, but together the picture is full."
+        return "Есть пробелы — не стесняйтесь говорить прямо, что для вас важно." if lang == "ru" else "Some gaps — say plainly what matters to you."
 
     if complements >= 2:
         if lang == "ru":
@@ -243,12 +303,14 @@ def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style
             )
         else:
             lines.append(
-                "Сравниваем, насколько вам близки энергия, стабильность, общение и чувства."
+                "Сравниваю, кому ближе энергия, стабильность, общение и чувства — "
+                "так видно, где вы на одной волне."
             )
-        lines.append(
-            "Преобладание одной стихии у одного и её отсутствие у другого "
-            "может давать непонимание; взаимное дополнение — опора пары."
-        )
+        if use_synastry_terms(style):
+            lines.append(
+                "Преобладание одной стихии у одного и её отсутствие у другого "
+                "может давать непонимание; взаимное дополнение — опора пары."
+            )
     else:
         lines.append("⚖️ Step 6. Element balance" if use_synastry_terms(style) else "⚖️ Step 6. Shared rhythm")
         if use_synastry_terms(style):
@@ -258,47 +320,55 @@ def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style
             )
         else:
             lines.append(
-                "We compare how close you are in energy, stability, communication, and feelings."
+                "We compare energy, stability, talk, and feelings side by side."
             )
-        lines.append(
-            "One partner's dominant element missing in the other can cause friction; "
-            "complement supports stability."
-        )
+        if use_synastry_terms(style):
+            lines.append(
+                "One partner's dominant element missing in the other can cause friction; "
+                "complement supports stability."
+            )
 
     lines.append("")
     if lang == "ru":
         lines.append("👤 Вы:")
     else:
         lines.append("👤 You:")
-    lines.append(f"• {_counts_line(locale, balance.user)}")
-    lines.append(f"• {_dominant_line(locale, balance.user)}")
+    lines.append(f"• {_counts_line(locale, balance.user, style=style)}")
+    lines.append(f"• {_dominant_line(locale, balance.user, style=style)}")
 
     lines.append("")
     if lang == "ru":
         lines.append("👤 Партнёр:")
     else:
         lines.append("👤 Partner:")
-    lines.append(f"• {_counts_line(locale, balance.partner)}")
-    lines.append(f"• {_dominant_line(locale, balance.partner)}")
+    lines.append(f"• {_counts_line(locale, balance.partner, style=style)}")
+    lines.append(f"• {_dominant_line(locale, balance.partner, style=style)}")
 
     lines.append("")
-    for insight in _gap_insights(locale, balance):
+    for insight in _gap_insights(locale, balance, style=style):
         lines.append(f"• {insight}")
-    for insight in _complement_insights(locale, balance):
+    for insight in _complement_insights(locale, balance, style=style):
         lines.append(f"• {insight}")
-    lines.append(f"• {_balance_summary(locale, balance)}")
+    lines.append(f"• {_balance_summary(locale, balance, style=style)}")
 
-    if lang == "ru":
+    if use_synastry_terms(style):
+        if lang == "ru":
+            lines.append("")
+            lines.append(
+                "Подсказка: Огонь+Воздух и Земля+Вода — естественные пары; "
+                "ноль планет в стихии — не «плохо», но тема требует внимания."
+            )
+        else:
+            lines.append("")
+            lines.append(
+                "Hint: Fire+Air and Earth+Water pair naturally; "
+                "zero planets in an element isn't “bad”, but needs awareness."
+            )
+    elif lang == "ru":
         lines.append("")
-        lines.append(
-            "Подсказка: Огонь+Воздух и Земля+Вода — естественные пары; "
-            "ноль планет в стихии — не «плохо», но тема требует внимания."
-        )
+        lines.append("• Если чувствуете, что «не на одной волне» — это не приговор, просто скажите об этом.")
     else:
         lines.append("")
-        lines.append(
-            "Hint: Fire+Air and Earth+Water pair naturally; "
-            "zero planets in an element isn't “bad”, but needs awareness."
-        )
+        lines.append("• If you feel out of sync — talk more plainly.")
 
     return "\n".join(lines)

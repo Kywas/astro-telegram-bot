@@ -155,9 +155,12 @@ from app.services.compat import (
     run_saved_partner_compat,
     show_compat_menu,
     show_compat_mode_panel,
+    show_compat_theme_panel,
     render_compat_style_picker,
     compat_style_label,
 )
+from app.synastry import build_synastry_for_partner_profile
+from app.synastry_style import resolve_compat_style
 from app.services.daily_panels import (
     render_daily_panel,
     render_daily_timezone_panel,
@@ -1135,6 +1138,36 @@ async def compat_action_callback_handler(callback: CallbackQuery, state: FSMCont
             return
 
     await callback.answer()
+
+    if action.startswith("topic:"):
+        parts = action.split(":")
+        if len(parts) < 4:
+            return
+        partner_id = int(parts[1])
+        mode = parts[2] if parts[2] in {"love", "friendship", "work"} else "love"
+        theme_key = parts[3]
+        partner = await db.get_partner(user.id, partner_id)
+        if partner is None:
+            await show_compat_menu(user_id=user.id, locale=locale, callback=callback)
+            return
+        syn = build_synastry_for_partner_profile(
+            locale,
+            profile,
+            partner,
+            mode,
+            style=resolve_compat_style(profile),
+        )
+        await show_compat_theme_panel(
+            user_id=user.id,
+            locale=locale,
+            profile=profile,
+            syn=syn,
+            mode=mode,
+            partner_id=partner_id,
+            theme_key=theme_key,
+            callback=callback,
+        )
+        return
 
     if action == "add":
         count = await db.count_partners(user.id)

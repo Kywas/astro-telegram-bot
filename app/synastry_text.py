@@ -111,10 +111,61 @@ def _planet_label(locale: str, planet: str) -> str:
     return PLANET_LABELS[_lang(locale)].get(planet, planet)
 
 
-def _aspect_tone(locale: str, aspect: str, mode: str) -> str:
+ASPECT_TONE_PLAIN = {
+    "ru": {
+        "love": {
+            "trine": "рядом с этим человеком спокойно и хочется остаться",
+            "sextile": "легко сближаетесь, без натянутости",
+            "conjunction": "тема отношений звучит громко — не проходит мимо",
+            "square": "может зажигать, но и задевать — лучше не копить молча",
+            "opposition": "тянет, даже когда бесит — типичная история «противоположности»",
+        },
+        "friendship": {
+            "trine": "понимаете друг друга почти с полуслова",
+            "sextile": "общаться легко, без лишних объяснений",
+            "conjunction": "общие интересы сильно сближают",
+            "square": "темп разный — договоритесь, как общаться",
+            "opposition": "вы разные, но это может дополнять",
+        },
+        "work": {
+            "trine": "вместе продуктивно, без лишней суеты",
+            "sextile": "идеи обмениваются легко",
+            "conjunction": "общая цель чувствуется сильнее",
+            "square": "подходы разные — распределите роли",
+            "opposition": "напряжение есть, но может толкать вперёд",
+        },
+    },
+    "en": {
+        "love": {
+            "trine": "you feel calm around each other and want to stay",
+            "sextile": "you warm up fast, without awkwardness",
+            "conjunction": "the relationship theme is loud — hard to ignore",
+            "square": "it can spark and sting — don't swallow it in silence",
+            "opposition": "it pulls even when it annoys — classic opposites",
+        },
+        "friendship": {
+            "trine": "you get each other almost without words",
+            "sextile": "talking feels easy, no over-explaining",
+            "conjunction": "shared interests pull you close",
+            "square": "different pace — agree how you connect",
+            "opposition": "you're different, but that can complement",
+        },
+        "work": {
+            "trine": "productive together, without extra noise",
+            "sextile": "ideas flow easily",
+            "conjunction": "the shared goal feels stronger",
+            "square": "different styles — split roles clearly",
+            "opposition": "tension is there, but it can push you forward",
+        },
+    },
+}
+
+
+def _aspect_tone(locale: str, aspect: str, mode: str, *, style: str = "terms") -> str:
     lang = _lang(locale)
     mode_key = mode if mode in ASPECT_TONE[lang] else "love"
-    return ASPECT_TONE[lang][mode_key][aspect]
+    table = ASPECT_TONE if use_synastry_terms(style) else ASPECT_TONE_PLAIN
+    return table[lang][mode_key][aspect]
 
 
 def format_synastry_aspect_line(
@@ -128,7 +179,7 @@ def format_synastry_aspect_line(
     bullet: str = "",
     style: str = "terms",
 ) -> str:
-    tone = _aspect_tone(locale, aspect, mode)
+    tone = _aspect_tone(locale, aspect, mode, style=style)
     core = format_cross_link_line(
         locale,
         user_planet,
@@ -143,35 +194,90 @@ def format_synastry_aspect_line(
     return f"{bullet} {core}"
 
 
-def format_synastry_advice(locale: str, mode: str, score: int) -> str:
+def format_synastry_advice(locale: str, mode: str, score: int, *, style: str = "terms") -> str:
     lang = _lang(locale)
+    plain = not use_synastry_terms(style)
     if lang == "ru":
         if mode == "love":
             if score >= 75:
-                return "Опирайтесь на сильные связи и не принимайте напряжение на личный счёт."
+                return (
+                    "Я бы опирался на то, что у вас уже получается. Ссоры не всегда про «не люблю» — "
+                    "иногда просто устали или не договорились."
+                    if plain
+                    else "Опирайтесь на сильные связи и не принимайте напряжение на личный счёт."
+                )
             if score >= 55:
-                return "Говорите прямо о чувствах — карты показывают и притяжение, и точки трения."
-            return "Не форсируйте близость: сначала ясность, потом решения."
+                return (
+                    "Говорите о чувствах вслух, без намёков. Притяжение есть, но и точки, "
+                    "где легко не понять друг друга."
+                    if plain
+                    else "Говорите прямо о чувствах — карты показывают и притяжение, и точки трения."
+                )
+            return (
+                "Не форсируйте близость. Сначала разберитесь, кто вы друг для друга — потом решения."
+                if plain
+                else "Не форсируйте близость: сначала ясность, потом решения."
+            )
         if mode == "friendship":
             if score >= 75:
-                return "Поддерживайте регулярный контакт — связь легко складывается."
-            return "Уважайте разный темп и формат общения."
+                return (
+                    "Не теряйте контакт — у вас это складывается естественно."
+                    if plain
+                    else "Поддерживайте регулярный контакт — связь легко складывается."
+                )
+            return (
+                "Если друг другу пишете в разном темпе — это нормально, просто проговорите."
+                if plain
+                else "Уважайте разный темп и формат общения."
+            )
         if score >= 75:
-            return "Закрепите роли и дедлайны — взаимодействие продуктивное."
-        return "Сначала договоритесь о задачах, потом ускоряйтесь."
+            return (
+                "Распределите, кто за что отвечает — так меньше нервов на ровном месте."
+                if plain
+                else "Закрепите роли и дедлайны — взаимодействие продуктивное."
+            )
+        return (
+            "Сначала договоритесь о задачах. Потом уже скорость."
+            if plain
+            else "Сначала договоритесь о задачах, потом ускоряйтесь."
+        )
 
     if mode == "love":
         if score >= 75:
-            return "Lean on your strong links and don't take tension personally."
+            return (
+                "Lean on what works between you. Don't take fights personally."
+                if plain
+                else "Lean on your strong links and don't take tension personally."
+            )
         if score >= 55:
-            return "Talk openly about feelings — the chart shows both pull and friction."
-        return "Don't force closeness: clarity first, decisions second."
+            return (
+                "Talk openly about feelings — there's pull and spots to negotiate."
+                if plain
+                else "Talk openly about feelings — the chart shows both pull and friction."
+            )
+        return (
+            "Don't rush closeness. Understand each other first, then decide."
+            if plain
+            else "Don't force closeness: clarity first, decisions second."
+        )
     if mode == "friendship":
         if score >= 75:
-            return "Keep regular contact — the connection flows easily."
-        return "Respect different rhythms and communication styles."
+            return (
+                "Keep in touch — friendship comes easily."
+                if plain
+                else "Keep regular contact — the connection flows easily."
+            )
+        return (
+            "Respect different communication pace."
+            if plain
+            else "Respect different rhythms and communication styles."
+        )
     if score >= 75:
-        return "Define roles and deadlines — interaction is productive."
+        return (
+            "Agree who does what — work goes smoother."
+            if plain
+            else "Define roles and deadlines — interaction is productive."
+        )
     return "Agree on tasks first, then pick up the pace."
 
 
@@ -209,22 +315,20 @@ def format_synastry_disclaimers(locale: str, *, style: str = "terms") -> str:
     if lang == "ru":
         return "\n".join(
             [
-                "💡 Важные рекомендации",
-                "• Не цепляйтесь за «плохие» пункты — напряжение часто даёт рост.",
-                "• Если внутри дискомфорт — слушайте себя, а не только текст.",
-                "• Это не приговор и не судьба — только возможные сценарии.",
-                "• Имеет смысл пересматривать разбор раз в 5–7 лет.",
-                "• Используйте как подсказку для разговора с собой и партнёром.",
+                "💡 На что обратить внимание",
+                "• «Плохие» строки — не приговор. Через них пары часто и сближаются.",
+                "• Если внутри тревожно — верьте себе больше, чем любому тексту, даже этому.",
+                "• Это повод поговорить, не инструкция «как жить правильно».",
+                "• Люди меняются — через пару лет можно перечитать, если захочется.",
             ]
         )
     return "\n".join(
         [
-            "💡 Important recommendations",
-            "• Don't cling to «bad» lines — tension often means growth.",
-            "• If something feels off inside — listen to yourself, not only the text.",
-            "• This isn't fate — only possible scenarios.",
-            "• Revisit the reading every 5–7 years.",
-            "• Use it as a prompt for honest talk with yourself and your partner.",
+            "💡 Good to remember",
+            "• «Bad» lines aren't a verdict. Couples often grow through friction.",
+            "• If something feels wrong inside — trust yourself, not only the text.",
+            "• This is a talking prompt, not fate.",
+            "• Re-read the report every few years.",
         ]
     )
 
@@ -256,94 +360,14 @@ def format_synastry_report(
     user_has_moon: bool,
     partner_has_moon: bool,
     style: str = "terms",
-) -> str:
-    lang = _lang(locale)
-    mode_key = mode if mode in MODE_LABELS[lang] else "love"
-    lines: list[str] = []
+) -> tuple[str, SynastrySummary, list]:
+    from app.synastry_sections import SynastrySection, build_synastry_sections, join_synastry_sections
 
-    lines.extend(
-        format_report_header(
-            locale,
-            mode_label=MODE_LABELS[lang][mode_key],
-            user_sign=user_sign,
-            partner_sign=partner_sign,
-            style=style,
-        )
-    )
-
-    lines.append("")
-    lines.append(format_comprehensive_scope_intro(locale, style=style))
-
-    sun_compat = analyze_sun_sign_compat(user_sign_key, partner_sign_key)
-    if sun_compat is not None:
-        lines.append("")
-        lines.append(format_sun_sign_compat_section(locale, sun_compat, style=style))
-
-    lines.append("")
-    lines.append(
-        format_synastry_numerology_section(
-            locale,
-            numerology,
-            user_birth_date=user_birth_date,
-            partner_birth_date=partner_birth_date,
-            style=style,
-        )
-    )
-
-    lines.append("")
-    lines.append(format_synastry_tarot_section(locale, tarot, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step2_section(locale, asc_dsc, style=style))
-
-    step3_hits = filter_hits_for_step3(hits, seals)
-    lines.append("")
-    lines.append(
-        format_synastry_step3_section(
-            locale,
-            mode=mode_key,
-            hits=step3_hits,
-            user_has_moon=user_has_moon,
-            partner_has_moon=partner_has_moon,
-            format_aspect_line=format_synastry_aspect_line,
-            aspect_tone=_aspect_tone,
-            style=style,
-        )
-    )
-
-    lines.append("")
-    lines.append(format_synastry_fictitious_section(locale, fictitious, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_composite_section(locale, composite, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_progressions_section(locale, progressions, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step4_section(locale, seals, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step5_section(locale, house_overlay, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step6_section(locale, element_balance, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step7_section(locale, moon_venus, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step8_section(locale, karma, style=style))
-
-    lines.append("")
-    lines.append(format_synastry_step9_section(locale, transits, style=style))
-
-    summary = build_synastry_summary(
-        locale=locale,
+    sections, summary = build_synastry_sections(
+        locale,
+        mode=mode,
         score=score,
         hits=hits,
-        user_sign_key=user_sign_key,
-        partner_sign_key=partner_sign_key,
         seals=seals,
         asc_dsc=asc_dsc,
         composite=composite,
@@ -356,18 +380,14 @@ def format_synastry_report(
         numerology=numerology,
         tarot=tarot,
         transits=transits,
+        user_sign=user_sign,
+        partner_sign=partner_sign,
+        user_sign_key=user_sign_key,
+        partner_sign_key=partner_sign_key,
+        user_birth_date=user_birth_date,
+        partner_birth_date=partner_birth_date,
         user_has_moon=user_has_moon,
         partner_has_moon=partner_has_moon,
         style=style,
     )
-    lines.append("")
-    lines.append(format_synastry_step10_section(locale, summary, style=style))
-
-    lines.append("")
-    lines.append("💡 " + ("Совет" if lang == "ru" else "Advice"))
-    lines.append(format_synastry_advice(locale, mode_key, score))
-
-    lines.append("")
-    lines.append(format_synastry_disclaimers(locale, style=style))
-
-    return "\n".join(lines), summary
+    return join_synastry_sections(sections), summary, sections

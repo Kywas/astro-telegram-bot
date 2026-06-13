@@ -250,6 +250,10 @@ def _humanize_core(locale: str, pl: PlanetPlacement) -> str:
 def _classify_question(question: str, lang: str) -> str:
     q = question.lower()
     if lang == "ru":
+        if any(w in q for w in ("риск", "мешает", "меша", "блок", "препят", "трен", "сложн", "слаб")):
+            return "challenge"
+        if any(w in q for w in ("когда", "срок", "пора", "скоро", "время")):
+            return "when"
         if any(w in q for w in ("деньг", "доход", "финанс", "инвест", "ценност")):
             return "money"
         if any(w in q for w in ("карьер", "реализ", "професс", "работ")):
@@ -267,18 +271,24 @@ def _classify_question(question: str, lang: str) -> str:
             return "how"
         if q.startswith("где") or "откуда" in q or q.startswith("куда"):
             return "where"
+        if q.startswith("почему") or "зачем" in q:
+            return "why"
+        if q.startswith("как"):
+            return "how"
         if q.startswith("что") or q.startswith("кто") or q.startswith("какие"):
             return "what"
         if "есть ли" in q:
             return "yes_no"
         if "предназнач" in q or q.startswith("в чём"):
             return "purpose"
-        if any(w in q for w in ("риск", "мешает", "трен", "сложн", "слаб")):
-            return "challenge"
         if any(w in q for w in ("талант", "сильн", "опор")):
             return "strength"
         return "general"
 
+    if any(w in q for w in ("risk", "block", "obstacle", "friction", "weak", "holds me back")):
+        return "challenge"
+    if any(w in q for w in ("when", "timing", "soon", "deadline")):
+        return "when"
     if any(w in q for w in ("money", "income", "finance", "invest", "value")):
         return "money"
     if any(w in q for w in ("career", "job", "profession", "work")):
@@ -294,14 +304,16 @@ def _classify_question(question: str, lang: str) -> str:
         return "how"
     if q.startswith("where"):
         return "where"
+    if q.startswith("why"):
+        return "why"
+    if q.startswith("how"):
+        return "how"
     if q.startswith("what") or q.startswith("who") or q.startswith("which"):
         return "what"
     if "is there" in q:
         return "yes_no"
     if "purpose" in q or "calling" in q:
         return "purpose"
-    if any(w in q for w in ("risk", "friction", "weak", "block")):
-        return "challenge"
     if any(w in q for w in ("strength", "talent", "anchor")):
         return "strength"
     return "general"
@@ -318,6 +330,28 @@ def _plain_primary_sentence(locale: str, pl: PlanetPlacement, intent: str) -> st
     trait_b = _emph(trait)
 
     if lang == "ru":
+        if intent == "challenge":
+            return (
+                f"Главный узел — {trait_b}; особенно в теме {h(area)}."
+            )
+        if intent == "why":
+            return (
+                f"Причина в линии «{_plain_planet_role(locale, pl.key)}»: {trait_b} "
+                f"— это слышно в {h(area)}."
+            )
+        if intent == "when":
+            return (
+                f"Момент наступает, когда тема «{_plain_life_area(locale, pl.house)}» "
+                f"ощущается ярче; маркер — {trait_b}."
+            )
+        if intent in {"how", "how_relationship"}:
+            return (
+                f"Твой способ — {trait_b}; это проявляется в {h(area)}."
+            )
+        if intent == "what" or intent == "who_partner":
+            return (
+                f"Суть — {trait_b}; ключ в теме {h(area)}."
+            )
         if pl.key == "VENUS" and intent == "money":
             return (
                 f"К деньгам и ценностям у тебя такой подход: {trait_b}. "
@@ -393,17 +427,29 @@ def _plain_secondary_sentence(
     locale: str,
     primary: PlanetPlacement,
     secondary: PlanetPlacement,
+    *,
+    intent: str = "general",
 ) -> str:
     lang = _lang(locale)
     trait = _humanize_core(locale, secondary)
     trait_b = _emph(trait)
     if secondary.house == primary.house:
+        if intent in {"how", "how_relationship"}:
+            if lang == "ru":
+                return f"Второй штрих — {trait_b} в той же сфере."
+            return f"Second layer — {trait_b} in the same area."
         if lang == "ru":
+            if intent == "challenge":
+                return f"Второй узел — {trait_b} в той же сфере."
             return f"К этому добавляется ещё один оттенок: {trait_b}."
+        if intent == "challenge":
+            return f"Second friction point — {trait_b} in the same area."
         return f"Another layer adds this: {trait_b}."
 
     area = _plain_life_area_prep(locale, secondary.house)
     if lang == "ru":
+        if intent == "challenge":
+            return f"Второй узел — {trait_b}; он усиливает тему {h(area)}."
         if secondary.key == "MOON":
             return (
                 f"Параллельно важны эмоции и привычные реакции: {trait_b}. "
@@ -455,41 +501,100 @@ def _plain_dignity_sentence(locale: str, pl: PlanetPlacement, focus: str) -> str
     return ""
 
 
-def _plain_opening(locale: str, intent: str, question: str) -> str:
+@dataclass(frozen=True)
+class StructuredQaAnswer:
+    brief: str
+    markers: tuple[str, ...]
+    practice: str
+
+
+def _short_question(question: str, *, limit: int = 120) -> str:
+    q = " ".join(question.strip().split())
+    if len(q) <= limit:
+        return q.rstrip("?.!")
+    return q[: limit - 1].rstrip() + "…"
+
+
+def _question_already_asks(intent: str, question: str) -> bool:
+    q = question.lower().strip()
+    if intent == "challenge":
+        return any(w in q for w in ("мешает", "меша", "блок", "препят", "мешают", "holds me back"))
+    if intent == "why":
+        return q.startswith("почему") or "зачем" in q or q.startswith("why")
+    if intent == "when":
+        return any(w in q for w in ("когда", "срок", "пора", "скоро")) or q.startswith("when")
+    if intent == "what":
+        return q.startswith("что") or q.startswith("какие") or q.startswith("what")
+    if intent == "how" or intent == "how_relationship":
+        return q.startswith("как") or q.startswith("how")
+    if intent == "who_partner":
+        return "кого" in q or q.startswith("кто") or q.startswith("who")
+    return False
+
+
+def _question_frame(locale: str, question: str, intent: str) -> str:
+    """Anchor the answer to the user's exact wording."""
     lang = _lang(locale)
-    if lang == "ru":
-        mapping = {
-            "how_relationship": "В отношениях у тебя складывается такой рисунок.",
-            "who_partner": "К тебе чаще тянет людей с таким сочетанием качеств.",
-            "how": "Если ответить на твой вопрос, картина выглядит так.",
-            "where": "Чаще всего это проявляется в таких жизненных сферах.",
-            "what": "Если собрать ответ по карте, получается такая картина.",
-            "yes_no": "Да, эта тема в твоей карте действительно звучит.",
-            "purpose": "Твой путь и смысл здесь связаны с такими качествами.",
-            "challenge": "Напряжение чаще всего приходит отсюда — не как наказание, а как зона роста.",
-            "strength": "Твои сильные стороны здесь проявляются так.",
-            "health": "С телом и энергией у тебя связана такая история.",
-            "money": "С деньгами и ценностями у тебя складывается такая линия.",
-            "career": "С карьерой и реализацией у тебя связано следующее.",
-            "general": "Если собрать ответ по твоей карте, получается такая картина.",
+    topic = _short_question(question)
+    if _question_already_asks(intent, question):
+        if lang == "ru":
+            echo = {
+                "challenge": f"По вопросу «{topic}» — вот что даёт карта.",
+                "why": f"Про «{topic}» — причины в этих линиях.",
+                "when": f"Про срок («{topic}») — не дата, а условия готовности.",
+                "what": f"На «{topic}» — главное такое.",
+                "how": f"На «{topic}» — твой способ действовать такой.",
+                "how_relationship": f"На «{topic}» — вот как у тебя складывается близость.",
+                "who_partner": f"На «{topic}» — такой тип притяжения.",
+            }
+            return echo.get(intent, f"На «{topic}»:")
+        echo = {
+            "challenge": f"On «{topic}» — here's what the chart shows.",
+            "why": f"On «{topic}» — the reasons sit in these lines.",
+            "when": f"On timing («{topic}») — conditions, not a fixed date.",
+            "what": f"On «{topic}» — the main point is this.",
+            "how": f"On «{topic}» — your way of acting looks like this.",
+            "how_relationship": f"On «{topic}» — this is how closeness forms for you.",
+            "who_partner": f"On «{topic}» — this is the pull pattern.",
         }
-        return mapping.get(intent, mapping["general"])
-    mapping = {
-        "how_relationship": "In relationships, your chart paints this picture.",
-        "who_partner": "You tend to attract people with this mix of qualities.",
-        "how": "Answered from your chart, the picture looks like this.",
-        "where": "This most often shows up in these life areas.",
-        "what": "From your chart, here is what stands out.",
-        "yes_no": "Yes — this theme is genuinely present in your chart.",
-        "purpose": "Your path and meaning connect to these qualities.",
-        "challenge": "Tension usually comes from here — not as punishment, but as a growth zone.",
-        "strength": "Your strengths show up like this.",
-        "health": "With body and energy, your chart tells this story.",
-        "money": "With money and values, this is your line.",
-        "career": "With career and realization, this is what connects.",
-        "general": "Put together from your chart, the picture looks like this.",
+        return echo.get(intent, f"On «{topic}»:")
+    if lang == "ru":
+        frames = {
+            "how_relationship": f"На вопрос «{topic}» в отношениях карта показывает следующее.",
+            "who_partner": f"Кого ты притягиваешь — если смотреть на «{topic}», картина такая.",
+            "how": f"На «{topic}» ответ складывается так.",
+            "where": f"Где это проявляется — если брать твой вопрос «{topic}»:",
+            "when": f"По срокам и моменту («{topic}») карта не даёт точную дату, но показывает условия.",
+            "why": f"Почему так («{topic}») — главные маркеры вот здесь.",
+            "what": f"Что именно («{topic}») — по карте выходит так.",
+            "yes_no": f"На «{topic}» — да, тема в карте есть, но важны нюансы ниже.",
+            "purpose": f"Про предназначение («{topic}») карта указывает на такие качества.",
+            "challenge": f"Что мешает («{topic}») — упирается в эти места карты.",
+            "strength": f"Где сила («{topic}») — опирайся на это.",
+            "health": f"Про здоровье и энергию («{topic}») — такая связка.",
+            "money": f"Про деньги («{topic}») — линия в карте такая.",
+            "career": f"Про работу и реализацию («{topic}») — вот что видно.",
+            "general": f"На твой вопрос «{topic}» карта отвечает так.",
+        }
+        return frames.get(intent, frames["general"])
+    frames = {
+        "how_relationship": f"On «{topic}» in relationships, your chart shows this.",
+        "who_partner": f"Who you attract — for «{topic}», the pattern looks like this.",
+        "how": f"On «{topic}», the answer comes together like this.",
+        "where": f"Where it shows up — for «{topic}»:",
+        "when": f"On timing («{topic}») the chart gives conditions, not an exact date.",
+        "why": f"Why («{topic}») — the main markers are here.",
+        "what": f"What exactly («{topic}») — from the chart:",
+        "yes_no": f"On «{topic}» — yes, the theme is there, with nuances below.",
+        "purpose": f"On purpose («{topic}») — these qualities stand out.",
+        "challenge": f"What blocks you («{topic}») — it points here.",
+        "strength": f"Where you're strong («{topic}») — lean on this.",
+        "health": f"On health and energy («{topic}»):",
+        "money": f"On money («{topic}»):",
+        "career": f"On work and realization («{topic}»):",
+        "general": f"On your question «{topic}», the chart answers like this.",
     }
-    return mapping.get(intent, mapping["general"])
+    return frames.get(intent, frames["general"])
 
 
 def _build_plain_narrative(
@@ -502,47 +607,182 @@ def _build_plain_narrative(
 ) -> str:
     lang = _lang(locale)
     intent = _classify_question(question, lang)
-    opening = _plain_opening(locale, intent, question)
+    opening = _question_frame(locale, question, intent)
 
     parts = [b(opening), _plain_primary_sentence(locale, primary, intent)]
     if secondary and secondary.key != primary.key:
-        parts.append(_plain_secondary_sentence(locale, primary, secondary))
-
-    dignity = _plain_dignity_sentence(locale, primary, focus)
-    if dignity:
-        parts.append(dignity)
-
-    if lang == "ru":
-        closers = {
-            "how_relationship": (
-                "Это не готовый сценарий отношений, а описание твоего естественного стиля — "
-                "его можно осознанно поддерживать, а не ломать через себя."
-            ),
-            "money": (
-                "Это не приговор про богатство или бедность, а подсказка о том, "
-                "как ты относишься к ресурсам и что для тебя по-настоящему ценно."
-            ),
-            "career": (
-                "Это не список профессий, а описание того, через какие качества "
-                "тебе легче всего реализоваться."
-            ),
-            "challenge": (
-                "Замечать эти места полезнее, чем бороться с собой — "
-                "обычно напряжение смягчается, когда ты понимаешь свой паттерн."
-            ),
-        }
-        if intent in closers:
-            parts.append(closers[intent])
-        elif intent in {"how", "what", "who_partner"}:
-            parts.append(
-                "Это не жёсткая схема, а способ лучше понять себя и свои привычные реакции."
-            )
-    elif intent in {"how_relationship", "how", "what", "who_partner"}:
         parts.append(
-            "This is not a rigid script, but a way to understand your natural style more clearly."
+            _plain_secondary_sentence(locale, primary, secondary, intent=intent)
         )
 
+    if primary.dignity == "debilitated":
+        dignity = _plain_dignity_sentence(locale, primary, focus)
+        if dignity:
+            parts.append(dignity)
+    elif intent == "when":
+        if lang == "ru":
+            parts.append(
+                "Точную дату карта не называет — смотри на внутреннюю готовность "
+                "и периоды, когда тема дома активнее."
+            )
+        else:
+            parts.append(
+                "The chart does not give an exact date — watch inner readiness "
+                "and periods when this house theme feels louder."
+            )
+
     return p(*parts)
+
+
+def _dignity_tag(locale: str, pl: PlanetPlacement) -> str:
+    lang = _lang(locale)
+    if pl.dignity == "exalted":
+        return "усилено" if lang == "ru" else "strong"
+    if pl.dignity == "debilitated":
+        return "нужна бережность" if lang == "ru" else "needs care"
+    if pl.dignity == "own":
+        return "устойчиво" if lang == "ru" else "steady"
+    return ""
+
+
+def _build_chart_markers(
+    chart: JyotishChart,
+    locale: str,
+    *,
+    houses: tuple[int, ...] = (),
+    planet_keys: tuple[str, ...] = (),
+    style: str = "terms",
+    limit: int = 3,
+) -> tuple[str, ...]:
+    placements = _collect_placements(chart, houses=houses, planet_keys=planet_keys)
+    if not placements:
+        return ()
+    markers: list[str] = []
+    seen: set[str] = set()
+    for pl in placements:
+        if pl.key in seen:
+            continue
+        seen.add(pl.key)
+        tag = _dignity_tag(locale, pl)
+        if not _use_terms(style):
+            role = _plain_planet_role(locale, pl.key)
+            area = _plain_life_area(locale, pl.house)
+            trait = _humanize_core(locale, pl)
+            if "—" in trait:
+                trait = trait.split("—", 1)[-1].strip()
+            line = f"{role.capitalize()} · {trait} · {area}"
+        else:
+            pname = _pl(locale, pl.key)
+            sign = sign_label(locale, pl.sign)
+            theme = _house_theme(locale, pl.house)
+            line = f"{pname} в {sign} · дом «{theme}»"
+            if tag:
+                line = f"{line} · {tag}"
+        markers.append(line)
+        if len(markers) >= limit:
+            break
+    return tuple(markers)
+
+
+def _practical_takeaway(
+    locale: str,
+    intent: str,
+    *,
+    focus: str,
+    primary: PlanetPlacement,
+) -> str:
+    lang = _lang(locale)
+    area = _plain_life_area_prep(locale, primary.house)
+    if lang == "ru":
+        mapping = {
+            "how_relationship": f"На неделю: заметь, как ты ведё себя в теме «{area}» — это и есть твой стиль в паре.",
+            "how": "Попробуй одну неделю наблюдать, как это проявляется в жизни — без оценки, просто замечай.",
+            "when": "Смотри на периоды, когда тема карты ощущается ярче — тогда решения даются легче.",
+            "why": "Если узнаёшь себя в описании — это и есть ответ «почему»; дальше можно менять реакцию, не ломая себя.",
+            "challenge": (
+                "На неделю: назови вслух одну привычку, которая мешает, — "
+                "не чтобы себя осуждать, а чтобы увидеть паттерн."
+            ),
+            "strength": "Сознательно опирайся на эту линию хотя бы раз в неделю — так она работает сильнее.",
+            "money": "Запиши, что для тебя «достаточно» — карта про ценности, не про цифры в вакууме.",
+            "career": "Выбери одно действие на месяц в сторону реализации — маленький, но конкретный шаг.",
+            "health": "Режим сна и нагрузки здесь важнее «волевых подвигов» — начни с малого.",
+            "yes_no": "Если откликается — тема живая; если нет — доверяй ощущению больше текста.",
+            "general": f"На неделю понаблюдай тему «{area}» — так ответ станет не абстракцией, а опытом.",
+        }
+        return mapping.get(intent, mapping["general"])
+    mapping = {
+        "how_relationship": f"For one week, notice how you act around «{area}» — that's your pair style.",
+        "how": "Try one week of noticing how this shows up — no judgment, just observation.",
+        "when": "Watch when this theme feels louder in life — decisions land easier then.",
+        "why": "If you recognize yourself here, that's your «why»; you can shift reactions without breaking yourself.",
+        "challenge": (
+            "For one week, name one habit that blocks you — "
+            "not to judge yourself, but to see the pattern."
+        ),
+        "strength": "Lean on this line consciously once a week — it grows stronger with use.",
+        "money": "Write down what «enough» means for you — the chart is about values, not empty numbers.",
+        "career": "Pick one concrete step this month toward realization — small but real.",
+        "health": "Sleep and load matter more than heroic pushes — start small.",
+        "yes_no": "If it resonates, the theme is alive; if not, trust your feeling over the text.",
+        "general": f"Observe «{area}» for a week — then the answer becomes experience, not abstraction.",
+    }
+    return mapping.get(intent, mapping["general"])
+
+
+def synthesize_structured_answer(
+    chart: JyotishChart,
+    locale: str,
+    question: str,
+    *,
+    houses: tuple[int, ...] = (),
+    planet_keys: tuple[str, ...] = (),
+    focus: str = "default",
+    style: str = "terms",
+    lagna_first: bool = False,
+) -> StructuredQaAnswer:
+    if lagna_first:
+        lagna_line = _lagna_answer(locale, chart, question, style=style)
+        if lagna_line:
+            return StructuredQaAnswer(lagna_line, (), "")
+
+    intent = _classify_question(question, _lang(locale))
+    placements = _collect_placements(chart, houses=houses, planet_keys=planet_keys)
+    primary = _pick_focus_planet(
+        chart,
+        placements,
+        houses=houses,
+        planet_keys=planet_keys,
+        focus=focus,
+        intent=intent,
+    )
+    secondary = None
+    for pl in placements:
+        if pl.key != primary.key:
+            secondary = pl
+            break
+    if secondary is None and houses:
+        lord = _lord_placement(chart, houses[0])
+        if lord.key != primary.key:
+            secondary = lord
+
+    brief = _phrase_from_placement(
+        locale,
+        question,
+        primary,
+        style=style,
+        secondary=secondary,
+        focus=focus,
+    )
+    markers = _build_chart_markers(
+        chart,
+        locale,
+        houses=houses,
+        planet_keys=planet_keys,
+        style=style,
+    )
+    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary)
+    return StructuredQaAnswer(brief, markers, practice)
 
 
 def _plain_phrase_from_placement(
@@ -621,6 +861,11 @@ def _terms_phrase_from_placement(
         )
 
     if lang == "ru":
+        if any(w in q for w in ("мешает", "блок", "препят", "меша")):
+            return (
+                f"Главный узел — {core}; маркер {pname} в {sign} в сфере «{theme}»."
+                f"{dignity_tail}"
+            )
         if q.startswith("как ") or "как я" in q or "как склады" in q or "как отнош" in q:
             return (
                 f"Скорее всего — {core}: {pname} в {sign} связывает это с темой «{theme}»."
@@ -724,21 +969,38 @@ def format_qa_body(
     evidence: str,
     *,
     style: str = "terms",
+    markers: tuple[str, ...] = (),
+    practice: str = "",
 ) -> str:
     lang = _lang(locale)
     answer = direct_answer.strip()
-    if not _use_terms(style):
-        return answer
+    marker_lines = list(markers)
+    if not marker_lines and evidence.strip():
+        marker_lines = [
+            line.lstrip("•·- ").strip()
+            for line in evidence.split("\n")
+            if line.strip()
+        ][:4]
 
-    evidence = evidence.strip()
-    if lang == "ru":
-        blocks = [labeled_block("💬 Ответ", answer)]
-        if evidence:
-            blocks.append(labeled_block("📊 Подробнее по карте", evidence))
+    if not _use_terms(style):
+        labels = ("Кратко", "По карте", "На практике") if lang == "ru" else ("Short answer", "From your chart", "In practice")
+        blocks: list[str] = [p(b(labels[0]), answer)]
+        if marker_lines:
+            bullets = p(*[f"• {h(line)}" for line in marker_lines])
+            blocks.append(p(b(labels[1]), bullets))
+        if practice.strip():
+            blocks.append(labeled_block(labels[2], practice))
         return p(*blocks)
-    blocks = [labeled_block("💬 Answer", answer)]
-    if evidence:
-        blocks.append(labeled_block("📊 Chart details", evidence))
+
+    blocks = [labeled_block("💬 Ответ" if lang == "ru" else "💬 Answer", answer)]
+    if marker_lines:
+        chart_block = "\n".join(f"• {line}" for line in marker_lines)
+        blocks.append(labeled_block("📊 По карте" if lang == "ru" else "📊 Chart markers", chart_block))
+    elif evidence.strip():
+        blocks.append(labeled_block("📊 Подробнее по карте" if lang == "ru" else "📊 Chart details", evidence))
+    if practice.strip():
+        label = "💡 На практике" if lang == "ru" else "💡 In practice"
+        blocks.append(labeled_block(label, practice))
     return p(*blocks)
 
 
@@ -755,16 +1017,49 @@ def finish_qa_body(
     lagna_first: bool = False,
     direct_answer: str | None = None,
 ) -> str:
-    answer = direct_answer or synthesize_direct_answer(
+    if direct_answer is None:
+        structured = synthesize_structured_answer(
+            chart,
+            locale,
+            question,
+            houses=houses,
+            planet_keys=planet_keys,
+            focus=focus,
+            style=style,
+            lagna_first=lagna_first,
+        )
+        return format_qa_body(
+            locale,
+            structured.brief,
+            evidence,
+            style=style,
+            markers=structured.markers,
+            practice=structured.practice,
+        )
+
+    markers = _build_chart_markers(
         chart,
         locale,
-        question,
+        houses=houses,
+        planet_keys=planet_keys,
+        style=style,
+    )
+    intent = _classify_question(question, _lang(locale))
+    placements = _collect_placements(chart, houses=houses, planet_keys=planet_keys)
+    primary = _pick_focus_planet(
+        chart,
+        placements,
         houses=houses,
         planet_keys=planet_keys,
         focus=focus,
-        style=style,
-        lagna_first=lagna_first,
+        intent=intent,
     )
-    if not _use_terms(style):
-        return format_qa_body(locale, answer, "", style=style)
-    return format_qa_body(locale, answer, evidence, style=style)
+    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary)
+    return format_qa_body(
+        locale,
+        direct_answer,
+        evidence,
+        style=style,
+        markers=markers,
+        practice=practice,
+    )

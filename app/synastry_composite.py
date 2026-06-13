@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.sun_sign_compat import SIGN_LABELS, ZODIAC_SIGNS
-from app.synastry_houses import ANGULAR_HOUSES, HOUSE_SECTION, PLANET_LABELS, planet_house
+from app.synastry_houses import ANGULAR_HOUSES, HOUSE_SECTION, HOUSE_SECTION_PLAIN, PLANET_LABELS, planet_house
 
 COMPOSITE_PLANETS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
 
@@ -213,6 +213,19 @@ def _house_theme(locale: str, house: int) -> str:
     return HOUSE_SECTION[lang].get(house, (f"{house}-й дом", ""))[1]
 
 
+def _house_area_label(locale: str, house: int, *, style: str) -> str:
+    from app.synastry_style import use_synastry_terms
+
+    lang = _lang(locale)
+    table = HOUSE_SECTION if use_synastry_terms(style) else HOUSE_SECTION_PLAIN
+    entry = table[lang].get(house)
+    if entry:
+        return entry[0]
+    if lang == "ru":
+        return f"сфера {house}"
+    return f"area {house}"
+
+
 def _sun_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
     from app.synastry_style import use_synastry_terms
 
@@ -231,10 +244,12 @@ def _sun_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> 
     if lang == "ru":
         if use_synastry_terms(style):
             return f"• Солнце композита в {sign}, {house}-й дом — {hint}."
-        return f"• «Сердце» союза — {sign}, сфера {house}: {hint}."
+        area = _house_area_label(locale, house, style=style)
+        return f"• Главная цель союза — знак {sign}. Тема «{area}»: {hint}."
     if use_synastry_terms(style):
         return f"• Composite Sun in {sign}, {house}th house — {hint}."
-    return f"• Heart of the bond — {sign}, area {house}: {hint}."
+    area = _house_area_label(locale, house, style=style)
+    return f"• Main goal of the bond — {sign}. Theme «{area}»: {hint}."
 
 
 def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
@@ -257,10 +272,12 @@ def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) ->
     if lang == "ru":
         if use_synastry_terms(style):
             return f"• Луна композита в {sign}, {house}-й дом — {hint}."
-        return f"• Эмоции пары — {sign}, сфера {house}: {hint}."
+        area = _house_area_label(locale, house, style=style)
+        return f"• Эмоции в паре — знак {sign}. Тема «{area}»: {hint}."
     if use_synastry_terms(style):
         return f"• Composite Moon in {sign}, {house}th house — {hint}."
-    return f"• Pair emotions — {sign}, area {house}: {hint}."
+    area = _house_area_label(locale, house, style=style)
+    return f"• Pair feelings — {sign}. Theme «{area}»: {hint}."
 
 
 def _asc_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
@@ -309,8 +326,7 @@ def format_synastry_composite_section(
             )
         else:
             lines.append(
-                "Средняя точка между вашими планетами — образ союза как "
-                "отдельной «личности» пары."
+                "Это как общее «фото» вашего союза — как вы выглядите вместе и что для вас главное."
             )
     else:
         lines.append(
@@ -325,8 +341,7 @@ def format_synastry_composite_section(
             )
         else:
             lines.append(
-                "The midpoint between your planets — the bond pictured as "
-                "its own “personality.”"
+                "A snapshot of your bond: how you look together and what matters most."
             )
 
     lines.append("")
@@ -375,10 +390,12 @@ def format_synastry_composite_section(
                 if use_synastry_terms(style):
                     lines.append(f"• {planet_name} в {house}-м доме — {theme}. ⭐")
                 else:
-                    lines.append(f"• {planet_name} в главной сфере {house} — {theme}.")
+                    area = _house_area_label(locale, house, style=style)
+                    lines.append(f"• {planet_name} в теме «{area}» — {theme}.")
             elif use_synastry_terms(style):
                 lines.append(f"• {planet_name} in {house}th house — {theme}. ⭐")
             else:
-                lines.append(f"• {planet_name} in key area {house} — {theme}.")
+                area = _house_area_label(locale, house, style=style)
+                lines.append(f"• {planet_name} in «{area}» — {theme}.")
 
     return "\n".join(lines)

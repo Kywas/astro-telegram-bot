@@ -213,6 +213,11 @@ TEXTS = {
             "Оценка: {score}/100\n\n"
             "{details}"
         ),
+        "compat_themes_intro": (
+            "Текст простыми словами — без сложных терминов.\n\n"
+            "Выбери тему, которую хочешь прочитать."
+        ),
+        "btn_compat_themes": "📑 Темы",
         "mood_saved": "Настроение сохранено: {score}/10. Серия: {streak} дн.",
         "mood_invalid": "Укажи число от 1 до 10. Пример: /mood 7",
         "daily_enabled": "Ежедневная рассылка включена на {hhmm} ({tz}).",
@@ -619,6 +624,11 @@ TEXTS = {
             "Score: {score}/100\n\n"
             "{details}"
         ),
+        "compat_themes_intro": (
+            "Plain language — no jargon.\n\n"
+            "Pick the theme you want to read."
+        ),
+        "btn_compat_themes": "📑 Themes",
         "mood_saved": "Mood saved: {score}/10. Streak: {streak} days.",
         "mood_invalid": "Use a number from 1 to 10. Example: /mood 7",
         "daily_enabled": "Daily delivery is enabled at {hhmm} ({tz}).",

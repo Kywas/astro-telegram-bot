@@ -228,33 +228,46 @@ def format_synastry_step3_section(
             lines.append("Tense: square 90°, opposition 180° — growth and friction zones.")
     else:
         if lang == "ru":
-            lines.append("🔗 Шаг 3. Как вы влияете друг на друга")
+            lines.append("🔗 Как вы влияете друг на друга")
             lines.append(
-                "Смотрим, где ваши качества легко сходятся, а где нужен диалог — "
-                "без астрологических терминов."
+                "Тут видно, где между вами легко, а где без разговора начнётся напряжение."
             )
-            lines.append("Поддержка — легче чувствовать себя рядом; напряжение — точки роста.")
+            lines.append("Поддержка — хочется быть рядом. Напряжение — не конец света, а повод поговорить.")
         else:
-            lines.append("🔗 Step 3. How you affect each other")
+            lines.append("🔗 How you affect each other")
             lines.append(
-                "Where your traits meet easily and where dialogue helps — "
-                "without astrological jargon."
+                "This shows where things flow easily — and where you'll need honest talk."
             )
-            lines.append("Support — easier closeness; tension — growth points.")
+            lines.append("Support — you want to be close; tension — a growth spot, not a verdict.")
 
     mode_intro = {
         "ru": {
-            "love": "Режим «любовь» — акцент на близости и притяжении.",
-            "friendship": "Режим «дружба» — акцент на общении и доверии.",
-            "work": "Режим «работа» — акцент на ролях и совместной задаче.",
+            "love": "Смотрю через призму отношений — где близость, где притяжение.",
+            "friendship": "Смотрю через дружбу — где доверие, где лёгкость общения.",
+            "work": "Смотрю через работу — где слаженность, где могут тереться роли.",
         },
         "en": {
-            "love": "Love mode — focus on closeness and attraction.",
-            "friendship": "Friendship mode — focus on communication and trust.",
-            "work": "Work mode — focus on roles and shared tasks.",
+            "love": "Looking through a relationship lens — closeness and pull.",
+            "friendship": "Looking through friendship — trust and ease of talk.",
+            "work": "Looking through work — teamwork and where roles may rub.",
         },
     }
-    lines.append(mode_intro[lang][mode_key])
+    if not use_synastry_terms(style):
+        lines.append(mode_intro[lang][mode_key])
+    else:
+        mode_intro_terms = {
+            "ru": {
+                "love": "Режим «любовь» — акцент на близости и притяжении.",
+                "friendship": "Режим «дружба» — акцент на общении и доверии.",
+                "work": "Режим «работа» — акцент на ролях и совместной задаче.",
+            },
+            "en": {
+                "love": "Love mode — focus on closeness and attraction.",
+                "friendship": "Friendship mode — focus on communication and trust.",
+                "work": "Work mode — focus on roles and shared tasks.",
+            },
+        }
+        lines.append(mode_intro_terms[lang][mode_key])
 
     if not user_has_moon:
         lines.append(
