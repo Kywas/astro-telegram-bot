@@ -288,12 +288,12 @@ FOCUS_PERSONAL_NOTES: dict[str, dict[str, dict[str, list[str]]]] = {
         "practices": {
             "new_moon": [
                 "🧘 Сядь удобно, 5–10 мин тишины: «Что я хочу в этом цикле?» — одна фраза",
-                "🌬 Дыхание 4-4-6: вдох на 4, пауза 4, медленный выдох на 6",
+                "🌬 Дыхание 4-4-6: считай секунды — вдох носом на 4, задержка на 4, выдох на 6 (медленнее вдоха). Повтори 5–10 раз",
                 "📌 Запиши намерение на бумаге — так оно не растворится в суете",
             ],
             "waxing_crescent": [
                 "🧘 Утром 10 мин — та же практика, что вчера: так растут привычки",
-                "🌬 «Квадрат»: вдох 4 — задержка 4 — выдох 4 — задержка 4",
+                "🌬 «Квадрат»: на 4 сек вдох — 4 задержка — 4 выдох — 4 задержка. Все числа — секунды",
                 "📌 Отметь в календаре: даже 7 минут считаются",
             ],
             "first_quarter": [
@@ -416,12 +416,12 @@ FOCUS_PERSONAL_NOTES: dict[str, dict[str, dict[str, list[str]]]] = {
         "practices": {
             "new_moon": [
                 "🧘 Sit comfortably, 5–10 min quiet: “What do I want this cycle?” — one phrase",
-                "🌬 4-4-6 breath: inhale 4, pause 4, slow exhale 6",
+                "🌬 4-4-6 breath: count seconds — inhale through nose for 4, hold for 4, exhale for 6 (slower than inhale). Repeat 5–10 times",
                 "📌 Write the intention on paper — so it doesn’t vanish in the rush",
             ],
             "waxing_crescent": [
                 "🧘 10 min in the morning — same practice as yesterday: habits grow this way",
-                "🌬 Box breath: inhale 4 — hold 4 — exhale 4 — hold 4",
+                "🌬 Box breath: 4 sec inhale — 4 hold — 4 exhale — 4 hold. All numbers are seconds",
                 "📌 Mark it in your calendar: even 7 minutes count",
             ],
             "first_quarter": [
@@ -547,12 +547,12 @@ PLAIN_FOCUS_PERSONAL_NOTES: dict[str, dict[str, dict[str, list[str]]]] = {
         "practices": {
             "new_moon": [
                 "Помолчи 5–10 мин и сформулируй одну мысль на цикл.",
-                "Подыши: вдох 4, пауза 4, выдох 6.",
+                "Подыши по секундам: 4 — вдох носом, 4 — пауза (задержи дыхание), 6 — медленный выдох. Повтори 5–10 раз",
                 "Запиши намерение — так проще не забыть.",
             ],
             "waxing_crescent": [
                 "Короткая утренняя пауза — та же практика, что вчера.",
-                "Ровное дыхание «квадрат» 4×4.",
+                "Дыхание «квадрат»: 4 сек вдох — 4 пауза — 4 выдох — 4 пауза. Считай в уме",
                 "Даже 7 минут в день уже работают.",
             ],
             "first_quarter": [
@@ -664,12 +664,12 @@ PLAIN_FOCUS_PERSONAL_NOTES: dict[str, dict[str, dict[str, list[str]]]] = {
         "practices": {
             "new_moon": [
                 "5–10 min quiet and one clear thought for the cycle.",
-                "Breath: inhale 4, pause 4, exhale 6.",
+                "Breath by seconds: 4 — inhale through nose, 4 — pause (hold), 6 — slow exhale. Repeat 5–10 times",
                 "Write the intention down.",
             ],
             "waxing_crescent": [
                 "Short morning pause — same practice as yesterday.",
-                "Box breathing 4×4.",
+                "Box breath: 4 sec inhale — 4 pause — 4 exhale — 4 pause. Count in your head",
                 "Even 7 minutes a day count.",
             ],
             "first_quarter": [
