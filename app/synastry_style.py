@@ -8,82 +8,92 @@ from app.forecast_text import _aspect_label
 PLAIN_ASPECT = {
     "ru": {
         "conjunction": "усиливает",
-        "sextile": "мягко поддерживает",
-        "trine": "легко поддерживает",
-        "square": "давит на",
+        "sextile": "поддерживает без драмы",
+        "trine": "работает легко",
+        "square": "может задевать",
         "opposition": "тянет в разные стороны",
     },
     "en": {
-        "conjunction": "intensifies",
-        "sextile": "gently supports",
-        "trine": "easily supports",
-        "square": "presses on",
-        "opposition": "pulls in opposite directions",
+        "conjunction": "amps up",
+        "sextile": "supports without drama",
+        "trine": "flows easily",
+        "square": "can sting",
+        "opposition": "pulls opposite ways",
     },
 }
 
 PLAIN_ASPECT_NOUN = {
     "ru": {
-        "conjunction": "усиление",
-        "sextile": "мягкий контакт",
+        "conjunction": "сильная связка",
+        "sextile": "лёгкий контакт",
         "trine": "лёгкая поддержка",
-        "square": "напряжение",
+        "square": "напряжённый момент",
         "opposition": "контраст",
     },
     "en": {
-        "conjunction": "intensification",
-        "sextile": "gentle contact",
+        "conjunction": "strong link",
+        "sextile": "easy contact",
         "trine": "easy support",
-        "square": "tension",
+        "square": "tense moment",
         "opposition": "contrast",
     },
 }
 
 USER_PLANET_PLAIN = {
     "ru": {
-        "SUN": "ваш характер",
-        "MOON": "ваши чувства",
-        "MERCURY": "как вы говорите",
+        "SUN": "ваша суть",
+        "MOON": "ваши эмоции",
+        "MERCURY": "как вы болтаете",
         "VENUS": "ваша нежность",
-        "MARS": "ваша активность",
+        "MARS": "ваш напор",
         "JUPITER": "ваша поддержка",
         "SATURN": "ваши правила",
     },
     "en": {
-        "SUN": "your character",
+        "SUN": "your core",
         "MOON": "your feelings",
-        "MERCURY": "how you talk",
+        "MERCURY": "how you chat",
         "VENUS": "your warmth",
         "MARS": "your drive",
-        "JUPITER": "your support",
+        "JUPITER": "your backup",
         "SATURN": "your boundaries",
     },
 }
 
 PARTNER_PLANET_PLAIN = {
     "ru": {
-        "SUN": "характер партнёра",
-        "MOON": "чувства партнёра",
-        "MERCURY": "как говорит партнёр",
+        "SUN": "суть партнёра",
+        "MOON": "эмоции партнёра",
+        "MERCURY": "как болтает партнёр",
         "VENUS": "нежность партнёра",
-        "MARS": "активность партнёра",
+        "MARS": "напор партнёра",
         "JUPITER": "поддержка партнёра",
         "SATURN": "правила партнёра",
     },
     "en": {
-        "SUN": "partner's character",
+        "SUN": "partner's core",
         "MOON": "partner's feelings",
-        "MERCURY": "how your partner talks",
+        "MERCURY": "how your partner chats",
         "VENUS": "partner's warmth",
         "MARS": "partner's drive",
-        "JUPITER": "partner's support",
+        "JUPITER": "partner's backup",
         "SATURN": "partner's boundaries",
     },
 }
 
 ELEMENT_PLAIN = {
-    "ru": {"fire": "энергия", "earth": "стабильность", "air": "общение", "water": "чувства"},
-    "en": {"fire": "energy", "earth": "stability", "air": "communication", "water": "feelings"},
+    "ru": {
+        "fire": "огонь и драйв",
+        "earth": "земля и быт",
+        "air": "воздух и разговоры",
+        "water": "вода и чувства",
+    },
+    "en": {
+        "fire": "fire and drive",
+        "earth": "earth and routine",
+        "air": "air and talk",
+        "water": "water and feelings",
+    },
 }
 
 _ORB_PATTERN = re.compile(r"\s*\(\d+\.\d+°\)")
@@ -205,12 +215,12 @@ def format_comprehensive_scope_intro(locale: str, *, style: str = "terms") -> st
         )
     if lang == "ru":
         return (
-            "Я разбил разбор на несколько коротких кусков — про характер, притяжение, быт и вывод. "
-            "Можно читать подряд, можно перепрыгнуть к тому, что зацепило."
+            "Разбил на короткие куски — про характер, притяжение, быт и вывод. "
+            "Читай подряд или прыгай туда, где интересно. Без словаря астролога."
         )
     return (
-        "I split this into a few short chunks — character, pull, daily life, and the takeaway. "
-        "Read straight through or jump to what grabs you."
+        "Short chunks — character, pull, daily life, takeaway. "
+        "Read straight through or jump around. No astrology dictionary needed."
     )
 
 
@@ -266,8 +276,8 @@ def format_cross_link_line(
     user_role = format_user_planet(locale, user_planet, style)
     partner_role = format_partner_planet(locale, partner_planet, style)
     if lang == "ru":
-        return f"Тут стыкуются {user_role} и {partner_role}. {tone.capitalize()}."
-    return f"Here your {user_role} meets {partner_role}. {tone.capitalize()}."
+        return f"Сходятся {user_role} и {partner_role}. {tone.capitalize()}."
+    return f"Your {user_role} meets {partner_role}. {tone.capitalize()}."
 
 
 def format_seal_link_line(

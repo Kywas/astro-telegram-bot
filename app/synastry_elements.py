@@ -169,7 +169,7 @@ def _complement_insights(locale: str, balance: ElementBalance, *, style: str = "
                     f"Доминанты дополняют друг друга ({_element_label(locale, user_dom)} + "
                     f"{_element_label(locale, partner_dom)}) — классическое взаимное усиление."
                 ]
-            return ["Вы хорошо дополняете друг друга — одному легче там, где другому сложнее."]
+            return ["Вы хорошо дополняете друг друга — один тащит, другой подстраховывает. Как команда."]
         if use_synastry_terms(style):
             return [
                 f"Dominants complement each other ({_element_label(locale, user_dom)} + "
@@ -208,7 +208,7 @@ def _complement_insights(locale: str, balance: ElementBalance, *, style: str = "
                     f"{_element_label(locale, partner_dom).lower()} тянут в разные стороны — "
                     "ищите середину и общий язык."
                 ]
-            return ["Вы с разным темпом — ищите компромисс и говорите прямо."]
+            return ["Темп разный — не спорьте, кто прав. Договоритесь, как жить с этим."]
         if use_synastry_terms(style):
             return [
                 f"{_element_label(locale, user_dom)} and {_element_label(locale, partner_dom)} "
@@ -295,7 +295,7 @@ def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style
     lines: list[str] = []
 
     if lang == "ru":
-        lines.append("⚖️ Шаг 6. Баланс стихий" if use_synastry_terms(style) else "⚖️ Шаг 6. Общий темп и тон")
+        lines.append("⚖️ Шаг 6. Баланс стихий" if use_synastry_terms(style) else "⚖️ Кто быстрый, кто спокойный")
         if use_synastry_terms(style):
             lines.append(
                 "Считаем планеты в знаках каждой стихии (Солнце, Луна, Меркурий, "
@@ -303,8 +303,8 @@ def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style
             )
         else:
             lines.append(
-                "Сравниваю, кому ближе энергия, стабильность, общение и чувства — "
-                "так видно, где вы на одной волне."
+                "Смотрю, кому ближе драйв, быт, болтовня и чувства — "
+                "так видно, где вы на одной волне, а где «ты опять торопишься»."
             )
         if use_synastry_terms(style):
             lines.append(
@@ -312,7 +312,7 @@ def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style
                 "может давать непонимание; взаимное дополнение — опора пары."
             )
     else:
-        lines.append("⚖️ Step 6. Element balance" if use_synastry_terms(style) else "⚖️ Step 6. Shared rhythm")
+        lines.append("⚖️ Step 6. Element balance" if use_synastry_terms(style) else "⚖️ Who's fast, who's calm")
         if use_synastry_terms(style):
             lines.append(
                 "We count planets in each element by sign (Sun, Moon, Mercury, "

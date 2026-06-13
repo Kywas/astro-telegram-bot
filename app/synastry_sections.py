@@ -102,10 +102,32 @@ class SynastryTheme:
     body: str
 
 
+THEME_LABELS_PLAIN = {
+    "ru": {
+        "overview": "📋 Кто вы как пара",
+        "attraction": "💞 Что вас тянет",
+        "bond": "🤝 Как живёте «мы»",
+        "depth": "🌑 О чём молчат",
+        "symbols": "🔢 Числа и карты",
+        "result": "📊 Итог и совет",
+    },
+    "en": {
+        "overview": "📋 Who you are together",
+        "attraction": "💞 What pulls you in",
+        "bond": "🤝 Living as «we»",
+        "depth": "🌑 What's unsaid",
+        "symbols": "🔢 Numbers and cards",
+        "result": "📊 Wrap-up and tip",
+    },
+}
+
+
 def theme_label(locale: str, theme_key: str, *, style: str = "plain") -> str:
     lang = _lang(locale)
     if use_synastry_terms(style):
         table = THEME_LABELS_TERMS[lang]
+    elif style == "plain":
+        table = THEME_LABELS_PLAIN[lang]
     else:
         table = THEME_LABELS[lang]
     return table.get(theme_key, THEME_LABELS[lang].get(theme_key, theme_key))

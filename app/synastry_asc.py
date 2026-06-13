@@ -145,8 +145,8 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "вы близки к его/её образу идеального партнёра."
                 )
             return (
-                "• Ваш образ «в мире» совпадает с тем, кого партнёр подсознательно ищет — "
-                "сильное притяжение."
+                "• Вы — как раз тот тип, которого партнёр ищет «на автомате». "
+                "Магнит включён."
             )
         if terms:
             return (
@@ -166,7 +166,7 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "идеального партнёра."
                 )
             return (
-                "• Образ партнёра «в мире» совпадает с тем, кого вы подсознательно ищете."
+                "• Партнёр попадает в ваш «идеальный тип» — как будто заказывали."
             )
         if terms:
             return (
@@ -182,8 +182,8 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "но возможны конфликты из‑за одинаковых слабых сторон."
                 )
             return (
-                "• Вы проявляетесь в мире похоже — легко понимать друг друга, "
-                "но одинаковые слабости могут усиливаться."
+                "• Вы похожи снаружи — понимаете друг друга быстро. "
+                "Минус: одни и те же косяки можете умножить на два."
             )
         if terms:
             return (
@@ -202,8 +202,7 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "классическое притяжение «я ↔ идеальный партнёр»."
                 )
             return (
-                "• Ваш образ «в мире» и то, кого ищет партнёр, — противоположности: "
-                "магнитное притяжение дополняющих типов."
+                "• Вы — как плюс и минус на магните: тянет, хотя снаружи всё наоборот."
             )
         if terms:
             return (
@@ -222,7 +221,7 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "• ASC в противоположных знаках — сильный контраст темпераментов "
                     "и взаимное дополнение."
                 )
-            return "• Вы проявляетесь в мире как противоположности — контраст притягивает."
+            return "• Снаружи вы — полные противоположности. Классика «меня тянет, хотя мы не похожи»."
         if terms:
             return (
                 "• Ascendants in opposite signs — strong temperamental contrast "
@@ -243,7 +242,7 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
         lines.append(
             "↗️ Шаг 2. ASC и DSC"
             if use_synastry_terms(style)
-            else "↗️ Шаг 2. Образ в мире и идеальный партнёр"
+            else "↗️ Как выглядите и кого ищете"
         )
         if use_synastry_terms(style):
             lines.append(
@@ -252,14 +251,14 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
             )
         else:
             lines.append(
-                "Как каждый проявляется в мире и какой тип партнёра подсознательно ищет — "
-                "по времени и месту рождения."
+                "Первое впечатление и «мой тип» — нужны время и город рождения у обоих. "
+                "Без этого блок пропускаем."
             )
     else:
         lines.append(
             "↗️ Step 2. ASC and DSC"
             if use_synastry_terms(style)
-            else "↗️ Step 2. Public self and ideal partner"
+            else "↗️ First impression and «my type»"
         )
         if use_synastry_terms(style):
             lines.append(
@@ -344,7 +343,7 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
     if analysis.full_analysis and analysis.matches:
         lines.append("")
         if lang == "ru":
-            lines.append("Связки углов:" if use_synastry_terms(style) else "Что это даёт паре:")
+            lines.append("Связки углов:" if use_synastry_terms(style) else "Почему тянет:")
         else:
             lines.append("Angle links:" if use_synastry_terms(style) else "What this means for the pair:")
         for kind in analysis.matches:
@@ -354,7 +353,9 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
     elif analysis.full_analysis:
         if lang == "ru":
             lines.append("")
-            lines.append("• Ярких совпадений ASC↔DSC нет — тема идёт через другие уровни карты.")
+            lines.append(
+                "• Ярких «идеальных пар» тут нет — зато притяжение может быть в других местах."
+            )
         else:
             lines.append("")
             lines.append("• No strong ASC↔DSC matches — the theme runs through other chart layers.")

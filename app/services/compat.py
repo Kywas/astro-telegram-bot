@@ -320,12 +320,9 @@ def render_compat_theme_menu(locale: str, profile, syn, mode: str, *, style: str
                 "Inside — synastry steps with terms (ASC, aspects, composite, etc.)."
             )
     elif locale == "ru":
-        guide = "6 коротких тем — выбирай, с чего начать."
+        guide = "6 коротких тем — как сезоны сериала: можно начать с любой."
     else:
-        guide = (
-            "I split this into 6 short themes — two or three minutes each. "
-            "Read in order or jump to whatever catches you."
-        )
+        guide = "Six short themes — like TV seasons: start wherever you want."
     theme_blocks = [
         labeled_block(theme.title, theme_menu_teaser(locale, theme.key, style=style))
         for theme in syn.themes
@@ -360,7 +357,7 @@ def render_compat_theme_page(
     parts = [
         compat_result_header(locale, profile, syn, mode, compact=True, style=style),
     ]
-    if use_synastry_terms(style):
+    if hook:
         parts.append(format_screen_body(hook))
     parts.append(p(b(theme.title), format_report(theme.body)))
     if len(themes) > 1 and theme.key != "result" and use_synastry_terms(style):

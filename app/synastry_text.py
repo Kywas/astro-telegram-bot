@@ -114,48 +114,48 @@ def _planet_label(locale: str, planet: str) -> str:
 ASPECT_TONE_PLAIN = {
     "ru": {
         "love": {
-            "trine": "рядом с этим человеком спокойно и хочется остаться",
-            "sextile": "легко сближаетесь, без натянутости",
-            "conjunction": "тема отношений звучит громко — не проходит мимо",
-            "square": "может зажигать, но и задевать — лучше не копить молча",
-            "opposition": "тянет, даже когда бесит — типичная история «противоположности»",
+            "trine": "рядом спокойно — хочется остаться и не спешить",
+            "sextile": "сближаетесь легко, без натянутой улыбки",
+            "conjunction": "тема отношений на переднем плане — не проскочишь мимо",
+            "square": "может зажигать, но и задевать — лучше говорить, чем копить",
+            "opposition": "тянет, даже когда бесит — классика «мы с разных планет»",
         },
         "friendship": {
-            "trine": "понимаете друг друга почти с полуслова",
-            "sextile": "общаться легко, без лишних объяснений",
-            "conjunction": "общие интересы сильно сближают",
-            "square": "темп разный — договоритесь, как общаться",
-            "opposition": "вы разные, но это может дополнять",
+            "trine": "понимаете друг друга почти с полуслова — редкая удача",
+            "sextile": "общаться легко, без лишних объяснений «на пальцах»",
+            "conjunction": "общие интересы сильно сближают — есть о чём болтать",
+            "square": "темп разный — договоритесь, как и когда писать друг другу",
+            "opposition": "вы разные — но иногда это как специи: без них скучно",
         },
         "work": {
-            "trine": "вместе продуктивно, без лишней суеты",
-            "sextile": "идеи обмениваются легко",
-            "conjunction": "общая цель чувствуется сильнее",
-            "square": "подходы разные — распределите роли",
-            "opposition": "напряжение есть, но может толкать вперёд",
+            "trine": "вместе продуктивно — меньше суеты, больше дела",
+            "sextile": "идеи обмениваются легко — мозги не конфликтуют",
+            "conjunction": "общая цель чувствуется — «мы в одной лодке»",
+            "square": "подходы разные — распределите роли, и будет проще",
+            "opposition": "напряжение есть — но иногда оно и толкает вперёд",
         },
     },
     "en": {
         "love": {
-            "trine": "you feel calm around each other and want to stay",
-            "sextile": "you warm up fast, without awkwardness",
-            "conjunction": "the relationship theme is loud — hard to ignore",
-            "square": "it can spark and sting — don't swallow it in silence",
-            "opposition": "it pulls even when it annoys — classic opposites",
+            "trine": "calm together — you want to stay, no rush",
+            "sextile": "you warm up fast, no forced smile",
+            "conjunction": "relationship theme is front and center — hard to miss",
+            "square": "sparks and stings — talk beats storing it up",
+            "opposition": "pulls even when it annoys — classic «different planets»",
         },
         "friendship": {
-            "trine": "you get each other almost without words",
-            "sextile": "talking feels easy, no over-explaining",
-            "conjunction": "shared interests pull you close",
-            "square": "different pace — agree how you connect",
-            "opposition": "you're different, but that can complement",
+            "trine": "you get each other almost without words — lucky",
+            "sextile": "easy talk, no over-explaining",
+            "conjunction": "shared interests pull you close — plenty to chat about",
+            "square": "different pace — agree when and how to text",
+            "opposition": "you're different — sometimes that's the spice",
         },
         "work": {
-            "trine": "productive together, without extra noise",
-            "sextile": "ideas flow easily",
-            "conjunction": "the shared goal feels stronger",
-            "square": "different styles — split roles clearly",
-            "opposition": "tension is there, but it can push you forward",
+            "trine": "productive together — less noise, more done",
+            "sextile": "ideas swap easily — brains don't clash",
+            "conjunction": "shared goal feels real — same boat",
+            "square": "different styles — split roles and breathe",
+            "opposition": "tension exists — sometimes it pushes forward",
         },
     },
 }
@@ -201,43 +201,45 @@ def format_synastry_advice(locale: str, mode: str, score: int, *, style: str = "
         if mode == "love":
             if score >= 75:
                 return (
-                    "Я бы опирался на то, что у вас уже получается. Ссоры не всегда про «не люблю» — "
-                    "иногда просто устали или не договорились."
+                    "Опирайтесь на то, что уже работает. Ссора — не всегда «не люблю», "
+                    "иногда просто устали или забыли спросить «ты как?»."
                     if plain
                     else "Опирайтесь на сильные связи и не принимайте напряжение на личный счёт."
                 )
             if score >= 55:
                 return (
-                    "Говорите о чувствах вслух, без намёков. Притяжение есть, но и точки, "
-                    "где легко не понять друг друга."
+                    "Говорите о чувствах вслух — намёки тут не работают. "
+                    "Притяжение есть, но и места, где легко не понять друг друга."
                     if plain
                     else "Говорите прямо о чувствах — карты показывают и притяжение, и точки трения."
                 )
             return (
-                "Не форсируйте близость. Сначала разберитесь, кто вы друг для друга — потом решения."
+                "Не форсируйте близость. Сначала поймите, кто вы друг для друга — "
+                "потом уже «мы навсегда» или «расходимся»."
                 if plain
                 else "Не форсируйте близость: сначала ясность, потом решения."
             )
         if mode == "friendship":
             if score >= 75:
                 return (
-                    "Не теряйте контакт — у вас это складывается естественно."
+                    "Не теряйте контакт — у вас это складывается естественно. "
+                    "Даже если давно не писали — можно начать с «привет, скучал»."
                     if plain
                     else "Поддерживайте регулярный контакт — связь легко складывается."
                 )
             return (
-                "Если друг другу пишете в разном темпе — это нормально, просто проговорите."
+                "Если пишете в разном темпе — нормально. Просто скажите: «мне удобнее так»."
                 if plain
                 else "Уважайте разный темп и формат общения."
             )
         if score >= 75:
             return (
-                "Распределите, кто за что отвечает — так меньше нервов на ровном месте."
+                "Распределите, кто за что отвечает — так меньше нервов и «а я думал, ты сам»."
                 if plain
                 else "Закрепите роли и дедлайны — взаимодействие продуктивное."
             )
         return (
-            "Сначала договоритесь о задачах. Потом уже скорость."
+            "Сначала договоритесь о задачах. Потом уже скорость и дедлайны."
             if plain
             else "Сначала договоритесь о задачах, потом ускоряйтесь."
         )

@@ -199,7 +199,7 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
 
     lines: list[str] = []
     if lang == "ru":
-        lines.append("☀️ Шаг 1. Солнечные знаки" if use_synastry_terms(style) else "☀️ Шаг 1. Базовый характер")
+        lines.append("☀️ Шаг 1. Солнечные знаки" if use_synastry_terms(style) else "☀️ Кто вы по знакам")
         if use_synastry_terms(style):
             lines.append(f"• {user_name} ({user_elem}) + {partner_name} ({partner_elem})")
         else:
@@ -209,7 +209,7 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
                 f"{format_element_plain(locale, compat.partner_element)}"
             )
     else:
-        lines.append("☀️ Step 1. Sun signs" if use_synastry_terms(style) else "☀️ Step 1. Basic character")
+        lines.append("☀️ Step 1. Sun signs" if use_synastry_terms(style) else "☀️ Who you are by sign")
         if use_synastry_terms(style):
             lines.append(f"• {user_name} ({user_elem}) + {partner_name} ({partner_elem})")
         else:
@@ -224,8 +224,8 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
     if kind == SunSignKind.SAME_SIGN:
         if lang == "ru":
             lines.append(
-                "• Один знак — вы похожи, быстро считываете друг друга. "
-                "Следите только, чтобы не повторять одни и те же ошибки."
+                "• Один знак — вы как два зеркала: быстро понимаете друг друга. "
+                "Следите только, чтобы не повторять одни и те же косяки вдвоём."
                 if plain
                 else "• Один знак — усиливаете общие черты и быстро считываете друг друга. "
                 "Следите, чтобы не застревать в одинаковых слепых зонах."
@@ -242,7 +242,7 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
         if lang == "ru":
             lines.append(
                 f"• {user_name} и {partner_name} — противоположности. "
-                "Магнит работает, но без разговоров легко ссориться."
+                "Магнит работает, но без разговоров легко устроить мини-шторм."
                 if plain
                 else f"• Противоположные знаки ({user_name} — {partner_name}) — "
                 "сильное притяжение через контраст: вы тянетесь друг к другу, "
@@ -261,7 +261,7 @@ def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style:
     elif kind == SunSignKind.SAME_ELEMENT:
         if lang == "ru":
             lines.append(
-                "• Похожий темп — легче понимать друг друга с полуслова."
+                "• Похожий темп — часто понимаете друг друга с полуслова. Удобно."
                 if plain
                 else f"• Одна стихия ({_element_label(locale, compat.user_element)}: "
                 f"{_signs_in_element(locale, compat.user_element)}) — похожий темп и ценности, "
