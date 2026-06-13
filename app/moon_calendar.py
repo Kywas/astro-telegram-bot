@@ -7,9 +7,11 @@ from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint
 from app.moon_calendar_extras import (
     FOCUS_PERSONAL_HEADER,
     FOCUS_PERSONAL_NOTES,
+    FOCUS_PHASE_HINT,
     PHASE_ACCENT,
     PLAIN_FOCUS_PERSONAL_HEADER,
     PLAIN_FOCUS_PERSONAL_NOTES,
+    PLAIN_FOCUS_PHASE_HINT,
     PLAIN_PHASE_ACCENT,
 )
 from app.moon_calendar_plain_data import (
@@ -157,208 +159,208 @@ MODE_PHASE_GUIDANCE = {
     "ru": {
         "practices": {
             "new_moon": {
-                "do": "короткая медитация на намерение, лёгкий ритуал начала",
-                "avoid": "длинных сложных ритуалов без подготовки",
+                "do": "5–10 мин тишины, одно намерение на цикл и запись на бумаге",
+                "avoid": "длинных ритуалов «на один раз» и перегруза в первый день",
             },
             "waxing_crescent": {
-                "do": "ежедневная практика 10–15 минут, закрепление привычки",
-                "avoid": "откладывания «до лучших условий»",
+                "do": "короткая ежедневная практика 10–15 мин — та же техника, что вчера",
+                "avoid": "откладывания «до лучших условий» и смены метода каждый день",
             },
             "first_quarter": {
-                "do": "активная практика, мантры, дисциплина",
-                "avoid": "формального чтения без внимания",
+                "do": "собранная практика 15 мин: мантра, дыхание или концентрация",
+                "avoid": "формального «отсидеться» без внимания к телу и дыханию",
             },
             "waxing_gibbous": {
-                "do": "углубление практики, работа с качеством",
-                "avoid": "перегруза новыми техниками",
+                "do": "углубить текущую практику — медленнее, глубже, без новых техник",
+                "avoid": "перегруза новыми методами и гонки за «прогрессом»",
             },
             "full_moon": {
-                "do": "медитация благодарности, завершение цикла практики",
-                "avoid": "экстремальных практик и ночных ритуалов",
+                "do": "медитация благодарности и спокойное завершение цикла практики",
+                "avoid": "экстремальных практик, ночных марафонов и перегруза",
             },
             "waning_gibbous": {
-                "do": "делиться опытом, мягкая практика",
-                "avoid": "давления на результат",
+                "do": "мягкая практика и обмен опытом с близкими без поучений",
+                "avoid": "давления на результат и «надо успеть всё»",
             },
             "last_quarter": {
-                "do": "упрощение практики, отпускание лишнего",
-                "avoid": "наращивания объёма без смысла",
+                "do": "упростить практику — оставить 1–2 техники, отпустить лишнее",
+                "avoid": "наращивания объёма без смысла и новых обязательств",
             },
             "waning_crescent": {
-                "do": "тихая медитация, отдых, подготовка к новому циклу",
-                "avoid": "старта новых длинных курсов",
+                "do": "тихая медитация, body scan, подготовка к новому циклу",
+                "avoid": "старта длинных курсов и жёстких практик через силу",
             },
         },
         "health": {
             "new_moon": {
-                "do": "лёгкая еда, намерение по режиму и сну",
-                "avoid": "жёстких диет и резкого детокса",
+                "do": "простая еда, сон в привычное время, мягкий режим на весь цикл",
+                "avoid": "жёстких диет, резкого детокса и агрессивных процедур",
             },
             "waxing_crescent": {
-                "do": "постепенное укрепление режима, достаточно воды",
-                "avoid": "резких ограничений и скачков нагрузки",
+                "do": "вода, лёгкие супы и овощи, прогулки 20–30 мин",
+                "avoid": "резких ограничений и скачков нагрузки «с понедельника»",
             },
             "first_quarter": {
-                "do": "умеренная активность, белок, овощи, режим сна",
-                "avoid": "пропуска сна ради тренировок",
+                "do": "умеренная активность, белок и овощи, стабильный сон",
+                "avoid": "пропуска сна ради тренировок и «добей себя»",
             },
             "waxing_gibbous": {
-                "do": "корректировка питания и восстановления",
-                "avoid": "перегруза стимуляторами и сахаром",
+                "do": "подстроить питание и восстановление — маленькие правки уже работают",
+                "avoid": "перегруза сахаром, кофе «на силу» и недосыпа",
             },
             "full_moon": {
-                "do": "умеренность, простая еда, отдых",
-                "avoid": "переедания, алкоголя и недосыпа",
+                "do": "умеренность, простая еда, медленные приёмы пищи",
+                "avoid": "переедания, алкоголя, острого и резкой смены образа",
             },
             "waning_gibbous": {
-                "do": "лёгкий разгрузочный день, прогулки",
+                "do": "лёгкий разгрузочный день, прогулка, тёплая ванна без перегрева",
                 "avoid": "жёсткого голодания и экстремальных диет",
             },
             "last_quarter": {
-                "do": "упрощение рациона, мягкое очищение",
+                "do": "упростить рацион, больше воды и зелени, мягкое очищение",
                 "avoid": "новых жёстких диет и стрессовых нагрузок",
             },
             "waning_crescent": {
-                "do": "отдых, сон, простая еда",
-                "avoid": "детокс-экстремов и перегруза организма",
+                "do": "отдых, сон 8+ часов, простая еда без перегруза",
+                "avoid": "детокс-экстремов, голодания и агрессивных процедур",
             },
         },
         "creativity": {
             "new_moon": {
-                "do": "записать 3 идеи, черновик намерения",
-                "avoid": "запуска большого проекта «с нуля» без плана",
+                "do": "записать 3 идеи, мини-доску настроения и намерение на цикл",
+                "avoid": "запуска большого проекта «с нуля» без плана и черновика",
             },
             "waxing_crescent": {
-                "do": "первые шаги, наброски, пробные форматы",
-                "avoid": "самокритики и страха «неидеального» старта",
+                "do": "первый черновик 20 мин, один формат, пробный шаг",
+                "avoid": "самокритики, страха «неидеального» и пяти проектов сразу",
             },
             "first_quarter": {
-                "do": "активная работа, правки, один главный фокус",
-                "avoid": "распыления на много задач сразу",
+                "do": "активная работа над одним проектом, правки, доведение до формы",
+                "avoid": "распыления на много задач и бесконечного планирования",
             },
             "waxing_gibbous": {
-                "do": "доработка, финальные штрихи, тестирование",
-                "avoid": "бесконечного переделывания",
+                "do": "доработка, взгляд «как зритель», одна сильная правка",
+                "avoid": "бесконечного переделывания и перфекционизма",
             },
             "full_moon": {
-                "do": "показать работу, подвести итог, отметить результат",
-                "avoid": "резких публичных решений на эмоциях",
+                "do": "показать работу, зафиксировать прогресс, отметить результат",
+                "avoid": "резких публичных решений на эмоциях и сравнения с другими",
             },
             "waning_gibbous": {
-                "do": "делиться feedback, благодарить, собирать отклики",
-                "avoid": "давления на аудиторию и сравнения",
+                "do": "собрать отклик у 1–2 доверенных людей, поблагодарить себя",
+                "avoid": "давления на аудиторию и обесценивания своей работы",
             },
             "last_quarter": {
-                "do": "редактирование, архив лишнего, пересмотр планов",
-                "avoid": "удаления всего подряд из импульсивности",
+                "do": "редактирование, убрать слабое, переписать план короче",
+                "avoid": "удаления всего подряд из импульса и «сжечь мосты»",
             },
             "waning_crescent": {
-                "do": "дневник инсайтов, мягкий brainstorming",
-                "avoid": "старта крупных проектов без восстановления",
+                "do": "дневник инсайтов, brainstorming без обязательств",
+                "avoid": "старта крупных проектов без отдыха и форсирования идей",
             },
         },
     },
     "en": {
         "practices": {
             "new_moon": {
-                "do": "a short intention meditation and a light opening ritual",
-                "avoid": "long complex rituals without preparation",
+                "do": "5–10 min quiet, one cycle intention, jot it on paper",
+                "avoid": "one-off long rituals and overload on day one",
             },
             "waxing_crescent": {
-                "do": "a daily 10–15 minute practice and habit anchoring",
-                "avoid": "postponing until conditions are perfect",
+                "do": "a daily 10–15 min practice — same technique as yesterday",
+                "avoid": "waiting for perfect conditions and swapping methods daily",
             },
             "first_quarter": {
-                "do": "active practice, mantras, and steady discipline",
-                "avoid": "going through the motions without attention",
+                "do": "a focused 15 min session: mantra, breath, or concentration",
+                "avoid": "going through the motions without body and breath awareness",
             },
             "waxing_gibbous": {
-                "do": "deepening practice and refining quality",
-                "avoid": "overloading with new techniques",
+                "do": "deepen what you already do — slower, deeper, no new techniques",
+                "avoid": "technique overload and chasing measurable progress",
             },
             "full_moon": {
-                "do": "gratitude meditation and closing a practice cycle",
-                "avoid": "extreme practices and late-night rituals",
+                "do": "gratitude meditation and a calm close to the practice cycle",
+                "avoid": "extreme practices, late-night marathons, and overload",
             },
             "waning_gibbous": {
-                "do": "sharing experience and gentle practice",
-                "avoid": "pressure for measurable results",
+                "do": "gentle practice and sharing experience without preaching",
+                "avoid": "pressure for results and “must finish everything”",
             },
             "last_quarter": {
-                "do": "simplifying practice and releasing excess",
-                "avoid": "adding volume without purpose",
+                "do": "simplify — keep 1–2 techniques, release the rest",
+                "avoid": "adding volume without purpose and new obligations",
             },
             "waning_crescent": {
-                "do": "quiet meditation, rest, and preparing a new cycle",
-                "avoid": "starting long new courses",
+                "do": "quiet meditation, body scan, preparing a new cycle",
+                "avoid": "starting long courses and forced intense practice",
             },
         },
         "health": {
             "new_moon": {
-                "do": "light meals and an intention for sleep and routine",
-                "avoid": "strict diets and harsh detox",
+                "do": "simple food, sleep at your usual time, a soft routine for the cycle",
+                "avoid": "strict diets, harsh detox, and aggressive treatments",
             },
             "waxing_crescent": {
-                "do": "gradually strengthening routine and hydration",
-                "avoid": "sharp restrictions and sudden load spikes",
+                "do": "water, light soups and vegetables, 20–30 min walks",
+                "avoid": "sharp restrictions and “starting Monday” load spikes",
             },
             "first_quarter": {
-                "do": "moderate activity, protein, vegetables, and sleep rhythm",
-                "avoid": "skipping sleep for workouts",
+                "do": "moderate activity, protein and vegetables, steady sleep",
+                "avoid": "skipping sleep for workouts and pushing through pain",
             },
             "waxing_gibbous": {
-                "do": "adjusting nutrition and recovery",
-                "avoid": "stimulant and sugar overload",
+                "do": "tune nutrition and recovery — small tweaks already help",
+                "avoid": "sugar overload, caffeine to push through, and sleep debt",
             },
             "full_moon": {
-                "do": "moderation, simple food, and rest",
-                "avoid": "overeating, alcohol, and sleep debt",
+                "do": "moderation, simple food, slower meals",
+                "avoid": "overeating, alcohol, spicy food, and drastic image changes",
             },
             "waning_gibbous": {
-                "do": "a light unloading day and walks",
+                "do": "a light unloading day, a walk, a warm bath without overheating",
                 "avoid": "hard fasting and extreme diets",
             },
             "last_quarter": {
-                "do": "simplifying meals and gentle cleansing",
+                "do": "simplify meals, more water and greens, gentle cleansing",
                 "avoid": "new strict diets and stressful loads",
             },
             "waning_crescent": {
-                "do": "rest, sleep, and simple food",
-                "avoid": "extreme detox and bodily overload",
+                "do": "rest, 8+ hours sleep if you can, simple unhurried food",
+                "avoid": "extreme detox, fasting, and harsh treatments",
             },
         },
         "creativity": {
             "new_moon": {
-                "do": "write down 3 ideas and a draft intention",
-                "avoid": "launching a big project from zero without a plan",
+                "do": "write 3 ideas, a tiny mood board, and a cycle intention",
+                "avoid": "launching a big project from zero without a plan or draft",
             },
             "waxing_crescent": {
-                "do": "first steps, sketches, and trial formats",
-                "avoid": "self-criticism and fear of an imperfect start",
+                "do": "a 20 min first draft, one format, one trial step",
+                "avoid": "self-criticism, fear of imperfect starts, and five projects at once",
             },
             "first_quarter": {
-                "do": "active work, edits, and one main focus",
-                "avoid": "spreading across too many tasks",
+                "do": "active work on one project, edits, bringing it into form",
+                "avoid": "spreading across tasks and endless planning",
             },
             "waxing_gibbous": {
-                "do": "refinement, final touches, and testing",
-                "avoid": "endless reworking",
+                "do": "refinement, a viewer’s eye, one strong edit",
+                "avoid": "endless reworking and perfectionism",
             },
             "full_moon": {
-                "do": "show your work, review outcomes, celebrate progress",
-                "avoid": "sharp public decisions driven by emotion",
+                "do": "show your work, capture progress, celebrate what’s done",
+                "avoid": "sharp public decisions on emotion and comparing to others",
             },
             "waning_gibbous": {
-                "do": "share feedback, thank others, gather responses",
-                "avoid": "pressure on audience and comparison",
+                "do": "gather feedback from 1–2 trusted people, thank yourself",
+                "avoid": "pressuring your audience and dismissing your own work",
             },
             "last_quarter": {
-                "do": "editing, archiving excess, revising plans",
-                "avoid": "deleting everything impulsively",
+                "do": "edit, cut weak parts, rewrite the plan shorter",
+                "avoid": "deleting everything impulsively and burning bridges",
             },
             "waning_crescent": {
-                "do": "insight journaling and gentle brainstorming",
-                "avoid": "starting major projects before recovery",
+                "do": "insight journaling and obligation-free brainstorming",
+                "avoid": "starting major projects without rest and forcing ideas",
             },
         },
     },
@@ -552,6 +554,22 @@ def _phase_accent_lines(
     return lines
 
 
+def _focus_phase_hint(
+    locale: str,
+    phase_key: str,
+    focus: str,
+    *,
+    style: str = "terms",
+) -> str | None:
+    lang = _locale(locale)
+    normalized = normalize_moon_focus(focus)
+    if _use_terms(style):
+        bucket = FOCUS_PHASE_HINT[lang].get(normalized, {})
+    else:
+        bucket = PLAIN_FOCUS_PHASE_HINT[lang].get(normalized, {})
+    return bucket.get(phase_key)
+
+
 def _focus_personal_header(locale: str, focus: str, *, style: str = "terms") -> str:
     lang = _locale(locale)
     normalized = normalize_moon_focus(focus)
@@ -606,6 +624,9 @@ def _planning_lines(
     for key in focuses:
         rec_do, rec_avoid = _guidance(locale, phase_key, key, style=style)
         lines.append(f"• {_focus_section(locale, key, style=style)}")
+        hint = _focus_phase_hint(locale, phase_key, key, style=style)
+        if hint:
+            lines.append(f"  💡 {hint}")
         lines.append(f"  ✓ {rec_do}")
         lines.append(f"  ✗ {rec_avoid}")
         _append_focus_personal_lines(lines, locale, phase_key, key, style=style)
@@ -631,6 +652,7 @@ def _moon_snapshot(
     accent = PHASE_ACCENT[_locale(locale)].get(data.phase_key, {})
     plain_accent = PLAIN_PHASE_ACCENT[_locale(locale)].get(data.phase_key, {})
     personal_lines = _focus_personal_lines(locale, data.phase_key, focus, style=style)
+    phase_hint = _focus_phase_hint(locale, data.phase_key, focus, style=style)
     next_phase_moment = jd_to_local_datetime(data.next_phase_jd, data.timezone_name)
     lunar_day_start = jd_to_local_datetime(data.lunar_day_start_jd, data.timezone_name)
     next_lunar_day_start = jd_to_local_datetime(data.next_lunar_day_start_jd, data.timezone_name)
@@ -655,6 +677,7 @@ def _moon_snapshot(
         "avoid": rec_avoid,
         "personal_lines": personal_lines,
         "personal_note": "\n".join(personal_lines),
+        "phase_hint": phase_hint or "",
         "accent_color": accent.get("color", ""),
         "accent_label": accent.get("label", "") if _use_terms(style) else plain_accent.get("label", ""),
         "affirmation": accent.get("affirmation", "") if _use_terms(style) else plain_accent.get("affirmation", ""),
@@ -670,6 +693,16 @@ def _snap_extra_lines(snap: dict, *, locale: str, focus: str, style: str = "term
     elif str(snap.get("personal_note") or "").strip():
         lines.append(_focus_personal_header(locale, focus, style=style))
         lines.append(str(snap["personal_note"]))
+    phase_hint = str(snap.get("phase_hint") or "").strip()
+    if not phase_hint:
+        phase_hint = _focus_phase_hint(
+            locale,
+            str(snap.get("phase_key", "")),
+            focus,
+            style=style,
+        ) or ""
+    if phase_hint:
+        lines.insert(0, f"💡 {phase_hint}")
     affirmation = str(snap.get("affirmation") or "").strip()
     if affirmation and normalize_moon_focus(focus) != "creativity":
         lines.append(f"💬 «{affirmation}»")
