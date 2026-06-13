@@ -37,6 +37,7 @@ class UserProfile:
     trial_used: bool
     natal_mode: str
     natal_style: str
+    natal_qa_free_used: bool
     ref_code: Optional[str]
     referrer_id: Optional[int]
     ref_bonus_count: int
@@ -167,6 +168,7 @@ class Database:
                 "trial_used": "INTEGER DEFAULT 0",
                 "natal_mode": "TEXT DEFAULT 'full'",
                 "natal_style": "TEXT DEFAULT 'terms'",
+                "natal_qa_free_used": "INTEGER DEFAULT 0",
                 "ref_code": "TEXT",
                 "referrer_id": "INTEGER",
                 "ref_bonus_count": "INTEGER DEFAULT 0",
@@ -412,6 +414,9 @@ class Database:
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
                     natal_style=row["natal_style"] if row["natal_style"] else "terms",
+                    natal_qa_free_used=bool(
+                        row["natal_qa_free_used"] if row["natal_qa_free_used"] is not None else 0
+                    ),
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
@@ -616,6 +621,9 @@ class Database:
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
                     natal_style=row["natal_style"] if row["natal_style"] else "terms",
+                    natal_qa_free_used=bool(
+                        row["natal_qa_free_used"] if row["natal_qa_free_used"] is not None else 0
+                    ),
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
@@ -710,6 +718,19 @@ class Database:
                 (normalized, user_id),
             )
             await db.commit()
+
+    async def consume_natal_qa_free_answer(self, user_id: int) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                """
+                UPDATE users
+                SET natal_qa_free_used = 1
+                WHERE user_id = ? AND COALESCE(natal_qa_free_used, 0) = 0
+                """,
+                (user_id,),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
 
     async def ensure_ref_code(self, user_id: int) -> str:
         code = f"u{user_id}"

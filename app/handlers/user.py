@@ -56,12 +56,33 @@ from app.keyboards import (
     moon_period_keyboard,
     natal_part_keyboard,
     natal_qa_answer_keyboard,
+    natal_qa_pick_keyboard,
     natal_qa_popular_answer_keyboard,
     natal_qa_questions_keyboard,
     natal_qa_family_answer_keyboard,
     natal_qa_family_keyboard,
+    natal_qa_finance_answer_keyboard,
+    natal_qa_finance_keyboard,
+    natal_qa_karma_answer_keyboard,
+    natal_qa_karma_keyboard,
+    natal_qa_upaya_answer_keyboard,
+    natal_qa_upaya_keyboard,
+    natal_qa_travel_answer_keyboard,
+    natal_qa_travel_keyboard,
+    natal_qa_dharma_answer_keyboard,
+    natal_qa_dharma_keyboard,
+    natal_qa_purpose_answer_keyboard,
+    natal_qa_purpose_keyboard,
+    natal_qa_health_answer_keyboard,
+    natal_qa_health_keyboard,
+    natal_qa_lineage_answer_keyboard,
+    natal_qa_lineage_keyboard,
+    natal_qa_traits_answer_keyboard,
+    natal_qa_traits_keyboard,
     natal_qa_popular_keyboard,
     natal_qa_spheres_keyboard,
+    natal_qa_custom_prompt_keyboard,
+    natal_qa_custom_answer_keyboard,
     natal_style_picker_keyboard,
     onboarding_relationship_keyboard,
     prefs_gender_keyboard,
@@ -83,10 +104,31 @@ from app.natal import build_natal_summary
 from app.natal_sphere_qa import (
     build_chart_from_profile,
     build_family_answer,
+    build_finance_answer,
+    build_karma_answer,
+    build_upaya_answer,
+    build_travel_answer,
+    build_dharma_answer,
+    build_purpose_answer,
+    build_health_answer,
+    build_lineage_answer,
+    build_traits_answer,
     build_popular_answer,
     build_sphere_answer,
+    build_custom_answer,
+    custom_picker_intro,
+    dharma_picker_intro,
     family_picker_intro,
-    popular_picker_intro,
+    finance_picker_intro,
+    health_picker_intro,
+    karma_picker_intro,
+    lineage_picker_intro,
+    purpose_picker_intro,
+    traits_picker_intro,
+    travel_picker_intro,
+    upaya_picker_intro,
+    popular_list_intro,
+    qa_picker_intro,
     questions_intro,
     spheres_picker_intro,
 )
@@ -144,6 +186,7 @@ from app.states import (
     CompatibilityCheck,
     DailySetup,
     MoonDetails,
+    NatalQaCustom,
     PartnerSetup,
     PreferencesSetup,
     ProfileSetup,
@@ -1161,8 +1204,102 @@ async def natal_style_callback_handler(callback: CallbackQuery) -> None:
     await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 
+_NATAL_QA_ANSWER_ACTIONS = frozenset({
+    "pop", "fam", "fin", "kar", "trt", "lin", "hlt", "pur", "dhr", "trv", "upa", "q",
+})
+
+_NATAL_QA_NAV_ACTIONS = frozenset({
+    "pick",
+    "popular",
+    "family",
+    "finance",
+    "karma",
+    "traits",
+    "lineage",
+    "health",
+    "purpose",
+    "dharma",
+    "travel",
+    "upaya",
+    "spheres",
+    "page",
+})
+
+
+def _natal_qa_part_from_parts(action: str, parts: list[str]) -> int:
+    if action == "q" and len(parts) >= 6:
+        return int(parts[5]) if parts[5].isdigit() else 1
+    if len(parts) >= 5 and parts[4].isdigit():
+        return int(parts[4])
+    if len(parts) >= 4 and parts[3].isdigit():
+        return int(parts[3])
+    return 1
+
+
+def _natal_qa_pick_intro_text(locale: str, profile) -> str:
+    text = qa_picker_intro(locale)
+    if is_premium_active(profile.premium_until):
+        return text
+    if not profile.natal_qa_free_used:
+        return f"{text}\n\n{t(locale, 'natal_qa_free_available')}"
+    return f"{text}\n\n{t(locale, 'natal_qa_free_used_hint')}"
+
+
+async def _try_consume_natal_qa_answer(profile) -> bool:
+    if is_premium_active(profile.premium_until):
+        return True
+    if not profile.natal_qa_free_used:
+        if await db.consume_natal_qa_free_answer(profile.user_id):
+            profile.natal_qa_free_used = True
+            return True
+    return False
+
+
+async def _ensure_natal_qa_answer_access(
+    callback: CallbackQuery,
+    locale: str,
+    profile,
+    *,
+    part: int,
+) -> bool:
+    if await _try_consume_natal_qa_answer(profile):
+        return True
+    await edit_or_send(
+        callback,
+        f"{t(locale, 'premium_required_natal_qa')}\n\n{t(locale, 'premium_features')}",
+        inline_keyboard=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
+    )
+    return False
+
+
+def _natal_qa_custom_prompt_text(locale: str, *, suffix: str = "") -> str:
+    text = (
+        f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+        f"{custom_picker_intro(locale)}"
+    )
+    if suffix:
+        text = f"{text}\n\n{suffix}"
+    return text
+
+
+async def _show_natal_qa_custom_prompt(
+    *,
+    locale: str,
+    part: int,
+    edit_target: CallbackQuery | None = None,
+    message: Message | None = None,
+    suffix: str = "",
+) -> None:
+    text = _natal_qa_custom_prompt_text(locale, suffix=suffix)
+    keyboard = natal_qa_custom_prompt_keyboard(locale, part=part)
+    if edit_target is not None:
+        await edit_or_send(edit_target, text, inline_keyboard=keyboard)
+    elif message is not None:
+        await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
 @router.callback_query(F.data.startswith("natal:qa:"))
-async def natal_qa_callback_handler(callback: CallbackQuery) -> None:
+async def natal_qa_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
     if user is None:
         return
@@ -1194,11 +1331,57 @@ async def natal_qa_callback_handler(callback: CallbackQuery) -> None:
     action = parts[2]
     await callback.answer()
 
+    if action in _NATAL_QA_NAV_ACTIONS:
+        await state.clear()
+
+    if action in _NATAL_QA_ANSWER_ACTIONS:
+        min_len = 6 if action == "q" else 5
+        if len(parts) >= min_len:
+            qa_part = _natal_qa_part_from_parts(action, parts)
+            if not await _ensure_natal_qa_answer_access(
+                callback,
+                locale,
+                profile,
+                part=qa_part,
+            ):
+                return
+
     if action == "pick":
         part = int(parts[3]) if parts[3].isdigit() else 1
         text = (
             f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
-            f"{popular_picker_intro(locale)}"
+            f"{_natal_qa_pick_intro_text(locale, profile)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_pick_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "custom":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        if not is_premium_active(profile.premium_until):
+            await edit_or_send(
+                callback,
+                f"{t(locale, 'premium_required_natal_qa_custom')}\n\n{t(locale, 'premium_features')}",
+                inline_keyboard=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
+            )
+            return
+        await state.set_state(NatalQaCustom.waiting_question)
+        await state.update_data(natal_qa_part=part)
+        await _show_natal_qa_custom_prompt(
+            locale=locale,
+            part=part,
+            edit_target=callback,
+        )
+        return
+
+    if action == "popular":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{popular_list_intro(locale)}"
         )
         await edit_or_send(
             callback,
@@ -1217,6 +1400,402 @@ async def natal_qa_callback_handler(callback: CallbackQuery) -> None:
             callback,
             text,
             inline_keyboard=natal_qa_family_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "finance":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{finance_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_finance_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "karma":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{karma_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_karma_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "traits":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{traits_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_traits_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "lineage":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{lineage_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_lineage_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "health":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{health_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_health_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "upaya":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{upaya_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_upaya_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "upa" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_upaya_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_upaya_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "travel":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{travel_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_travel_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "trv" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_travel_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_travel_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "dharma":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{dharma_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_dharma_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "dhr" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_dharma_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_dharma_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "purpose":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{purpose_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_purpose_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "pur" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_purpose_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_purpose_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "hlt" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_health_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_health_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "lin" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_lineage_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_lineage_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "trt" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_traits_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_traits_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "kar" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_karma_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_karma_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "fin" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_finance_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_finance_answer_keyboard(locale, part=part),
         )
         return
 
@@ -1359,11 +1938,96 @@ async def natal_qa_callback_handler(callback: CallbackQuery) -> None:
         return
 
 
+@router.message(NatalQaCustom.waiting_question)
+async def natal_qa_custom_question_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or profile.birth_date is None or not profile.sign:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "natal_profile_missing"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+    if profile.birth_time is None:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "natal_time_required"),
+            reply_markup=home_panel_keyboard(locale),
+        )
+        return
+
+    data = await state.get_data()
+    part = int(data.get("natal_qa_part") or 1)
+    if not is_premium_active(profile.premium_until):
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'premium_required_natal_qa_custom')}\n\n{t(locale, 'premium_features')}",
+            reply_markup=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
+        )
+        return
+
+    question = (message.text or "").strip()
+    if len(question) < 5:
+        await _show_natal_qa_custom_prompt(
+            locale=locale,
+            part=part,
+            message=message,
+            suffix=t(locale, "natal_qa_custom_too_short"),
+        )
+        return
+    if len(question) > 300:
+        await _show_natal_qa_custom_prompt(
+            locale=locale,
+            part=part,
+            message=message,
+            suffix=t(locale, "natal_qa_custom_too_long"),
+        )
+        return
+
+    chart = build_chart_from_profile(profile)
+    if chart is None:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "natal_qa_unavailable"),
+            reply_markup=natal_part_keyboard(
+                locale,
+                part=part,
+                premium_active=is_premium_active(profile.premium_until),
+                current_style=profile.natal_style or "terms",
+            ),
+        )
+        return
+
+    answer = build_custom_answer(
+        chart,
+        locale,
+        question,
+        style=profile.natal_style or "terms",
+    )
+    await state.clear()
+    text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+    await show_panel_from_message(
+        message,
+        text,
+        reply_markup=natal_qa_custom_answer_keyboard(locale, part=part),
+    )
+
+
 @router.callback_query(F.data.startswith("natal:part:"))
-async def natal_part_callback_handler(callback: CallbackQuery) -> None:
+async def natal_part_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
     if user is None:
         return
+    await state.clear()
     locale = await get_user_locale(user.id)
     part = int((callback.data or "natal:part:1").rsplit(":", 1)[-1])
     profile = await db.get_user(user.id)

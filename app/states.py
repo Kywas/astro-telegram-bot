@@ -40,3 +40,7 @@ class AdminPanel(StatesGroup):
 
 class DailySetup(StatesGroup):
     waiting_custom_time = State()
+
+
+class NatalQaCustom(StatesGroup):
+    waiting_question = State()

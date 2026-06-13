@@ -80,6 +80,8 @@ def test_referral_profile_requirements() -> None:
         premium_until=None,
         trial_used=False,
         natal_mode="full",
+        natal_style="terms",
+        natal_qa_free_used=False,
         ref_code=None,
         referrer_id=2,
         ref_bonus_count=0,
