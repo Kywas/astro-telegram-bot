@@ -106,6 +106,36 @@ def _planet_name(locale: str, planet: str) -> str:
     return PLANET_LABELS[_lang(locale)].get(planet, planet)
 
 
+UNION_PLANET_PLAIN = {
+    "ru": {
+        "SUN": "главная цель пары",
+        "MOON": "эмоции пары",
+        "MERCURY": "разговор в паре",
+        "VENUS": "нежность",
+        "MARS": "искра",
+        "JUPITER": "рост",
+        "SATURN": "границы",
+    },
+    "en": {
+        "SUN": "the pair's main goal",
+        "MOON": "pair emotions",
+        "MERCURY": "how you talk as a pair",
+        "VENUS": "warmth",
+        "MARS": "spark",
+        "JUPITER": "growth",
+        "SATURN": "boundaries",
+    },
+}
+
+
+def _union_planet_label(locale: str, planet: str, *, style: str) -> str:
+    from app.synastry_style import use_synastry_terms
+
+    if use_synastry_terms(style):
+        return _planet_name(locale, planet)
+    return UNION_PLANET_PLAIN[_lang(locale)].get(planet, "тема" if _lang(locale) == "ru" else "theme")
+
+
 def _longitude_to_sign(longitude: float) -> str:
     normalized = longitude % 360.0
     index = int(normalized // 30) % 12
@@ -385,17 +415,18 @@ def format_synastry_composite_section(
     else:
         for planet, house in analysis.angular_planets:
             theme = _house_theme(locale, house)
-            planet_name = _planet_name(locale, planet)
+            planet_name = _union_planet_label(locale, planet, style=style)
             if lang == "ru":
                 if use_synastry_terms(style):
                     lines.append(f"• {planet_name} в {house}-м доме — {theme}. ⭐")
                 else:
                     area = _house_area_label(locale, house, style=style)
-                    lines.append(f"• {planet_name} в теме «{area}» — {theme}.")
-            elif use_synastry_terms(style):
-                lines.append(f"• {planet_name} in {house}th house — {theme}. ⭐")
+                    lines.append(f"• В теме «{area}» заметен {planet_name}: {theme}.")
             else:
                 area = _house_area_label(locale, house, style=style)
-                lines.append(f"• {planet_name} in «{area}» — {theme}.")
+                if use_synastry_terms(style):
+                    lines.append(f"• {planet_name} in {house}th house — {theme}. ⭐")
+                else:
+                    lines.append(f"• In «{area}», {planet_name} stands out: {theme}.")
 
     return "\n".join(lines)

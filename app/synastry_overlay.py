@@ -114,9 +114,27 @@ def _key_pair_interpretation(
     hit: SynastryHit | None,
     *,
     mode: str,
+    style: str = "terms",
 ) -> str:
+    from app.synastry_style import use_synastry_terms
+
     lang = _lang(locale)
+    plain = not use_synastry_terms(style)
     if hit is None:
+        if plain:
+            messages = {
+                "ru": {
+                    "sun_moon": "Особой «резонансной» связки нет — эмоциональный фон спокойнее, смотрите на быт.",
+                    "venus_mars": "Яркой «искры» тут нет — притяжение складывается из других тем, не только из химии.",
+                    "mercury": "Без особой связки в разговоре — диалог возможен, но переспрашивайте, не додумывайте.",
+                },
+                "en": {
+                    "sun_moon": "No special «resonance» link — emotional tone is calmer; watch daily life.",
+                    "venus_mars": "No loud «spark» here — attraction builds through more than chemistry alone.",
+                    "mercury": "No special talk link — dialogue works if you ask, don't assume.",
+                },
+            }
+            return messages[lang][spec.key]
         messages = {
             "sun_moon": {
                 "ru": "Точного аспекта Солнце↔Луна нет — эмоциональный фон спокойнее, опирайтесь на общий контекст.",
@@ -138,6 +156,18 @@ def _key_pair_interpretation(
     tense = _is_tense(aspect)
 
     if spec.key == "sun_moon":
+        if plain:
+            if lang == "ru":
+                if harmonious:
+                    return "Эмоции и характер сходятся — легче понимать, что партнёр чувствует."
+                if tense:
+                    return "Разный эмоциональный ритм — честность и терпение спасают."
+                return "Эмоциональный контакт заметен — не всё нужно объяснять словами."
+            if harmonious:
+                return "Feelings and character align — easier to read each other."
+            if tense:
+                return "Different emotional rhythms — honesty and patience help."
+            return "Emotional contact is there — not everything needs explaining."
         if lang == "ru":
             if harmonious:
                 return "Резонанс Солнца и Луны — легче считывать эмоции и базовые потребности друг друга."
@@ -151,6 +181,30 @@ def _key_pair_interpretation(
         return "Sun and Moon are linked — emotional contact is noticeable."
 
     if spec.key == "venus_mars":
+        if plain:
+            if mode == "work":
+                if lang == "ru":
+                    if harmonious:
+                        return "Мотивация в деле совпадает — легче тянуть одну задачу."
+                    if tense:
+                        return "В работе разный темп — заранее разделите роли."
+                    return "Динамика в совместных делах заметна."
+                if harmonious:
+                    return "Shared drive at work — easier to pull one task."
+                if tense:
+                    return "Different work pace — split roles early."
+                return "Your working dynamic shows up clearly."
+            if lang == "ru":
+                if harmonious:
+                    return "Притяжение и искра есть — телесный интерес не спишите на «просто привычку»."
+                if tense:
+                    return "Сильная химия и трение — не смешивайте страсть с обидами."
+                return "Притяжение между вами заметно."
+            if harmonious:
+                return "Attraction and spark — don't write physical interest off as «just habit»."
+            if tense:
+                return "Strong chemistry and friction — don't mix passion with resentment."
+            return "Attraction between you is noticeable."
         if mode == "work":
             if lang == "ru":
                 if harmonious:
@@ -175,6 +229,18 @@ def _key_pair_interpretation(
             return "Venus↔Mars — strong chemistry and friction; don't mix passion with resentment."
         return "Venus↔Mars noticeably shapes attraction."
 
+    if plain:
+        if lang == "ru":
+            if harmonious:
+                return "Разговор идёт легче — проще договориться и не перегибать."
+            if tense:
+                return "Разные стили мышления — переспрашивайте и фиксируйте договорённости."
+            return "Стиль общения заметно влияет на пару."
+        if harmonious:
+            return "Talk flows easier — simpler to agree without overdoing it."
+        if tense:
+            return "Different thinking styles — re-check and confirm agreements."
+        return "How you communicate shapes the bond."
     if lang == "ru":
         if harmonious:
             return "Меркурий↔Меркурий — легче договориться и понять логику друг друга."
@@ -292,12 +358,16 @@ def format_synastry_step3_section(
             if use_synastry_terms(style):
                 group = _aspect_group_label(locale, aspect)
                 lines.append(f"• {aspect_line.capitalize()} · {_capitalize_group(lang, group)}")
-                interpretation = _key_pair_interpretation(locale, spec, hit, mode=mode_key)
+                interpretation = _key_pair_interpretation(
+                    locale, spec, hit, mode=mode_key, style=style
+                )
                 lines.append(f"• {interpretation}")
             else:
                 lines.append(f"• {aspect_line.capitalize()}.")
         else:
-            interpretation = _key_pair_interpretation(locale, spec, hit, mode=mode_key)
+            interpretation = _key_pair_interpretation(
+                locale, spec, hit, mode=mode_key, style=style
+            )
             lines.append(f"• {interpretation}")
 
     used = _used_hit_keys(key_hits)

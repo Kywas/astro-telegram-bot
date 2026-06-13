@@ -275,9 +275,12 @@ def format_cross_link_line(
 
     user_role = format_user_planet(locale, user_planet, style)
     partner_role = format_partner_planet(locale, partner_planet, style)
+    tone_clean = tone.strip()
+    if tone_clean and tone_clean[0].islower():
+        tone_clean = tone_clean[0].upper() + tone_clean[1:]
     if lang == "ru":
-        return f"Сходятся {user_role} и {partner_role}. {tone.capitalize()}."
-    return f"Your {user_role} meets {partner_role}. {tone.capitalize()}."
+        return f"{user_role.capitalize()} и {partner_role} — {tone_clean}"
+    return f"Your {user_role} and {partner_role} — {tone_clean}"
 
 
 def format_seal_link_line(
@@ -436,7 +439,7 @@ _PLAIN_BULLET_LIMIT = {
 }
 
 _PLAIN_HEADER = re.compile(
-    r"^[☀️⚖️🏠🌐✨📊💞🔢🌑🤝📋↗️🔗🔥🧠💡ℹ️⚠️]",
+    r"^[☀️⚖️🏠🌐✨📊💞🔢🌑🤝📋↗️🔗🔥🧠💡ℹ️⚠️🪷🎯🃏]",
 )
 
 
@@ -502,7 +505,7 @@ def compact_plain_theme_body(text: str, theme_key: str, locale: str) -> str:
                         break
                     kept_blocks.append(ln)
                     bullets_used += 1
-            elif theme_key == "result" and prose:
+            elif prose:
                 kept_blocks.append("\n".join(prose))
 
     result = re.sub(r"\n{3,}", "\n\n", "\n\n".join(kept_blocks).strip())

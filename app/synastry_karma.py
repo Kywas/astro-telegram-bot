@@ -189,7 +189,12 @@ def karmic_score_delta(analysis: KarmicAnalysis) -> int:
     return delta
 
 
-def _format_link_line(locale: str, link: KarmicLink) -> str:
+def _format_link_line(locale: str, link: KarmicLink, *, style: str = "terms") -> str:
+    from app.synastry_style import use_synastry_terms
+
+    if not use_synastry_terms(style):
+        return _format_plain_karmic_link(locale, link)
+
     lang = _lang(locale)
     aspect_label = _aspect_label(locale, link.aspect)
     orb_part = f" ({link.orb:.1f}°)" if link.orb <= 2.5 else ""
@@ -218,6 +223,158 @@ def _format_link_line(locale: str, link: KarmicLink) -> str:
     )
 
 
+def _node_role_plain(locale: str, link: KarmicLink) -> str:
+    lang = _lang(locale)
+    is_rahu = link.node_key == "RAHU"
+    if link.node_owner == "user":
+        if lang == "ru":
+            return "ваша линия роста" if is_rahu else "ваш старый сценарий"
+        return "your growth line" if is_rahu else "your old pattern"
+    if lang == "ru":
+        return "линия роста партнёра" if is_rahu else "старый сценарий партнёра"
+    return "partner's growth line" if is_rahu else "partner's old pattern"
+
+
+def _target_role_plain(locale: str, link: KarmicLink) -> str:
+    from app.synastry_style import format_partner_planet, format_user_planet
+
+    if link.node_owner == "user":
+        return format_partner_planet(locale, link.target_planet, "plain")
+    return format_user_planet(locale, link.target_planet, "plain")
+
+
+def _format_plain_karmic_link(locale: str, link: KarmicLink) -> str:
+    lang = _lang(locale)
+    node = _node_role_plain(locale, link)
+    target = _target_role_plain(locale, link)
+
+    if lang == "ru":
+        if link.aspect in HARMONIOUS:
+            return f"{node.capitalize()} мягко цепляется за {target}"
+        if link.aspect == "square":
+            return f"{node.capitalize()} может задевать {target}"
+        if link.aspect == "opposition":
+            return f"{node.capitalize()} и {target} — магнит с двух сторон: тянет и бесит"
+        return f"{node.capitalize()} заметно влияет на {target}"
+
+    if link.aspect in HARMONIOUS:
+        return f"{node.capitalize()} gently hooks into {target}"
+    if link.aspect == "square":
+        return f"{node.capitalize()} can sting {target}"
+    if link.aspect == "opposition":
+        return f"{node.capitalize()} and {target} — magnet from both sides: pull and friction"
+    return f"{node.capitalize()} noticeably touches {target}"
+
+
+def _plain_task_interpretation(locale: str, link: KarmicLink) -> str:
+    lang = _lang(locale)
+    if link.aspect in HARMONIOUS:
+        if lang == "ru":
+            return "Урок идёт мягче — можно меняться без драмы."
+        return "The lesson lands softer — change without theatrics."
+    if lang == "ru":
+        if link.target_planet == "VENUS":
+            return "В нежности легко зацепиться — лучше сказать, чем додумывать."
+        if link.target_planet == "MERCURY":
+            return "В разговорах легко не попасть — переспрашивайте, не угадывайте."
+        if link.target_planet == "MOON":
+            return "Эмоции могут накрывать — назовите чувство вслух."
+        return "Тут лучше не копить — честный разговор дешевле молчания."
+    if link.target_planet == "VENUS":
+        return "Warmth can sting here — say it, don't guess."
+    if link.target_planet == "MERCURY":
+        return "Easy to miss each other in talk — ask, don't assume."
+    if link.target_planet == "MOON":
+        return "Feelings can flood — name them out loud."
+    return "Don't stockpile — honest talk beats silence."
+
+
+def _format_plain_karma_section(locale: str, analysis: KarmicAnalysis) -> str:
+    lang = _lang(locale)
+    lines: list[str] = []
+
+    if lang == "ru":
+        lines.append("🪷 О чём обычно молчат")
+        lines.append(
+            "Темы, которые пара словно «принесла с собой» — не обязательно «судьба», "
+            "но часто чувствуются телом, а не головой."
+        )
+    else:
+        lines.append("🪷 What's usually unsaid")
+        lines.append(
+            "Themes you seem to carry into the bond — not always «fate», "
+            "but often felt in the gut, not the spreadsheet."
+        )
+
+    lines.append("")
+    if lang == "ru":
+        lines.append("✨ Магнетизм «не просто так»")
+        lines.append("Бывает ощущение, что встретились не случайно — или что жизнь вас проверяет на зрелость.")
+    else:
+        lines.append("✨ «Not just random» magnetism")
+        lines.append("Sometimes it feels meant — or like life is testing how grown-up you can be together.")
+
+    if analysis.best_destined is None:
+        lines.append(
+            "• Яркого «мы с судьбой» тут нет — и это нормально. "
+            "Можете быть глубокими просто потому что подходите, а не потому что «так в карте»."
+            if lang == "ru"
+            else "• No loud «we're fated» marker — and that's fine. "
+            "You can still go deep because you fit, not because a chart said so."
+        )
+    else:
+        lines.append(
+            f"• Есть линия «не просто случайность»: "
+            f"{_format_plain_karmic_link(locale, analysis.best_destined)}."
+            if lang == "ru"
+            else f"• A «not just chance» thread: "
+            f"{_format_plain_karmic_link(locale, analysis.best_destined)}."
+        )
+        lines.append(
+            "• Ощущение, что встретились с задачей — не всегда легко, но живо."
+            if lang == "ru"
+            else "• A sense you met with a task — not always easy, but alive."
+        )
+        for link in analysis.destined[1:2]:
+            lines.append(f"• ↳ {_format_plain_karmic_link(locale, link).capitalize()}.")
+
+    lines.append("")
+    if lang == "ru":
+        lines.append("🎯 Уроки, которые тянут на честность")
+        lines.append(
+            "Не обязательно «карма прошлых жизней» — скорее темы, "
+            "которые жизнь будет повторять, пока не научитесь по-новому."
+        )
+    else:
+        lines.append("🎯 Lessons that ask for honesty")
+        lines.append(
+            "Not necessarily «past-life karma» — more like themes life repeats "
+            "until you respond differently."
+        )
+
+    if not analysis.has_karmic_task:
+        lines.append(
+            "• Громких сюрпризов не видно — уроки мягче или проявятся через быт."
+            if lang == "ru"
+            else "• No loud surprises here — lessons are softer or show up in daily life."
+        )
+    else:
+        for link in analysis.karmic_tasks[:3]:
+            lines.append(
+                f"• {_format_plain_karmic_link(locale, link).capitalize()}. "
+                f"{_plain_task_interpretation(locale, link)}"
+            )
+        if len(analysis.karmic_tasks) > 3:
+            extra = len(analysis.karmic_tasks) - 3
+            lines.append(
+                f"• … и ещё {extra} похожих тем — не игнорируйте, но и не драматизируйте."
+                if lang == "ru"
+                else f"• … plus {extra} similar themes — notice them, don't doom-scroll your bond."
+            )
+
+    return "\n".join(lines)
+
+
 def _task_interpretation(locale: str, link: KarmicLink) -> str:
     lang = _lang(locale)
     if link.aspect in HARMONIOUS:
@@ -232,40 +389,24 @@ def _task_interpretation(locale: str, link: KarmicLink) -> str:
 def format_synastry_step8_section(locale: str, analysis: KarmicAnalysis, *, style: str = "terms") -> str:
     from app.synastry_style import use_synastry_terms
 
+    if not use_synastry_terms(style):
+        return _format_plain_karma_section(locale, analysis)
+
     lang = _lang(locale)
     lines: list[str] = []
 
     if lang == "ru":
+        lines.append("🪷 Шаг 8. Кармические показатели")
         lines.append(
-            "🪷 Шаг 8. Кармические показатели"
-            if use_synastry_terms(style)
-            else "🪷 Шаг 8. Глубинные задачи пары"
+            "Лунные узлы: Раху (Северный) и Кету (Южный) — темы кармы и "
+            "направления роста в паре (тропик, True Node)."
         )
-        if use_synastry_terms(style):
-            lines.append(
-                "Лунные узлы: Раху (Северный) и Кету (Южный) — темы кармы и "
-                "направления роста в паре (тропик, True Node)."
-            )
-        else:
-            lines.append(
-                "Темы, которые пара словно «принесла с собой» — "
-                "уроки роста и ощущение смысла."
-            )
     else:
+        lines.append("🪷 Step 8. Karmic indicators")
         lines.append(
-            "🪷 Step 8. Karmic indicators"
-            if use_synastry_terms(style)
-            else "🪷 Step 8. Deep pair themes"
+            "Lunar nodes: Rahu (North) and Ketu (South) — karmic themes and "
+            "growth direction (tropical True Node)."
         )
-        if use_synastry_terms(style):
-            lines.append(
-                "Lunar nodes: Rahu (North) and Ketu (South) — karmic themes and "
-                "growth direction (tropical True Node)."
-            )
-        else:
-            lines.append(
-                "Themes you seem to carry into the bond — lessons, growth, and sense of purpose."
-            )
 
     lines.append("")
     if lang == "ru":
@@ -288,7 +429,9 @@ def format_synastry_step8_section(locale: str, analysis: KarmicAnalysis, *, styl
             "but can still run deep through other factors."
         )
     else:
-        lines.append(f"• {_format_link_line(locale, analysis.best_destined).capitalize()}.")
+        lines.append(
+            f"• {_format_link_line(locale, analysis.best_destined, style=style).capitalize()}."
+        )
         if lang == "ru":
             lines.append(
                 "• Признак сильной, «узловой» связи — будто вы встретились не случайно."
@@ -298,7 +441,7 @@ def format_synastry_step8_section(locale: str, analysis: KarmicAnalysis, *, styl
                 "• A strong nodal bond — as if the meeting carries a sense of purpose."
             )
         for link in analysis.destined[1:2]:
-            lines.append(f"• ↳ {_format_link_line(locale, link).capitalize()}.")
+            lines.append(f"• ↳ {_format_link_line(locale, link, style=style).capitalize()}.")
 
     lines.append("")
     if lang == "ru":
@@ -324,7 +467,7 @@ def format_synastry_step8_section(locale: str, analysis: KarmicAnalysis, *, styl
         )
     else:
         for link in analysis.karmic_tasks[:3]:
-            lines.append(f"• {_format_link_line(locale, link).capitalize()}.")
+            lines.append(f"• {_format_link_line(locale, link, style=style).capitalize()}.")
             lines.append(f"  ↳ {_task_interpretation(locale, link)}")
         if len(analysis.karmic_tasks) > 3:
             extra = len(analysis.karmic_tasks) - 3

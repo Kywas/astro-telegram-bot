@@ -221,6 +221,12 @@ def test_synastry_style() -> None:
     assert "/100" not in result_plain.body
     assert "Базовый уровень" not in result_plain.body
     assert "Скажу прямо" in result_plain.body
+    depth_plain = next(theme for theme in plain_syn.themes if theme.key == "depth")
+    for word in ("раху", "кету", "трин", "секстил", "квадрат", "северный узел", "меркурий партнёра"):
+        assert word not in depth_plain.body.lower()
+    for theme in plain_syn.themes:
+        assert "Swiss Ephemeris" not in theme.body
+        assert "Placidus" not in theme.body
 
 
 def test_horoscope_style() -> None:
@@ -658,7 +664,11 @@ def test_synastry_transits() -> None:
 
 
 def test_synastry_karma() -> None:
-    from app.synastry_karma import analyze_karmic_synastry, karmic_score_delta
+    from app.synastry_karma import (
+        analyze_karmic_synastry,
+        format_synastry_step8_section,
+        karmic_score_delta,
+    )
 
     user = {"SUN": 0.0, "MOON": 30.0, "MERCURY": 60.0, "VENUS": 90.0, "MARS": 120.0}
     partner = {"SUN": 5.0, "MOON": 35.0, "MERCURY": 65.0, "VENUS": 95.0, "MARS": 125.0}
@@ -672,6 +682,14 @@ def test_synastry_karma() -> None:
     )
     assert isinstance(analysis.karmic_tasks, tuple)
     assert karmic_score_delta(analysis) >= 0
+    plain = format_synastry_step8_section("ru", analysis, style="plain")
+    assert "Раху" not in plain
+    assert "Кету" not in plain
+    assert "трин" not in plain.lower()
+    assert "секстил" not in plain.lower()
+    assert "квадрат" not in plain.lower()
+    assert "Северный узел" not in plain
+    assert "О чём обычно молчат" in plain
 
 
 def test_synastry_moon_venus() -> None:
