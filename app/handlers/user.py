@@ -89,6 +89,7 @@ from app.keyboards import (
     natal_style_picker_keyboard,
     onboarding_relationship_keyboard,
     prefs_birth_skip_keyboard,
+    prefs_current_skip_keyboard,
     prefs_gender_keyboard,
     prefs_goal_keyboard,
     prefs_relationship_keyboard,
@@ -166,6 +167,7 @@ from app.services.daily_panels import (
     show_daily_panel,
     show_daily_panel_callback,
 )
+from app.user_location import current_location_label
 from app.services.dates import target_date_from_day_month
 from app.services.home import build_home_panel_text
 from app.services.locale_users import detect_locale_for_user, get_user_locale
@@ -679,6 +681,7 @@ async def profile_handler(message: Message) -> None:
         f"{t(locale, 'profile_date')}: {birth_date_text}\n"
         f"{t(locale, 'profile_time')}: {birth_time}\n"
         f"{t(locale, 'profile_city')}: {profile.city}\n"
+        f"{t(locale, 'profile_current_city')}: {current_location_label(profile, locale)}\n"
         f"{t(locale, 'profile_sign')}: {sign_name}",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
@@ -2640,21 +2643,55 @@ def _format_profile_birth_fields(locale: str, profile) -> tuple[str, str]:
     return birth_date, birth_time
 
 
+async def _apply_default_current_location(user_id: int) -> None:
+    profile = await db.get_user(user_id)
+    if profile is None or profile.current_city:
+        return
+    if profile.city and profile.birth_lat is not None and profile.birth_lon is not None:
+        timezone_name = profile.birth_timezone or profile.timezone or "UTC"
+        await db.update_current_location(
+            user_id,
+            current_city=profile.city,
+            current_lat=profile.birth_lat,
+            current_lon=profile.birth_lon,
+            current_timezone=timezone_name,
+        )
+        await db.set_daily_timezone(user_id, timezone_name)
+
+
+async def _prompt_prefs_current_city(
+    reply: Message | CallbackQuery,
+    locale: str,
+    state: FSMContext,
+) -> None:
+    await state.set_state(PreferencesSetup.waiting_current_city)
+    text = f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_current_city')}"
+    keyboard = prefs_current_skip_keyboard(locale)
+    if isinstance(reply, CallbackQuery):
+        await render_inline_panel(reply, text, keyboard)
+    else:
+        await show_panel_from_message(reply, text, reply_markup=keyboard)
+
+
 async def _finalize_prefs_wizard(
     user_id: int,
     locale: str,
     state: FSMContext,
     bot: Bot | None,
     *,
-    birth_date: date | None = None,
-    birth_time: time | None = None,
-    update_birth: bool = False,
+    update_current: bool = False,
+    current_city: str | None = None,
+    current_lat: float | None = None,
+    current_lon: float | None = None,
+    current_timezone: str | None = None,
+    default_current_from_birth: bool = False,
     reply: Message | CallbackQuery,
 ) -> None:
     data = await state.get_data()
     gender = data.get("pref_gender")
     relationship = data.get("pref_relationship")
     goal = data.get("pref_goal")
+    update_birth = bool(data.get("pref_update_birth"))
     await state.clear()
     await db.update_preferences(
         user_id,
@@ -2663,30 +2700,48 @@ async def _finalize_prefs_wizard(
         goal=goal,
     )
     profile = await db.get_user(user_id)
-    if update_birth and birth_date is not None and profile:
-        city = profile.city or ""
-        timezone_name = profile.birth_timezone or profile.timezone or "UTC"
-        sign = resolve_sun_sign(
-            birth_date,
-            birth_time,
-            city=city or None,
-            timezone_name=timezone_name,
-            lat=profile.birth_lat,
-            lon=profile.birth_lon,
-            birth_timezone=profile.birth_timezone,
-        )
-        await db.update_profile(
-            user_id,
-            birth_date=birth_date,
-            birth_time=birth_time,
-            city=city,
-            sign=sign,
-            birth_lat=profile.birth_lat,
-            birth_lon=profile.birth_lon,
-            birth_timezone=profile.birth_timezone,
-        )
-        profile = await db.get_user(user_id)
+    if update_birth and profile:
+        birth_date_iso = data.get("pref_birth_date")
+        if birth_date_iso:
+            birth_date = date.fromisoformat(birth_date_iso)
+            birth_time_iso = data.get("pref_birth_time")
+            birth_time = time.fromisoformat(birth_time_iso) if birth_time_iso else None
+            city = profile.city or ""
+            timezone_name = profile.birth_timezone or profile.timezone or "UTC"
+            sign = resolve_sun_sign(
+                birth_date,
+                birth_time,
+                city=city or None,
+                timezone_name=timezone_name,
+                lat=profile.birth_lat,
+                lon=profile.birth_lon,
+                birth_timezone=profile.birth_timezone,
+            )
+            await db.update_profile(
+                user_id,
+                birth_date=birth_date,
+                birth_time=birth_time,
+                city=city,
+                sign=sign,
+                birth_lat=profile.birth_lat,
+                birth_lon=profile.birth_lon,
+                birth_timezone=profile.birth_timezone,
+            )
 
+    if update_current and current_city and current_lat is not None and current_lon is not None:
+        timezone_name = current_timezone or "UTC"
+        await db.update_current_location(
+            user_id,
+            current_city=current_city,
+            current_lat=current_lat,
+            current_lon=current_lon,
+            current_timezone=timezone_name,
+        )
+        await db.set_daily_timezone(user_id, timezone_name)
+    elif default_current_from_birth:
+        await _apply_default_current_location(user_id)
+
+    profile = await db.get_user(user_id)
     await db.log_event(user_id, "prefs_wizard_done")
     finished = await _try_finish_profile_if_ready(user_id, locale, bot)
     if not finished:
@@ -2701,6 +2756,7 @@ async def _finalize_prefs_wizard(
         goal=goal_display(locale, goal),
         birth_date=birth_date_label,
         birth_time=birth_time_label,
+        current_location=current_location_label(profile, locale),
     )
     keyboard = settings_keyboard(locale)
     if isinstance(reply, CallbackQuery):
@@ -2899,14 +2955,8 @@ async def prefs_birth_keep_callback(callback: CallbackQuery, state: FSMContext) 
         return
     locale = await get_user_locale(user.id)
     await callback.answer()
-    await _finalize_prefs_wizard(
-        user.id,
-        locale,
-        state,
-        callback.bot,
-        update_birth=False,
-        reply=callback,
-    )
+    await state.update_data(pref_update_birth=False)
+    await _prompt_prefs_current_city(callback, locale, state)
 
 
 @router.message(PreferencesSetup.waiting_birth_date)
@@ -2926,7 +2976,7 @@ async def prefs_birth_date_handler(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await state.update_data(pref_birth_date=birth_date.isoformat())
+    await state.update_data(pref_birth_date=birth_date.isoformat(), pref_update_birth=True)
     await state.set_state(PreferencesSetup.waiting_birth_time)
     await show_panel_from_message(
         message,
@@ -2967,14 +3017,91 @@ async def prefs_birth_time_handler(message: Message, state: FSMContext) -> None:
             return
 
     birth_date = datetime.fromisoformat(birth_date_iso).date()
+    await state.update_data(
+        pref_birth_time=birth_time.isoformat(timespec="minutes") if birth_time else None,
+        pref_update_birth=True,
+    )
+    await _prompt_prefs_current_city(message, locale, state)
+
+
+@router.callback_query(F.data == "prefcurrent:keep")
+async def prefs_current_keep_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    if await state.get_state() != PreferencesSetup.waiting_current_city.state:
+        await callback.answer()
+        return
+    locale = await get_user_locale(user.id)
+    await callback.answer()
+    await _finalize_prefs_wizard(
+        user.id,
+        locale,
+        state,
+        callback.bot,
+        default_current_from_birth=True,
+        reply=callback,
+    )
+
+
+@router.message(PreferencesSetup.waiting_current_city)
+async def prefs_current_city_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    city = (message.text or "").strip()
+    if len(city) < 2:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_short')}\n\n{t(locale, 'choose_current_city')}",
+            reply_markup=prefs_current_skip_keyboard(locale),
+        )
+        return
+
+    await show_panel_from_message(
+        message,
+        f"⏳ {t(locale, 'city_checking')}\n\n{t(locale, 'choose_current_city')}",
+        reply_markup=prefs_current_skip_keyboard(locale),
+    )
+
+    try:
+        location = await geocode_city_input(message, city)
+    except Exception as e:
+        await report_error(
+            bot=message.bot,
+            admin_ids=settings.admin_ids,
+            source="prefs_current_city_handler",
+            error_type=type(e).__name__,
+            message=str(e),
+            context=f"user_id={user.id} city={city!r}",
+        )
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_geocode_error')}\n\n{t(locale, 'choose_current_city')}",
+            reply_markup=prefs_current_skip_keyboard(locale),
+        )
+        return
+
+    if location is None:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'city_not_found')}\n\n{t(locale, 'choose_current_city')}",
+            reply_markup=prefs_current_skip_keyboard(locale),
+        )
+        return
+
     await _finalize_prefs_wizard(
         user.id,
         locale,
         state,
         message.bot,
-        birth_date=birth_date,
-        birth_time=birth_time,
-        update_birth=True,
+        update_current=True,
+        current_city=location.display_name,
+        current_lat=location.lat,
+        current_lon=location.lon,
+        current_timezone=location.timezone,
         reply=message,
     )
 

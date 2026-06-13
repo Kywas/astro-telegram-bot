@@ -9,19 +9,10 @@ from app.keyboards import (
     daily_timezone_keyboard,
     evening_menu_keyboard,
 )
-from app.timezones import (
-    default_timezone_for_locale,
-    normalize_timezone,
-    timezone_label_with_offset,
-)
+from app.timezones import timezone_label_with_offset
+from app.user_location import resolve_user_timezone
 from app.text_format import format_screen_body, p, screen_page
 from app.ui import edit_or_send, show_panel_from_message
-
-
-def resolve_user_timezone(profile, locale: str) -> str:
-    if profile and profile.timezone:
-        return normalize_timezone(profile.timezone)
-    return default_timezone_for_locale(locale)
 
 
 async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyboardMarkup]:

@@ -677,11 +677,11 @@ def family_block_teaser(locale: str) -> str:
     if _lang(locale) == "ru":
         return (
             "\n\n💍 Отношение / Брак / Семья\n"
-            "Партнёрство, союз и семейный уклад — по 7-му и 4-му домам, Венере и Луне."
+            "Партнёрство, союз и дом — про пару, «свои» и нежность, без домашних загадок."
         )
     return (
         "\n\n💍 Relationship / Marriage / Family\n"
-        "Partnership, union, and family life — houses 7 and 4, Venus and Moon."
+        "Partnership, union, and home — couple, «your people», and warmth, plain and simple."
     )
 
 
@@ -690,14 +690,14 @@ def family_picker_intro(locale: str) -> str:
     if _lang(locale) == "ru":
         header = (
             "💍 Отношение / Брак / Семья\n\n"
-            "Партнёрство, брак и семья в твоей карте — "
-            "7-й дом (союз), 4-й дом (дом и корни), Венера и Луна.\n"
+            "Партнёрство, брак и семья — про пару, дом и «свои». "
+            "Без астрологического словаря: выбери вопрос, ответ — простым языком, иногда с улыбкой.\n"
         )
     else:
         header = (
             "💍 Relationship / Marriage / Family\n\n"
-            "Partnership, marriage, and family in your chart — "
-            "house 7 (union), house 4 (home and roots), Venus and Moon.\n"
+            "Partnership, marriage, and family — couple, home, and «your people». "
+            "No astro dictionary: pick a question, get a plain answer, sometimes with a smile.\n"
         )
     if _lang(locale) == "ru":
         title = "❓ Вопросы по натальной карте"
@@ -1214,8 +1214,8 @@ def build_family_answer(
                 )
             else:
                 intro = (
-                    f"Притяжение и тип партнёра — тема «{_house_theme(locale, 7)}» "
-                    f"({h7_sign}), Венера и ключевой показатель партнёрства. "
+                    f"Притяжение и тип партнёра — кого ты выбираешь и кто выбирает тебя "
+                    f"(линия «{h7_sign}»). "
                 )
         elif _use_terms(style):
             intro = (
@@ -1238,7 +1238,7 @@ def build_family_answer(
             intro = (
                 "Брак и долгий союз смотрят на 7-й дом, его управителя и Юпитер как показатель зрелости союза. "
                 if _use_terms(style)
-                else "Брак и долгий союз — партнёрство, его «хозяина» в карте и Юпитер как зрелость союза. "
+                else "Брак и долгий союз — как у тебя устроена близость на длинной дистанции, не «дата штампа». "
             )
             jup_line = _render_planet(locale, jupiter, style=style)
         else:
@@ -1258,7 +1258,7 @@ def build_family_answer(
             intro = (
                 "Семья и дом — 4-й дом и Луна как внутреннее чувство «своих». "
                 if _use_terms(style)
-                else "Семья и дом — сфера корней и Луна как чувство «своих». "
+                else "Семья и дом — где сердце выдыхает или сжимается; Луна показывает, как ты это чувствуешь. "
             )
         else:
             intro = (
@@ -1286,7 +1286,7 @@ def build_family_answer(
             intro = (
                 "Трения в паре и семье часто идут через Марс, Сатурн, Раху и напряжённые положения в 4-м и 7-м домах. "
                 if _use_terms(style)
-                else "Трения в паре и семье часто связаны с резкостью, границами и сложными темами партнёрства и дома. "
+                else "Трения в паре и семье — резкость, границы и повторяющиеся ссоры, не «вы несовместимы». "
             )
             tail = " Замечай, где реагируешь резко или закрываешься — это точки роста, а не приговор."
         else:

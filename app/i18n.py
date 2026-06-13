@@ -346,27 +346,36 @@ TEXTS = {
         "ask_gender": "Выбери пол: m/f/other",
         "ask_relationship": "Выбери статус: single/relationship",
         "ask_goal": "Фокус прогноза: love/career/money/balance",
-        "choose_gender": "Шаг 1/4: выбери пол",
-        "choose_relationship": "Шаг 2/4: выбери статус отношений",
-        "choose_goal": "Шаг 3/4: выбери фокус прогноза",
+        "choose_gender": "Шаг 1/5: выбери пол",
+        "choose_relationship": "Шаг 2/5: выбери статус отношений",
+        "choose_goal": "Шаг 3/5: выбери фокус прогноза",
         "choose_birth_date": (
-            "Шаг 4/4: дата рождения\n\n"
+            "Шаг 4/5: дата рождения\n\n"
             "Введи дату в формате ДД.ММ.ГГГГ — например, 14.02.2001.\n"
             "Или нажми «Оставить как есть», если менять не нужно."
         ),
         "choose_birth_time": (
-            "Шаг 4/4: время рождения\n\n"
+            "Шаг 4/5: время рождения\n\n"
             "Введи время в формате ЧЧ:ММ — например, 09:30.\n"
             "Не знаешь? Отправь «-» — карта всё равно будет работать, просто без Луны по минутам."
         ),
+        "choose_current_city": (
+            "Шаг 5/5: где вы сейчас\n\n"
+            "Укажи город, где ты сейчас — от этого зависят лунный календарь и прогноз на сегодня.\n"
+            "Например: Москва или Казань, Россия.\n"
+            "Или нажми «Оставить как есть», если место не менялось."
+        ),
         "prefs_birth_keep": "Оставить как есть",
+        "prefs_current_keep": "Оставить как есть",
+        "profile_current_city": "Сейчас",
         "profile_setup_done": (
             "Готово — профиль обновлён.\n\n"
             "• Пол: {gender}\n"
             "• Статус: {relationship}\n"
             "• Фокус: {goal}\n"
             "• Дата рождения: {birth_date}\n"
-            "• Время рождения: {birth_time}"
+            "• Время рождения: {birth_time}\n"
+            "• Сейчас: {current_location}"
         ),
         "gender_m": "Мужчина",
         "gender_f": "Женщина",
@@ -771,27 +780,36 @@ TEXTS = {
         "ask_gender": "Choose gender: m/f/other",
         "ask_relationship": "Choose status: single/relationship",
         "ask_goal": "Forecast focus: love/career/money/balance",
-        "choose_gender": "Step 1/4: choose gender",
-        "choose_relationship": "Step 2/4: choose relationship status",
-        "choose_goal": "Step 3/4: choose forecast focus",
+        "choose_gender": "Step 1/5: choose gender",
+        "choose_relationship": "Step 2/5: choose relationship status",
+        "choose_goal": "Step 3/5: choose forecast focus",
         "choose_birth_date": (
-            "Step 4/4: birth date\n\n"
+            "Step 4/5: birth date\n\n"
             "Enter DD.MM.YYYY — e.g. 14.02.2001.\n"
             "Or tap «Keep current» if you don't want to change it."
         ),
         "choose_birth_time": (
-            "Step 4/4: birth time\n\n"
+            "Step 4/5: birth time\n\n"
             "Enter HH:MM — e.g. 09:30.\n"
             "Not sure? Send «-» — the chart still works, just without minute-precise Moon."
         ),
+        "choose_current_city": (
+            "Step 5/5: where you are now\n\n"
+            "Enter the city you're in now — it affects the moon calendar and today's forecast.\n"
+            "For example: London or Kazan, Russia.\n"
+            "Or tap «Keep current» if your location hasn't changed."
+        ),
         "prefs_birth_keep": "Keep current",
+        "prefs_current_keep": "Keep current",
+        "profile_current_city": "Current location",
         "profile_setup_done": (
             "Done — profile updated.\n\n"
             "• Gender: {gender}\n"
             "• Status: {relationship}\n"
             "• Focus: {goal}\n"
             "• Birth date: {birth_date}\n"
-            "• Birth time: {birth_time}"
+            "• Birth time: {birth_time}\n"
+            "• Current location: {current_location}"
         ),
         "gender_m": "Male",
         "gender_f": "Female",

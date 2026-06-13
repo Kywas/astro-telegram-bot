@@ -22,6 +22,7 @@ _DELETE_AFTER_TEXT_STATES = {
     AdminPanel.waiting_grant_input.state,
     PreferencesSetup.waiting_birth_date.state,
     PreferencesSetup.waiting_birth_time.state,
+    PreferencesSetup.waiting_current_city.state,
 }
 
 

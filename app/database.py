@@ -18,6 +18,10 @@ class UserProfile:
     birth_lat: Optional[float]
     birth_lon: Optional[float]
     birth_timezone: Optional[str]
+    current_city: Optional[str]
+    current_lat: Optional[float]
+    current_lon: Optional[float]
+    current_timezone: Optional[str]
     sign: Optional[str]
     language: str
     gender: Optional[str]
@@ -246,6 +250,10 @@ class Database:
                 "birth_lat": "REAL",
                 "birth_lon": "REAL",
                 "birth_timezone": "TEXT",
+                "current_city": "TEXT",
+                "current_lat": "REAL",
+                "current_lon": "REAL",
+                "current_timezone": "TEXT",
             }
             for col_name, col_def in user_geo_columns.items():
                 if col_name not in column_names:
@@ -315,6 +323,26 @@ class Database:
                     birth_timezone,
                     user_id,
                 ),
+            )
+            await db.commit()
+
+    async def update_current_location(
+        self,
+        user_id: int,
+        *,
+        current_city: str,
+        current_lat: float,
+        current_lon: float,
+        current_timezone: str,
+    ) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """
+                UPDATE users
+                SET current_city = ?, current_lat = ?, current_lon = ?, current_timezone = ?
+                WHERE user_id = ?
+                """,
+                (current_city, current_lat, current_lon, current_timezone, user_id),
             )
             await db.commit()
 
@@ -401,6 +429,10 @@ class Database:
                     birth_lat=row["birth_lat"],
                     birth_lon=row["birth_lon"],
                     birth_timezone=row["birth_timezone"],
+                    current_city=row["current_city"],
+                    current_lat=row["current_lat"],
+                    current_lon=row["current_lon"],
+                    current_timezone=row["current_timezone"],
                     sign=row["sign"],
                     language=row["language"] or "en",
                     gender=row["gender"],
@@ -612,6 +644,10 @@ class Database:
                     birth_lat=row["birth_lat"],
                     birth_lon=row["birth_lon"],
                     birth_timezone=row["birth_timezone"],
+                    current_city=row["current_city"],
+                    current_lat=row["current_lat"],
+                    current_lon=row["current_lon"],
+                    current_timezone=row["current_timezone"],
                     sign=row["sign"],
                     language=row["language"] or "en",
                     gender=row["gender"],
