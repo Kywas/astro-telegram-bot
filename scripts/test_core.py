@@ -206,6 +206,14 @@ def test_synastry_style() -> None:
     plain_syn = build_synastry_for_partner_profile(
         "ru", full_profile, partner, "love", style="plain"
     )
+    friend_syn = build_synastry_for_partner_profile(
+        "ru", full_profile, partner, "friendship", style="plain"
+    )
+    work_syn = build_synastry_for_partner_profile(
+        "ru", full_profile, partner, "work", style="plain"
+    )
+    assert plain_syn.themes[1].title != friend_syn.themes[1].title
+    assert friend_syn.themes[1].title != work_syn.themes[1].title
     terms_syn = build_synastry_for_partner_profile(
         "ru", full_profile, partner, "love", style="terms"
     )
@@ -849,13 +857,26 @@ def test_format_screen_body() -> None:
 
 
 def test_reading_voice() -> None:
-    from app.reading_voice import compat_score_hook, humanize_compat_plain, theme_opening_hook, theme_menu_teaser
+    from app.reading_voice import (
+        compat_mode_intro,
+        compat_score_hook,
+        humanize_compat_plain,
+        theme_menu_teaser,
+        theme_opening_hook,
+    )
 
-    hook = compat_score_hook("ru", 60, "love")
-    assert "ниже" not in hook.lower()
-    assert "разбер" in hook.lower() or "чест" in hook.lower()
-    assert theme_menu_teaser("ru", "attraction")
-    assert theme_opening_hook("ru", "result", "love", 80)
+    love_hook = compat_score_hook("ru", 60, "love")
+    friend_hook = compat_score_hook("ru", 60, "friendship")
+    work_hook = compat_score_hook("ru", 60, "work")
+    assert love_hook != friend_hook != work_hook
+    assert "ниже" not in love_hook.lower()
+    assert theme_menu_teaser("ru", "attraction", mode="love") != theme_menu_teaser(
+        "ru", "attraction", mode="work"
+    )
+    assert theme_opening_hook("ru", "result", "love", 80) != theme_opening_hook(
+        "ru", "result", "work", 80
+    )
+    assert "<b>" in compat_mode_intro("ru", "friendship", 72)
     assert humanize_compat_plain("Итог: test", "ru").startswith("Короче")
 
 

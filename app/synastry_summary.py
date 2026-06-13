@@ -1188,55 +1188,88 @@ def _plain_row_phrase(locale: str, row: SummaryRow) -> str | None:
     return None
 
 
-def _format_plain_step10_narrative(locale: str, summary: SynastrySummary) -> str:
+def _format_plain_step10_narrative(locale: str, summary: SynastrySummary, *, mode: str = "love") -> str:
     lang = _lang(locale)
+    mode_key = mode if mode in {"love", "friendship", "work"} else "love"
     tension = [_plain_row_phrase(locale, row) for row in summary.rows if row.tone == "tension"]
     harmony = [_plain_row_phrase(locale, row) for row in summary.rows if row.tone == "harmony"]
     tension = [line for line in tension if line]
     harmony = [line for line in harmony if line]
 
-    if summary.level == CompatibilityLevel.HIGH:
-        opening = (
-            "Скажу прямо: вы друг другу реально зашли. Не идеальные копии — но картина очень тёплая."
-            if lang == "ru"
-            else "Straight talk: you genuinely click. Not perfect clones — but a very warm picture."
-        )
-        closing = (
-            "Если совсем коротко: берегите то, что уже работает. "
-            "И иногда спрашивайте «ты как?» — это бесплатно и работает лучше, чем телепатия."
-            if lang == "ru"
-            else "In short: protect what already works. And ask «how are you?» — free, beats telepathy."
-        )
-    elif summary.level == CompatibilityLevel.MODERATE:
-        opening = (
-            "Скажу прямо: не сказка и не катастрофа — как в нормальной жизни. "
-            "И это уже неплохо, можно не искать подвох на ровном месте."
-            if lang == "ru"
-            else "Straight talk: not a fairy tale, not a disaster — real life. "
-            "That's already decent; no need to hunt for drama."
-        )
-        closing = (
-            "Если совсем коротко: складывается неплохо. "
-            "Опирайтесь на то, что уже работает — ссора не всегда «не люблю», иногда просто устали."
-            if lang == "ru"
-            else "In short: looking decent. Lean on what works — a fight isn't always «I don't love you», "
-            "sometimes you're just tired."
-        )
-    else:
-        opening = (
-            "Скажу прямо: легко не будет — зато картина честная. "
-            "Лучше знать заранее, где не молчать до взрыва."
-            if lang == "ru"
-            else "Straight talk: it won't be effortless — but the picture is honest. "
-            "Better to know where not to stay silent until you blow up."
-        )
-        closing = (
-            "Если совсем коротко: терпение и разговоры. Карта не приговор — "
-            "но «само рассосётся» тоже редко срабатывает как план."
-            if lang == "ru"
-            else "In short: patience and talking. The chart isn't a verdict — "
-            "but «it'll fix itself» rarely works as a strategy."
-        )
+    openings = {
+        "ru": {
+            "love": {
+                CompatibilityLevel.HIGH: "Скажу прямо: романтически вы друг другу реально зашли. Не идеальные копии — но картина тёплая.",
+                CompatibilityLevel.MODERATE: "Скажу прямо: не ромком и не мелодрама — как в нормальной жизни. И это уже неплохо.",
+                CompatibilityLevel.LOW: "Скажу прямо: в любви легко не будет — зато картина честная. Лучше знать, где не молчать.",
+            },
+            "friendship": {
+                CompatibilityLevel.HIGH: "Скажу прямо: как друзья вы складываетесь легко. Не «лучшие друзья навсегда из фильма» — но живо и по-настоящему.",
+                CompatibilityLevel.MODERATE: "Скажу прямо: дружба возможна без героизма — но темп и ожидания лучше проговорить.",
+                CompatibilityLevel.LOW: "Скажу прямо: дружба потребует усилий — зато видно, где не додумывать молча.",
+            },
+            "work": {
+                CompatibilityLevel.HIGH: "Скажу прямо: как коллеги вы в ударе. Не dream team из рекламы — но продуктивно и без лишней драмы.",
+                CompatibilityLevel.MODERATE: "Скажу прямо: работать вместе можно — но роли и дедлайны лучше не на «авось».",
+                CompatibilityLevel.LOW: "Скажу прямо: в работе будет тереть — зато ясно, где нужны договорённости, а не телепатия.",
+            },
+        },
+        "en": {
+            "love": {
+                CompatibilityLevel.HIGH: "Straight talk: romantically you genuinely click. Not perfect clones — but a warm picture.",
+                CompatibilityLevel.MODERATE: "Straight talk: not a rom-com, not a soap — real life. That's already decent.",
+                CompatibilityLevel.LOW: "Straight talk: love won't be effortless — honest picture. Better to know where not to stay silent.",
+            },
+            "friendship": {
+                CompatibilityLevel.HIGH: "Straight talk: as friends you fit easily. Not a movie friendship — but real.",
+                CompatibilityLevel.MODERATE: "Straight talk: friendship works without heroics — but pace and expectations help.",
+                CompatibilityLevel.LOW: "Straight talk: friendship takes effort — at least you see where to ask directly.",
+            },
+            "work": {
+                CompatibilityLevel.HIGH: "Straight talk: strong as colleagues. Not an ad dream team — but productive.",
+                CompatibilityLevel.MODERATE: "Straight talk: you can work together — don't run roles and deadlines on vibes.",
+                CompatibilityLevel.LOW: "Straight talk: work will rub — clear where you need agreements, not telepathy.",
+            },
+        },
+    }
+    closings = {
+        "ru": {
+            "love": {
+                CompatibilityLevel.HIGH: "Если совсем коротко: берегите то, что работает. И спрашивайте «ты как?» — бесплатно и лучше телепатии.",
+                CompatibilityLevel.MODERATE: "Если совсем коротко: романтически складывается неплохо. Ссора — не всегда «не люблю», иногда просто устали.",
+                CompatibilityLevel.LOW: "Если совсем коротко: терпение и разговоры. «Само рассосётся» в любви редко срабатывает как план.",
+            },
+            "friendship": {
+                CompatibilityLevel.HIGH: "Если совсем коротко: не пропадайте на полгода. Даже «привет, скучал» — уже дружба.",
+                CompatibilityLevel.MODERATE: "Если совсем коротко: дружить можно. Разный темп сообщений — норма, если честно сказать.",
+                CompatibilityLevel.LOW: "Если совсем коротко: не все сразу «свои». Спросить прямо — не слабость.",
+            },
+            "work": {
+                CompatibilityLevel.HIGH: "Если совсем коротко: распределите роли — и меньше «а я думал, ты сам».",
+                CompatibilityLevel.MODERATE: "Если совсем коротко: договорённости важнее энтузиазма. Даже скучное письмо считается.",
+                CompatibilityLevel.LOW: "Если совсем коротко: письменные задачи и дедлайны. Надежда на телепатию — плохой KPI.",
+            },
+        },
+        "en": {
+            "love": {
+                CompatibilityLevel.HIGH: "In short: protect what works. Ask «how are you?» — free, beats telepathy.",
+                CompatibilityLevel.MODERATE: "In short: romantically looking decent. A fight isn't always «I don't love you».",
+                CompatibilityLevel.LOW: "In short: patience and talking. «It'll fix itself» rarely works in love.",
+            },
+            "friendship": {
+                CompatibilityLevel.HIGH: "In short: don't vanish for six months. Even «hey, missed you» counts.",
+                CompatibilityLevel.MODERATE: "In short: friendship works. Different text pace is fine if you're honest.",
+                CompatibilityLevel.LOW: "In short: not instant «your people». Asking directly isn't weakness.",
+            },
+            "work": {
+                CompatibilityLevel.HIGH: "In short: split roles — fewer «I thought you had it».",
+                CompatibilityLevel.MODERATE: "In short: agreements beat vibes. Even a boring email counts.",
+                CompatibilityLevel.LOW: "In short: written tasks and deadlines. Telepathy is a bad KPI.",
+            },
+        },
+    }
+    opening = openings[lang][mode_key][summary.level]
+    closing = closings[lang][mode_key][summary.level]
 
     parts = [opening]
     if tension:
@@ -1273,9 +1306,10 @@ def format_synastry_step10_section(
     summary: SynastrySummary,
     *,
     style: str = "terms",
+    mode: str = "love",
 ) -> str:
     if not use_synastry_terms(style):
-        return _format_plain_step10_narrative(locale, summary)
+        return _format_plain_step10_narrative(locale, summary, mode=mode)
 
     lang = _lang(locale)
     lines: list[str] = []

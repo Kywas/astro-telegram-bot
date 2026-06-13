@@ -122,12 +122,55 @@ THEME_LABELS_PLAIN = {
 }
 
 
-def theme_label(locale: str, theme_key: str, *, style: str = "plain") -> str:
+THEME_LABELS_PLAIN_BY_MODE = {
+    "ru": {
+        "love": THEME_LABELS_PLAIN["ru"],
+        "friendship": {
+            "overview": "📋 Вы как друзья",
+            "attraction": "💬 Как общаетесь",
+            "bond": "🤝 Доверие и поддержка",
+            "depth": "🌑 Сложные места",
+            "symbols": "🔢 Числа и карты",
+            "result": "💬 Итог и совет",
+        },
+        "work": {
+            "overview": "📋 Вы как команда",
+            "attraction": "⚙️ Как работаете",
+            "bond": "🤝 Общая цель",
+            "depth": "🌑 Где буксуете",
+            "symbols": "🔢 Числа и карты",
+            "result": "💬 Итог и совет",
+        },
+    },
+    "en": {
+        "love": THEME_LABELS_PLAIN["en"],
+        "friendship": {
+            "overview": "📋 You as friends",
+            "attraction": "💬 How you communicate",
+            "bond": "🤝 Trust and support",
+            "depth": "🌑 Rough spots",
+            "symbols": "🔢 Numbers and cards",
+            "result": "💬 Wrap-up and tip",
+        },
+        "work": {
+            "overview": "📋 You as a team",
+            "attraction": "⚙️ How you work",
+            "bond": "🤝 Shared goal",
+            "depth": "🌑 Where you stall",
+            "symbols": "🔢 Numbers and cards",
+            "result": "💬 Wrap-up and tip",
+        },
+    },
+}
+
+
+def theme_label(locale: str, theme_key: str, *, style: str = "plain", mode: str = "love") -> str:
     lang = _lang(locale)
+    mode_key = mode if mode in {"love", "friendship", "work"} else "love"
     if use_synastry_terms(style):
         table = THEME_LABELS_TERMS[lang]
     elif style == "plain":
-        table = THEME_LABELS_PLAIN[lang]
+        table = THEME_LABELS_PLAIN_BY_MODE[lang].get(mode_key, THEME_LABELS_PLAIN[lang])
     else:
         table = THEME_LABELS[lang]
     return table.get(theme_key, THEME_LABELS[lang].get(theme_key, theme_key))
@@ -270,7 +313,7 @@ def build_synastry_sections(
         style=style,
     )
     sections.append(
-        SynastrySection("summary", format_synastry_step10_section(locale, summary, style=style))
+        SynastrySection("summary", format_synastry_step10_section(locale, summary, style=style, mode=mode_key))
     )
     sections.append(
         SynastrySection(
@@ -295,6 +338,7 @@ def group_synastry_themes(
     sections: list[SynastrySection],
     *,
     style: str = "plain",
+    mode: str = "love",
 ) -> list[SynastryTheme]:
     by_key = {section.key: section.body for section in sections}
     order = THEME_ORDER if use_synastry_terms(style) else THEME_ORDER_PLAIN
@@ -306,7 +350,7 @@ def group_synastry_themes(
         themes.append(
             SynastryTheme(
                 key=theme_key,
-                title=theme_label(locale, theme_key, style=style),
+                title=theme_label(locale, theme_key, style=style, mode=mode),
                 body="\n\n".join(bodies),
             )
         )

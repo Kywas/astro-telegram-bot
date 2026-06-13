@@ -313,6 +313,8 @@ def compat_theme_view_keyboard(
 
 def render_compat_theme_menu(locale: str, profile, syn, mode: str, *, style: str | None = None) -> str:
     style = style or resolve_compat_style(profile)
+    from app.reading_voice import compat_mode_intro, compat_mode_menu_guide, menu_pick_cta, theme_menu_teaser
+
     if use_synastry_terms(style):
         if locale == "ru":
             guide = (
@@ -324,19 +326,18 @@ def render_compat_theme_menu(locale: str, profile, syn, mode: str, *, style: str
                 "Six blocks from Sun signs to the final scorecard. "
                 "Inside — synastry steps with terms (ASC, aspects, composite, etc.)."
             )
-    elif locale == "ru":
-        guide = "6 коротких тем — как сезоны сериала: можно начать с любой."
     else:
-        guide = "Six short themes — like TV seasons: start wherever you want."
+        guide = compat_mode_menu_guide(locale, mode, style=style)
     theme_blocks = [
-        labeled_block(theme.title, theme_menu_teaser(locale, theme.key, style=style))
+        labeled_block(theme.title, theme_menu_teaser(locale, theme.key, style=style, mode=mode))
         for theme in syn.themes
     ]
     return p(
         compat_result_header(locale, profile, syn, mode, style=style),
+        compat_mode_intro(locale, mode, syn.score, style=style),
         format_screen_body(guide),
         *theme_blocks,
-        format_screen_body(menu_pick_cta(locale, style=style)),
+        format_screen_body(menu_pick_cta(locale, style=style, mode=mode)),
     )
 
 
@@ -368,7 +369,7 @@ def render_compat_theme_page(
     if len(themes) > 1 and theme.key != "result" and use_synastry_terms(style):
         parts.append(
             format_screen_body(
-                theme_next_teaser(locale, next_theme.title, next_theme.key, style=style),
+                theme_next_teaser(locale, next_theme.title, next_theme.key, style=style, mode=mode),
             )
         )
     return p(*parts)

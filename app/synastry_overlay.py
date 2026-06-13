@@ -295,9 +295,21 @@ def format_synastry_step3_section(
     else:
         if lang == "ru":
             lines.append("🔗 Как вы влияете друг на друга")
+            mode_intro_plain = {
+                "love": "Режим «любовь» — смотрим близость, притяжение и эмоции, не KPI.",
+                "friendship": "Режим «дружба» — смотрим общение, доверие и «можно ли на тебя положиться».",
+                "work": "Режим «работа» — смотрим роли, задачи и «кто за что отвечает».",
+            }
+            lines.append(mode_intro_plain[mode_key])
             lines.append("Где легко — и где лучше поговорить заранее.")
         else:
             lines.append("🔗 How you affect each other")
+            mode_intro_plain = {
+                "love": "Love mode — closeness, pull, and feelings, not KPIs.",
+                "friendship": "Friendship mode — talk, trust, and «can I count on you».",
+                "work": "Work mode — roles, tasks, and «who owns what».",
+            }
+            lines.append(mode_intro_plain[mode_key])
             lines.append("Where it's easy — and where to talk early.")
 
     if not use_synastry_terms(style):

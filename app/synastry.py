@@ -154,9 +154,9 @@ def build_synastry(
             partner_name=partner_name,
         )
 
-    summary_text = compatibility_summary(locale, analysis.score, style=style)
+    summary_text = compatibility_summary(locale, analysis.score, style=style, mode=relation_mode)
     sections = (*analysis.sections, SynastrySection("compat_summary", summary_text))
-    themes = tuple(group_synastry_themes(locale, list(sections), style=style))
+    themes = tuple(group_synastry_themes(locale, list(sections), style=style, mode=relation_mode))
     if style == "plain":
         themes = tuple(
             SynastryTheme(
