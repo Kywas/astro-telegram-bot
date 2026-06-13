@@ -188,8 +188,19 @@ def _pair_element_hint(locale: str, element_a: str, element_b: str) -> str:
     return "Compatible elements support understanding: Fire + Air, Earth + Water."
 
 
-def format_sun_sign_compat_section(locale: str, compat: SunSignCompat, *, style: str = "terms") -> str:
+def format_sun_sign_compat_section(
+    locale: str,
+    compat: SunSignCompat,
+    *,
+    style: str = "terms",
+    mode: str = "love",
+) -> str:
     from app.synastry_style import format_element_plain, use_synastry_terms
+
+    if not use_synastry_terms(style):
+        from app.compat_plain_narrative import plain_sun_sign_narrative
+
+        return plain_sun_sign_narrative(locale, compat, mode=mode)
 
     lang = _lang(locale)
     user_name = SIGN_LABELS[lang][compat.user_sign]

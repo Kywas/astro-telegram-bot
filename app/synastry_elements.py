@@ -288,8 +288,19 @@ def element_score_delta(balance: ElementBalance) -> int:
     return delta
 
 
-def format_synastry_step6_section(locale: str, balance: ElementBalance, *, style: str = "terms") -> str:
+def format_synastry_step6_section(
+    locale: str,
+    balance: ElementBalance,
+    *,
+    style: str = "terms",
+    mode: str = "love",
+) -> str:
     from app.synastry_style import use_synastry_terms
+
+    if not use_synastry_terms(style):
+        from app.compat_plain_narrative import plain_element_balance_narrative
+
+        return plain_element_balance_narrative(locale, balance, mode=mode)
 
     lang = _lang(locale)
     lines: list[str] = []

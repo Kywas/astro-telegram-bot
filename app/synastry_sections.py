@@ -225,7 +225,10 @@ def build_synastry_sections(
     sun_compat = analyze_sun_sign_compat(user_sign_key, partner_sign_key)
     if sun_compat is not None:
         sections.append(
-            SynastrySection("sun", format_sun_sign_compat_section(locale, sun_compat, style=style))
+            SynastrySection(
+                "sun",
+                format_sun_sign_compat_section(locale, sun_compat, style=style, mode=mode_key),
+            )
         )
 
     sections.append(
@@ -278,7 +281,10 @@ def build_synastry_sections(
         SynastrySection("houses", format_synastry_step5_section(locale, house_overlay, style=style))
     )
     sections.append(
-        SynastrySection("elements", format_synastry_step6_section(locale, element_balance, style=style))
+        SynastrySection(
+            "elements",
+            format_synastry_step6_section(locale, element_balance, style=style, mode=mode_key),
+        )
     )
     sections.append(
         SynastrySection("moon_venus", format_synastry_step7_section(locale, moon_venus, style=style))

@@ -149,6 +149,15 @@ def test_sun_sign_compat() -> None:
     assert "Противоположные" in text
     assert "Земля" in text and "Вода" in text
 
+    cancer_gem = analyze_sun_sign_compat("Cancer", "Gemini")
+    plain_love = format_sun_sign_compat_section("ru", cancer_gem, style="plain", mode="love")
+    plain_friend = format_sun_sign_compat_section("ru", cancer_gem, style="plain", mode="friendship")
+    assert plain_love != plain_friend
+    assert "вода и чувства" not in plain_love.lower()
+    assert "воздух и разговоры" not in plain_love.lower()
+    assert "•" not in plain_love
+    assert "Рак" in plain_love and "Близнецы" in plain_love
+
 
 def test_synastry_style() -> None:
     from types import SimpleNamespace
@@ -229,6 +238,10 @@ def test_synastry_style() -> None:
     assert "/100" not in result_plain.body
     assert "Базовый уровень" not in result_plain.body
     assert "Скажу прямо" in result_plain.body
+    overview = next(theme for theme in plain_syn.themes if theme.key == "overview")
+    assert "вода и чувства" not in overview.body.lower()
+    assert "(всего" not in overview.body
+    assert "огонь и драйв" not in overview.body.lower()
     depth_plain = next(theme for theme in plain_syn.themes if theme.key == "depth")
     for word in ("раху", "кету", "трин", "секстил", "квадрат", "северный узел", "меркурий партнёра"):
         assert word not in depth_plain.body.lower()
