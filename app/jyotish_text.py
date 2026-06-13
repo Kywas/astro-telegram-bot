@@ -91,6 +91,37 @@ LAGNA_ESSENCE = {
     },
 }
 
+LAGNA_ESSENCE_PLAIN = {
+    "ru": {
+        "Aries": "прямой, быстрый образ — ты входишь в жизнь через «ну давай уже», а не через план на три страницы",
+        "Taurus": "спокойный, устойчивый образ — ценишь надёжность; сюрпризы без предупреждения — не твой жанр",
+        "Gemini": "лёгкий, любознательный образ — многое познаёшь через слово, мем и случайный разговор",
+        "Cancer": "мягкий, чувствительный образ — дом, близость и «я просто устал, не обижайся»",
+        "Leo": "яркий, гордый образ — потребность сиять; в тени долго не задержишься",
+        "Virgo": "собранный, внимательный образ — замечаешь опечатку там, где все уже смирились",
+        "Libra": "гармоничный, тактичный образ — ищешь баланс; открытый конфликт — последний вариант",
+        "Scorpio": "глубокий, сдержанный образ — чувствуешь больше, чем показываешь; small talk не твой спорт",
+        "Sagittarius": "открытый, ищущий образ — тянет к смыслу, свободе и «а что если по-другому?»",
+        "Capricorn": "серьёзный, собранный образ — ответственность важнее суеты; «просто повеселимся» звучит подозрительно",
+        "Aquarius": "своеобразный образ — мыслишь шире рамок; «так принято» — слабый аргумент",
+        "Pisces": "мягкий, интуитивный образ — границы размыты; чужие эмоции иногда заходят без стука",
+    },
+    "en": {
+        "Aries": "a direct, fast presence — you enter life with «let's go», not a three-page plan",
+        "Taurus": "a calm, steady presence — reliability matters; surprise without warning isn't your genre",
+        "Gemini": "a light, curious presence — you learn through words, memes, and random chats",
+        "Cancer": "a soft, sensitive presence — home, closeness, and «I'm tired, don't take it personally»",
+        "Leo": "a bright, proud presence — you need to shine; the shadows get boring fast",
+        "Virgo": "a precise presence — you spot the typo everyone else already accepted",
+        "Libra": "a harmonious presence — balance first; open conflict is the last resort",
+        "Scorpio": "a deep, reserved presence — you feel more than you show; small talk isn't your sport",
+        "Sagittarius": "an open, seeking presence — drawn to meaning, freedom, and «what if differently?»",
+        "Capricorn": "a serious presence — duty beats fuss; «let's just have fun» sounds suspicious",
+        "Aquarius": "an original presence — you think outside the box; «that's how it's done» is weak",
+        "Pisces": "a soft, intuitive presence — thin boundaries; other people's moods sometimes walk in uninvited",
+    },
+}
+
 SIGN_IN_SIGN = {
     "ru": {
         "SUN": {
@@ -450,11 +481,13 @@ def _part1(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
             intro = (
                 "🌙 Твоя натальная карта\n\n"
                 "Это персональный разбор по дате, времени и месту рождения — "
-                "простым языком, без астрологического жаргона."
+                "простым языком, без астрологического жаргона. "
+                "Карта не приговор, скорее подсказка — иногда с лёгкой улыбкой."
             )
             core = (
                 f"Твоё восходящее сочетание — {lagna}: так ты входишь в жизнь и как тебя обычно воспринимают. "
-                f"Луна в {moon_sign} окрашивает ум и чувства, Солнце в {sun_sign} — ядро личности."
+                f"Луна в {moon_sign} — про ум и чувства, Солнце в {sun_sign} — про ядро личности. "
+                f"Три разных «ты» — и все настоящие."
             )
         paragraphs = [intro, core]
         if chart.stellium_sign and chart.stellium_planets:
@@ -469,25 +502,32 @@ def _part1(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                 theme = _house_theme(locale, chart.stellium_house)
                 paragraphs[-1] += (
                     f" Особый акцент — несколько планет в {st_sign} ({names}) "
-                    f"в сфере «{theme}»: эта жизненная область для тебя судьбоносна."
+                    f"в сфере «{theme}»: эта область для тебя не фон, а главный сериал."
                 )
 
         paragraphs.append(
-            f"В карте преобладает стихия {elem} — {_element_prose(chart.dominant_element, lang)}."
+            f"В карте преобладает стихия {elem} — {_element_prose(chart.dominant_element, lang, style=style)}."
         )
 
         if _use_terms(style):
             lagna_text = f"Лагна в {lagna} — {LAGNA_ESSENCE[lang][chart.lagna_sign]}."
         else:
-            lagna_text = f"Вход в жизнь через {lagna} — {LAGNA_ESSENCE[lang][chart.lagna_sign]}."
-        if lagna_elem != chart.dominant_element:
-            lagna_text += (
-                f" Поэтому снаружи может ощущаться больше «{lagna_elem_label}», "
-                f"а внутри — «{elem}»: один образ для мира, другой — для себя."
+            lagna_text = (
+                f"Вход в жизнь через {lagna} — {LAGNA_ESSENCE_PLAIN[lang][chart.lagna_sign]}."
             )
+        if lagna_elem != chart.dominant_element:
+            if _use_terms(style):
+                lagna_text += (
+                    f" Поэтому снаружи может ощущаться больше «{lagna_elem_label}», "
+                    f"а внутри — «{elem}»: один образ для мира, другой — для себя."
+                )
+            else:
+                contrast = _plain_element_contrast(lang, lagna_elem, chart.dominant_element)
+                if contrast:
+                    lagna_text += f" {contrast}"
         paragraphs.append(lagna_text)
 
-        rhythm = _mobility_prose(chart, lang)
+        rhythm = _mobility_prose(chart, lang, style=style)
         extras: list[str] = []
         if chart.retrograde_planets:
             rp = ", ".join(_pl(locale, p) for p in chart.retrograde_planets)
@@ -496,14 +536,28 @@ def _part1(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                     f"Ретроградные {rp} дают не прямолинейный, а более глубокий способ думать и действовать."
                 )
             else:
+                verb = "работает" if len(chart.retrograde_planets) == 1 else "работают"
                 extras.append(
-                    f"{rp} работают более внутренне — "
-                    "дают не прямолинейный, а более глубокий способ думать и действовать."
+                    f"{rp} {verb} более внутренне — "
+                    "не «сделал и забыл», а «переварил, переосмыслил, потом сделал». "
+                    "Медленнее, зато без дурацких импульсных решений."
                 )
         if chart.moon_waxing:
-            extras.append("Луна растущая — внутренний ресурс легче наращивать и удерживать.")
+            if _use_terms(style):
+                extras.append("Луна растущая — внутренний ресурс легче наращивать и удерживать.")
+            else:
+                extras.append(
+                    "Луна растущая — внутренний ресурс легче копить. "
+                    "Как копилка: монетки прибавляются, если не тратить на импульс «мне это надо»."
+                )
         else:
-            extras.append("Луна убывающая — сильнее потребность в отпускании и завершении циклов.")
+            if _use_terms(style):
+                extras.append("Луна убывающая — сильнее потребность в отпускании и завершении циклов.")
+            else:
+                extras.append(
+                    "Луна убывающая — сильнее потребность отпускать и закрывать циклы. "
+                    "Не копить хлам — ни в шкафу, ни в голове."
+                )
         paragraphs.append(f"{rhythm} {' '.join(extras)}".strip())
         return "\n\n".join(paragraphs)
 
@@ -541,35 +595,138 @@ def _part1(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                 "mark one of your fated life themes."
             )
     paragraphs.append(
-        f"The dominant element is {elem} — {_element_prose(chart.dominant_element, lang)}."
+        f"The dominant element is {elem} — {_element_prose(chart.dominant_element, lang, style=style)}."
     )
     if _use_terms(style):
         paragraphs.append(f"Lagna in {lagna} — {LAGNA_ESSENCE[lang][chart.lagna_sign]}.")
     else:
-        paragraphs.append(f"Rising through {lagna} — {LAGNA_ESSENCE[lang][chart.lagna_sign]}.")
-    paragraphs.append(_mobility_prose(chart, lang))
+        paragraphs.append(
+            f"Rising through {lagna} — {LAGNA_ESSENCE_PLAIN[lang][chart.lagna_sign]}."
+        )
+    paragraphs.append(_mobility_prose(chart, lang, style=style))
     return "\n\n".join(paragraphs)
 
 
-def _element_prose(element: str, lang: str) -> str:
+def _plain_element_contrast(lang: str, outer: str, inner: str) -> str:
+    outer_label = ELEMENT_LABEL[lang][outer]
+    inner_label = ELEMENT_LABEL[lang][inner]
+    if lang == "ru":
+        pairs = {
+            ("earth", "fire"): (
+                f"Снаружи больше «{outer_label}» — собранно и по делу. "
+                f"Внутри «{inner_label}» — хочется газовать. "
+                "Образ для LinkedIn и образ для души — разные, и это нормально."
+            ),
+            ("fire", "earth"): (
+                f"Снаружи «{outer_label}» — энергия и напор. "
+                f"Внутри «{inner_label}» — «сначала plan, потом sprint». "
+                "Внешне спринтер, внутри бухгалтер."
+            ),
+            ("water", "fire"): (
+                f"Снаружи «{outer_label}» — чувствительность и глубина. "
+                f"Внутри «{inner_label}» — «давай уже что-нибудь делать». "
+                "Поэзия снаружи, драйв внутри."
+            ),
+            ("fire", "water"): (
+                f"Снаружи «{outer_label}» — ярко и быстро. "
+                f"Внутри «{inner_label}» — всё глубже, чем кажется. "
+                "Не путай напор с отсутствием чувств."
+            ),
+            ("air", "earth"): (
+                f"Снаружи «{outer_label}» — идеи и контакты. "
+                f"Внутри «{inner_label}» — «ок, но как это сделать по-настоящему». "
+                "Мозговой штурм снаружи, Excel внутри."
+            ),
+            ("earth", "air"): (
+                f"Снаружи «{outer_label}» — практичность. "
+                f"Внутри «{inner_label}» — голова не останавливается. "
+                "С виду спокойный, внутри — десять вкладок в браузере."
+            ),
+        }
+        return pairs.get(
+            (outer, inner),
+            (
+                f"Снаружи «{outer_label}», внутри «{inner_label}» — "
+                "один ты для мира, другой для близких. Не баг, а режимы."
+            ),
+        )
+    pairs = {
+        ("earth", "fire"): (
+            f"Outward «{outer_label}» — collected and practical. "
+            f"Inward «{inner_label}» — want to hit the gas. "
+            "LinkedIn you and real you aren't the same — that's fine."
+        ),
+        ("fire", "earth"): (
+            f"Outward «{outer_label}» — energy and push. "
+            f"Inward «{inner_label}» — plan first, sprint second. "
+            "Sprinter outside, accountant inside."
+        ),
+    }
+    return pairs.get(
+        (outer, inner),
+        (
+            f"Outward «{outer_label}», inward «{inner_label}» — "
+            "public you and private you run different modes."
+        ),
+    )
+
+
+def _element_prose(element: str, lang: str, *, style: str = "terms") -> str:
+    plain = not _use_terms(style)
     if lang == "ru":
         mapping = {
-            "fire": "она даёт напор, скорость и желание действовать, а не жить «вполсилы»",
-            "earth": "она даёт практичность, терпение и опору на реальные результаты",
-            "air": "она даёт мысли, контакты и потребность обмениваться идеями",
-            "water": "она даёт чувствительность, интуицию и глубину переживаний",
+            "fire": (
+                "она даёт напор, скорость и желание действовать — не «потом разберёмся», а «давай уже»"
+                if plain
+                else "она даёт напор, скорость и желание действовать, а не жить «вполсилы»"
+            ),
+            "earth": (
+                "она даёт практичность, терпение и опору на реальные результаты — "
+                "ты не тот, кто покупает третий курс «стань миллионером за неделю»"
+                if plain
+                else "она даёт практичность, терпение и опору на реальные результаты"
+            ),
+            "air": (
+                "она даёт мысли, контакты и потребность обмениваться идеями — "
+                "молчать на вечеринке долго не получится"
+                if plain
+                else "она даёт мысли, контакты и потребность обмениваться идеями"
+            ),
+            "water": (
+                "она даёт чувствительность, интуицию и глубину — "
+                "реклама может зацепить сильнее, чем хотелось бы"
+                if plain
+                else "она даёт чувствительность, интуицию и глубину переживаний"
+            ),
         }
         return mapping.get(element, "")
     mapping = {
-        "fire": "it adds drive, speed, and the wish to act fully",
-        "earth": "it adds practicality, patience, and tangible results",
-        "air": "it adds thought, contact, and exchange of ideas",
-        "water": "it adds sensitivity, intuition, and emotional depth",
+        "fire": (
+            "it adds drive, speed, and «let's go» — not «we'll figure it out later»"
+            if plain
+            else "it adds drive, speed, and the wish to act fully"
+        ),
+        "earth": (
+            "it adds practicality and patience — you're not buying the third «get rich in a week» course"
+            if plain
+            else "it adds practicality, patience, and tangible results"
+        ),
+        "air": (
+            "it adds thought and contact — staying quiet at a party doesn't last long"
+            if plain
+            else "it adds thought, contact, and exchange of ideas"
+        ),
+        "water": (
+            "it adds sensitivity and depth — ads can hit harder than you'd like"
+            if plain
+            else "it adds sensitivity, intuition, and emotional depth"
+        ),
     }
     return mapping.get(element, "")
 
 
-def _mobility_prose(chart: JyotishChart, lang: str) -> str:
+def _mobility_prose(chart: JyotishChart, lang: str, *, style: str = "terms") -> str:
+    plain = not _use_terms(style)
     mutable = sum(
         1
         for pl in chart.planets.values()
@@ -578,16 +735,36 @@ def _mobility_prose(chart: JyotishChart, lang: str) -> str:
     )
     if lang == "ru":
         if mutable >= 3:
+            if plain:
+                return (
+                    "В карте сильны подвижные знаки — застой тебя бесит сильнее, "
+                    "чем созвон без повестки. Жизнь меняется через движение и смену обстановки."
+                )
             return (
                 "В карте сильны подвижные знаки — жизнь редко терпит застой, "
                 "многое меняется через движение и смену обстановки."
+            )
+        if plain:
+            return (
+                "Карта сочетает стабильность и перемены — важно не застревать в одном режиме, "
+                "но и не устраивать хаос ради «новизны»."
             )
         return (
             "Карта сочетает стабильность и перемены — важно не застревать в одном режиме, "
             "но и не разрушать опору ради суеты."
         )
     if mutable >= 3:
+        if plain:
+            return (
+                "Mutable signs are strong — stagnation annoys you more than a meeting with no agenda. "
+                "Life changes through movement and fresh scenery."
+            )
         return "Mutable signs are strong — life changes through movement and fresh scenery."
+    if plain:
+        return (
+            "The chart mixes stability and change — don't get stuck in one mode, "
+            "but don't create chaos just for «something new»."
+        )
     return "The chart mixes stability and change — neither stagnation nor chaos serves you well."
 
 
