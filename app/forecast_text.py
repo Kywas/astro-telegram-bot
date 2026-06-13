@@ -26,6 +26,7 @@ PLANET_LABELS = {
         "MARS": "Марс",
         "JUPITER": "Юпитер",
         "SATURN": "Сатурн",
+        "ASC": "Асцендент",
     },
     "en": {
         "SUN": "Sun",
@@ -35,6 +36,7 @@ PLANET_LABELS = {
         "MARS": "Mars",
         "JUPITER": "Jupiter",
         "SATURN": "Saturn",
+        "ASC": "Ascendant",
     },
 }
 
@@ -88,6 +90,11 @@ ASPECT_LABELS = {
 
 Hit = tuple[float, str, str, str]
 
+
+def _use_terms(style: str) -> bool:
+    return style != "plain"
+
+
 NATAL_ROLE_SHORT = {
     "ru": {
         "SUN": "личные цели",
@@ -95,6 +102,9 @@ NATAL_ROLE_SHORT = {
         "MERCURY": "мысли и речь",
         "VENUS": "близость и ценности",
         "MARS": "волю и действия",
+        "JUPITER": "рост и возможности",
+        "SATURN": "границы и дисциплину",
+        "ASC": "образ и первое впечатление",
     },
     "en": {
         "SUN": "personal goals",
@@ -102,6 +112,9 @@ NATAL_ROLE_SHORT = {
         "MERCURY": "thoughts and words",
         "VENUS": "closeness and values",
         "MARS": "will and action",
+        "JUPITER": "growth and opportunity",
+        "SATURN": "boundaries and discipline",
+        "ASC": "image and first impression",
     },
 }
 
@@ -354,6 +367,9 @@ NATAL_POINT = {
         "MERCURY": ("Меркурию", "Меркурием", "стиль мышления и речи"),
         "VENUS": ("Венере", "Венерой", "ценности и близость"),
         "MARS": ("Марсу", "Марсом", "волю и способ действовать"),
+        "JUPITER": ("Юпитеру", "Юпитером", "рост и возможности"),
+        "SATURN": ("Сатурну", "Сатурном", "границы и ответственность"),
+        "ASC": ("Асценденту", "Асцендентом", "образ и первое впечатление"),
     },
     "en": {
         "SUN": ("Sun", "Sun", "core identity"),
@@ -361,6 +377,9 @@ NATAL_POINT = {
         "MERCURY": ("Mercury", "Mercury", "thinking and speech style"),
         "VENUS": ("Venus", "Venus", "values and closeness"),
         "MARS": ("Mars", "Mars", "will and drive"),
+        "JUPITER": ("Jupiter", "Jupiter", "growth and opportunity"),
+        "SATURN": ("Saturn", "Saturn", "boundaries and discipline"),
+        "ASC": ("Ascendant", "Ascendant", "image and first impression"),
     },
 }
 
@@ -725,11 +744,23 @@ def format_domain_section(
     moon_sign: str,
     natal_sun_sign: str,
     relationship_status: str | None = None,
+    style: str = "terms",
 ) -> str:
     if not hits:
         return format_neutral_domain(locale, domain, moon_sign, natal_sun_sign)
 
-    _orb, transit, natal, aspect = hits[0]
+    orb, transit, natal, aspect = hits[0]
+    if _use_terms(style):
+        line = _domain_hit_line(
+            locale,
+            domain,
+            transit,
+            natal,
+            aspect,
+            orb,
+        )
+        return line + _love_suffix(locale, domain, transit, relationship_status)
+
     lang = _lang(locale)
     intro = _transit_domain_intro(locale, transit, domain).rstrip(".")
     verb = ASPECT_VERB_SHORT[lang][aspect]
@@ -741,7 +772,17 @@ def format_domain_section(
     return prose + _love_suffix(locale, domain, transit, relationship_status)
 
 
-def format_summary_aspect(locale: str, transit: str, natal: str, aspect: str, orb: float) -> str:
+def format_summary_aspect(
+    locale: str,
+    transit: str,
+    natal: str,
+    aspect: str,
+    orb: float,
+    *,
+    style: str = "terms",
+) -> str:
+    if _use_terms(style):
+        return _compact_hit_line(locale, transit, natal, aspect, orb)
     return format_plain_accent(locale, transit, natal, aspect, orb)
 
 

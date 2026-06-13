@@ -123,6 +123,15 @@ TEXTS = {
         "btn_natal": "🪐 Натальная карта",
         "choose_horoscope_period": "Выбери период гороскопа:",
         "choose_horoscope_period_free": "Бесплатно — только прогноз на сегодня. Неделя и месяц — в Premium.",
+        "choose_horoscope_style": (
+            "Как описывать гороскоп?\n\n"
+            "📖 С терминами — планеты, аспекты, орбы, «Луна в знаке».\n"
+            "Пример: «Меркурий, трин к Венере (1.2°) — облегчает близость и ценности»\n\n"
+            "💬 Простым языком — без жаргона, коротко и по делу.\n"
+            "Пример: «Есть мягкая поддержка в теме «близость и ценности»»"
+        ),
+        "btn_horoscope_style": "📝 Стиль описания",
+        "horoscope_style_saved": "Стиль: {style}",
         "share_horoscope": "📤 Поделиться прогнозом",
         "back": "⬅ Назад",
         "crumb_root": "Главная",
@@ -510,6 +519,15 @@ TEXTS = {
         "btn_natal": "🪐 Natal chart",
         "choose_horoscope_period": "Choose horoscope period:",
         "choose_horoscope_period_free": "Free — daily forecast only. Week and month are Premium.",
+        "choose_horoscope_style": (
+            "How should the horoscope read?\n\n"
+            "📖 With terms — planets, aspects, orbs, “Moon in sign”.\n"
+            "Example: “Mercury trine Venus (1.2°) — eases closeness and values”\n\n"
+            "💬 Plain language — no jargon, short and practical.\n"
+            "Example: “Gentle support around closeness and values”"
+        ),
+        "btn_horoscope_style": "📝 Description style",
+        "horoscope_style_saved": "Style: {style}",
         "share_horoscope": "📤 Share forecast",
         "back": "⬅ Back",
         "crumb_root": "Home",

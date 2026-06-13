@@ -836,6 +836,7 @@ def horoscope_period_keyboard(
     premium_active: bool = False,
     share_url: str | None = None,
     help_back: str = "nav:horo",
+    style_return_to: str = "day",
 ) -> InlineKeyboardMarkup:
     if locale == "ru":
         day_label, week_label, month_label = "Сегодня", "Неделя", "Месяц"
@@ -861,6 +862,14 @@ def horoscope_period_keyboard(
         )
     if share_url:
         rows.append([InlineKeyboardButton(text=t(locale, "share_horoscope"), url=share_url)])
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "btn_horoscope_style"),
+                callback_data=f"horo:style:picker:{style_return_to}",
+            )
+        ]
+    )
     rows.append([glossary_help_button(locale, "horo", help_back)])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -875,6 +884,36 @@ def referral_panel_keyboard(locale: str, link: str) -> InlineKeyboardMarkup:
 
 def build_telegram_share_url(*, text: str, url: str) -> str:
     return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
+
+
+def horoscope_style_picker_keyboard(
+    locale: str,
+    *,
+    current_style: str,
+    return_to: str = "day",
+) -> InlineKeyboardMarkup:
+    style = "plain" if current_style == "plain" else "terms"
+    plain_mark = "✓ " if style == "plain" else ""
+    terms_mark = "✓ " if style == "terms" else ""
+    if return_to == "picker":
+        back_data = "nav:horo"
+    else:
+        back_data = f"horo:{return_to}"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{plain_mark}{t(locale, 'natal_style_plain')}",
+                    callback_data=f"horo:style:plain:{return_to}",
+                ),
+                InlineKeyboardButton(
+                    text=f"{terms_mark}{t(locale, 'natal_style_terms')}",
+                    callback_data=f"horo:style:terms:{return_to}",
+                ),
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=back_data)],
+        ]
+    )
 
 
 def moon_style_picker_keyboard(

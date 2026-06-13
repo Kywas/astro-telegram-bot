@@ -61,7 +61,8 @@ PLANETS = {
 }
 
 TRANSIT_PLANETS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
-NATAL_POINTS = ("SUN", "MOON", "MERCURY", "VENUS", "MARS")
+NATAL_CHART_BODIES = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
+NATAL_POINTS = NATAL_CHART_BODIES
 DOMAINS = ("energy", "work", "finance", "love", "social", "health")
 
 ASPECTS = (
@@ -80,6 +81,7 @@ PLANET_DOMAINS: dict[str, list[str]] = {
     "MARS": ["energy", "work"],
     "JUPITER": ["finance", "work"],
     "SATURN": ["work", "health"],
+    "ASC": ["energy", "social"],
 }
 
 PLANET_LABELS = {
@@ -91,6 +93,7 @@ PLANET_LABELS = {
         "MARS": "Марс",
         "JUPITER": "Юпитер",
         "SATURN": "Сатурн",
+        "ASC": "Асцендент",
     },
     "en": {
         "SUN": "Sun",
@@ -100,6 +103,7 @@ PLANET_LABELS = {
         "MARS": "Mars",
         "JUPITER": "Jupiter",
         "SATURN": "Saturn",
+        "ASC": "Ascendant",
     },
 }
 
@@ -275,6 +279,50 @@ def _solar_natal_longitudes(sign: str) -> dict[str, float]:
     return {"SUN": sun_lon}
 
 
+def _transit_moment_jd(
+    for_date: date,
+    timezone_name: str,
+    *,
+    now_utc: datetime | None = None,
+) -> float:
+    """Today uses the user's current local time; other dates use local noon."""
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    local_now = now_utc.astimezone(ZoneInfo(timezone_name))
+    if for_date == local_now.date():
+        return _local_moment_jd(
+            for_date,
+            timezone_name,
+            hour=local_now.hour,
+            minute=local_now.minute,
+        )
+    return _local_moment_jd(for_date, timezone_name, hour=12, minute=0)
+
+
+def _build_natal_forecast_longitudes(
+    birth_date: date,
+    birth_time: time | None,
+    timezone_name: str,
+    *,
+    lat: float | None = None,
+    lon: float | None = None,
+) -> tuple[dict[str, float], bool, bool]:
+    """Natal longitudes for transit forecast: 7 planets, Moon if time known, ASC if time+coords."""
+    natal_jd = _natal_julian_day(birth_date, birth_time, timezone_name)
+    has_birth_time = birth_time is not None
+    if has_birth_time:
+        keys: tuple[str, ...] = NATAL_CHART_BODIES
+    else:
+        keys = tuple(key for key in NATAL_CHART_BODIES if key != "MOON")
+    longitudes = _collect_longitudes(natal_jd, keys)
+    has_asc = False
+    if has_birth_time and lat is not None and lon is not None:
+        _cusps, ascmc = swe.houses(natal_jd, lat, lon, b"P")
+        longitudes["ASC"] = float(ascmc[0])
+        has_asc = True
+    return longitudes, has_birth_time, has_asc
+
+
 def _period_dates(period: str, for_date: date) -> list[date]:
     if period == "week":
         week_start = for_date - timedelta(days=for_date.weekday())
@@ -350,6 +398,7 @@ def _domain_text(
     moon_sign: str,
     natal_sun_sign: str,
     relationship_status: str | None = None,
+    style: str = "terms",
 ) -> str:
     domain_hits = _domain_hits(hits, domain)
     return format_domain_section(
@@ -359,6 +408,7 @@ def _domain_text(
         moon_sign=moon_sign,
         natal_sun_sign=natal_sun_sign,
         relationship_status=relationship_status,
+        style=style,
     )
 
 
@@ -482,8 +532,16 @@ def _advice_text(
     return format_advice(locale, hits, moon_sign)
 
 
-def _aspect_phrase(locale: str, transit: str, natal: str, aspect: str, orb: float) -> str:
-    return format_summary_aspect(locale, transit, natal, aspect, orb)
+def _aspect_phrase(
+    locale: str,
+    transit: str,
+    natal: str,
+    aspect: str,
+    orb: float,
+    *,
+    style: str = "terms",
+) -> str:
+    return format_summary_aspect(locale, transit, natal, aspect, orb, style=style)
 
 
 def _build_summary_lines(
@@ -494,25 +552,52 @@ def _build_summary_lines(
     birth_time: time | None,
     solar_only: bool,
     period: str,
+    style: str = "terms",
+    has_asc: bool = False,
 ) -> list[str]:
-    del moon_sign, period
+    del moon_sign
     lang = _lang(locale)
     summary: list[str] = []
     if hits:
         orb_delta, transit_key, natal_key, aspect_name = hits[0]
-        summary.append(_aspect_phrase(locale, transit_key, natal_key, aspect_name, orb_delta))
+        summary.append(
+            _aspect_phrase(
+                locale,
+                transit_key,
+                natal_key,
+                aspect_name,
+                orb_delta,
+                style=style,
+            )
+        )
     if solar_only:
         summary.append(
-            "ℹ️ Расчёт по солнечному знаку — укажите дату рождения для точной карты."
+            "ℹ️ Расчёт по солнечному знаку — укажите дату рождения для персональной карты."
             if lang == "ru"
-            else "ℹ️ Solar-sign chart only — add your birth date for a precise chart."
+            else "ℹ️ Solar-sign only — add your birth date for a personal chart."
+        )
+    elif has_asc:
+        summary.append(
+            "ℹ️ Персональный расчёт: транзиты к вашей карте (планеты + ASC)."
+            if lang == "ru"
+            else "ℹ️ Personal chart: transits to your planets and Ascendant."
         )
     elif birth_time is None:
         summary.append(
-            "ℹ️ Время рождения не указано — Луна и дома в расчёте не участвуют."
+            "ℹ️ Без времени рождения Луна и ASC не участвуют — добавьте время в профиле."
             if lang == "ru"
-            else "ℹ️ Birth time missing — Moon and houses are not included."
+            else "ℹ️ Without birth time, Moon and Ascendant are omitted — add time in profile."
         )
+    else:
+        summary.append(
+            "ℹ️ Персональный расчёт по дате, времени и планетам. Проверьте город для ASC."
+            if lang == "ru"
+            else "ℹ️ Personal chart from date, time, and planets. Check city for Ascendant."
+        )
+    if period == "day" and not solar_only and lang == "ru":
+        summary.append("ℹ️ На «сегодня» учтены транзиты Луны и актуальное локальное время.")
+    elif period == "day" and not solar_only:
+        summary.append("ℹ️ For today: Moon transits and your current local time are included.")
     return summary
 
 
@@ -522,13 +607,16 @@ def _aggregate_hits(
     timezone_name: str,
     *,
     birth_time: time | None,
+    period: str = "day",
+    now_utc: datetime | None = None,
 ) -> tuple[list[tuple[float, str, str, str]], str, dict[str, float]]:
     all_hits: list[tuple[float, str, str, str]] = []
     last_transit: dict[str, float] = {}
     moon_sign = "Aries"
+    include_moon_transits = period == "day"
 
     for day in period_dates:
-        transit_jd = _local_moment_jd(day, timezone_name, hour=12, minute=0)
+        transit_jd = _transit_moment_jd(day, timezone_name, now_utc=now_utc)
         transit_longitudes = _collect_longitudes(transit_jd, TRANSIT_PLANETS)
         last_transit = transit_longitudes
         moon_sign = _longitude_to_sign(transit_longitudes["MOON"])
@@ -536,6 +624,7 @@ def _aggregate_hits(
             natal_longitudes,
             transit_longitudes,
             birth_time=birth_time,
+            include_moon_transits=include_moon_transits,
         )
         all_hits.extend(day_hits)
 
@@ -563,10 +652,11 @@ def build_astro_forecast(
     lat: float | None = None,
     lon: float | None = None,
     birth_timezone: str | None = None,
+    style: str = "terms",
 ) -> AstroForecast | None:
     try:
         tz = normalize_timezone(birth_timezone or timezone_name)
-        _lat, _lon, resolved_tz = resolve_birth_location(
+        resolved_lat, resolved_lon, resolved_tz = resolve_birth_location(
             city,
             tz,
             lat=lat,
@@ -575,6 +665,9 @@ def build_astro_forecast(
         )
         period_key = period if period in {"day", "week", "month"} else "day"
         period_dates = _period_dates(period_key, for_date)
+        now_utc = datetime.now(timezone.utc)
+        include_moon_transits = period_key == "day"
+        has_asc = False
 
         solar_only = birth_date is None
         if solar_only:
@@ -582,14 +675,21 @@ def build_astro_forecast(
                 return None
             natal_longitudes = _solar_natal_longitudes(sign)
         else:
-            natal_jd = _natal_julian_day(birth_date, birth_time, resolved_tz)
-            natal_longitudes = _collect_longitudes(natal_jd, NATAL_POINTS)
+            natal_longitudes, _has_birth_time, has_asc = _build_natal_forecast_longitudes(
+                birth_date,
+                birth_time,
+                resolved_tz,
+                lat=resolved_lat,
+                lon=resolved_lon,
+            )
 
         hits, moon_sign, _transit_longitudes = _aggregate_hits(
             natal_longitudes,
             period_dates,
-            tz,
+            timezone_name,
             birth_time=birth_time,
+            period=period_key,
+            now_utc=now_utc,
         )
         natal_sun_sign = _longitude_to_sign(natal_longitudes["SUN"])
 
@@ -600,6 +700,8 @@ def build_astro_forecast(
             birth_time=birth_time,
             solar_only=solar_only,
             period=period_key,
+            style=style,
+            has_asc=has_asc,
         )
 
         sections = {}
@@ -608,9 +710,14 @@ def build_astro_forecast(
             if len(period_dates) > 1:
                 daily_scores = []
                 for day in period_dates:
-                    day_jd = _local_moment_jd(day, tz, hour=12, minute=0)
+                    day_jd = _transit_moment_jd(day, timezone_name, now_utc=now_utc)
                     day_transit = _collect_longitudes(day_jd, TRANSIT_PLANETS)
-                    day_hits = _collect_hits(natal_longitudes, day_transit, birth_time=birth_time)
+                    day_hits = _collect_hits(
+                        natal_longitudes,
+                        day_transit,
+                        birth_time=birth_time,
+                        include_moon_transits=include_moon_transits,
+                    )
                     daily_scores.append(_domain_score(_domain_hits(day_hits, domain)))
                 score = max(1, min(10, round(sum(daily_scores) / len(daily_scores))))
             else:
@@ -622,6 +729,7 @@ def build_astro_forecast(
                 moon_sign=moon_sign,
                 natal_sun_sign=natal_sun_sign,
                 relationship_status=relationship_status,
+                style=style,
             )
             sections[domain] = SectionForecast(text=text, score=score)
 
@@ -707,9 +815,6 @@ def build_astro_horoscope_context(
         score_adjustments=adjustments,
         moon_sign=forecast.moon_sign,
     )
-
-
-NATAL_CHART_BODIES = ("SUN", "MOON", "MERCURY", "VENUS", "MARS", "JUPITER", "SATURN")
 
 
 @dataclass

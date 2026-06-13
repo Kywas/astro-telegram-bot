@@ -137,6 +137,13 @@ def personalization_from_profile(profile) -> PersonalizationContext | None:
     return ctx if ctx.has_data() else None
 
 
+def resolve_horoscope_style(profile, *, default: str = "terms") -> str:
+    if profile is None:
+        return default
+    style = getattr(profile, "horoscope_style", None) or getattr(profile, "natal_style", None) or default
+    return "plain" if style == "plain" else "terms"
+
+
 def _is_focus_section(key: str, goal: str | None) -> bool:
     return bool(goal and GOAL_FOCUS_KEYS.get(goal) == key)
 
@@ -385,6 +392,7 @@ def generate_horoscope(
     birth_time: time | None = None,
     city: str | None = None,
     timezone_name: str | None = None,
+    style: str | None = None,
 ) -> str:
     if personalization is None and any(v is not None for v in (goal, relationship_status, mood_score, gender)):
         personalization = PersonalizationContext(
@@ -408,6 +416,7 @@ def generate_horoscope(
         city,
         timezone_name,
     )
+    resolved_style = style or resolve_horoscope_style(profile)
 
     forecast = build_astro_forecast(
         birth_date=resolved_birth_date,
@@ -423,6 +432,7 @@ def generate_horoscope(
         lat=resolved_lat,
         lon=resolved_lon,
         birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
+        style=resolved_style,
     )
 
     labels = SECTION_TEMPLATES[current_locale]
@@ -474,6 +484,7 @@ def build_share_forecast_context(
     profile=None,
     personalization: PersonalizationContext | None = None,
     for_date: date | None = None,
+    style: str | None = None,
 ) -> ShareForecastContext | None:
     current_locale = "ru" if locale == "ru" else "en"
     current_period = period if period in {"day", "week", "month"} else "day"
@@ -486,6 +497,7 @@ def build_share_forecast_context(
         None,
         None,
     )
+    resolved_style = style or resolve_horoscope_style(profile)
 
     forecast = build_astro_forecast(
         birth_date=resolved_birth_date,
@@ -501,6 +513,7 @@ def build_share_forecast_context(
         lat=resolved_lat,
         lon=resolved_lon,
         birth_timezone=getattr(profile, "birth_timezone", None) if profile else None,
+        style=resolved_style,
     )
     if forecast is None:
         return None

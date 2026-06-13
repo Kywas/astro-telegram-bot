@@ -39,6 +39,7 @@ from app.horoscope import (
     build_horoscope_share_text,
     generate_horoscope,
     personalization_from_profile,
+    resolve_horoscope_style,
 )
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.i18n import TEXTS, get_locale, goal_display, relationship_display, sign_display, t
@@ -51,6 +52,7 @@ from app.keyboards import (
     home_relationship_keyboard,
     glossary_help_button,
     horoscope_period_keyboard,
+    horoscope_style_picker_keyboard,
     language_keyboard,
     moon_content_keyboard,
     moon_period_keyboard,
@@ -778,6 +780,7 @@ async def _send_period_horoscope(
             premium_active=premium_active,
             share_url=share_url,
             help_back=f"horo:{period}",
+            style_return_to=period,
         ),
         edit_message=message,
     )
@@ -806,7 +809,7 @@ async def open_horoscope_for_user(
             user_id=user_id,
             chat_id=message.chat.id,
             text=f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
-            reply_markup=horoscope_period_keyboard(locale, premium_active=True),
+            reply_markup=horoscope_period_keyboard(locale, premium_active=True, style_return_to="picker"),
             edit_message=message,
         )
         return
@@ -820,6 +823,33 @@ async def open_horoscope_for_user(
         period="day",
         profile=profile,
     )
+
+
+async def render_horoscope_style_picker(
+    user_id: int,
+    locale: str,
+    *,
+    return_to: str = "day",
+) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    style = resolve_horoscope_style(profile)
+    style_label = (
+        t(locale, "natal_style_label_terms")
+        if style == "terms"
+        else t(locale, "natal_style_label_plain")
+    )
+    text = (
+        f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n"
+        f"{t(locale, 'choose_horoscope_style')}\n\n"
+        f"{t(locale, 'natal_style_current', style=style_label)}"
+    )
+    return text, horoscope_style_picker_keyboard(locale, current_style=style, return_to=return_to)
+
+
+def _horoscope_style_label(locale: str, style: str) -> str:
+    if style == "plain":
+        return t(locale, "natal_style_label_plain")
+    return t(locale, "natal_style_label_terms")
 
 
 async def render_natal_style_picker(
@@ -963,7 +993,48 @@ async def horoscope_period_callback_handler(callback: CallbackQuery) -> None:
         )
         return
 
-    period = (callback.data or "").split(":")[-1]
+    parts = (callback.data or "").split(":")
+    if len(parts) >= 3 and parts[1] == "style":
+        if parts[2] == "picker":
+            return_to = parts[3] if len(parts) > 3 else "day"
+            text, keyboard = await render_horoscope_style_picker(
+                user.id,
+                locale,
+                return_to=return_to,
+            )
+            await callback.answer()
+            await render_inline_panel(callback, text, keyboard)
+            return
+        if parts[2] in {"plain", "terms"}:
+            await db.set_horoscope_style(user.id, parts[2])
+            return_to = parts[3] if len(parts) > 3 else "day"
+            await callback.answer(
+                t(locale, "horoscope_style_saved", style=_horoscope_style_label(locale, parts[2]))
+            )
+            profile = await db.get_user(user.id)
+            if profile is None or not profile.sign:
+                return
+            if return_to == "picker":
+                premium_active = is_premium_active(profile.premium_until)
+                await render_inline_panel(
+                    callback,
+                    f"{breadcrumb(locale, t(locale, 'crumb_horoscope'))}\n\n{t(locale, 'choose_horoscope_period')}",
+                    horoscope_period_keyboard(locale, premium_active=premium_active, style_return_to="picker"),
+                )
+                return
+            if callback.message:
+                await _send_period_horoscope(
+                    bot=callback.bot,
+                    user_id=user.id,
+                    message=callback.message,
+                    locale=locale,
+                    sign=profile.sign,
+                    period=return_to if return_to in {"day", "week", "month"} else "day",
+                    profile=profile,
+                )
+            return
+
+    period = parts[-1]
     if period == "back":
         await callback.answer()
         await edit_or_send(
