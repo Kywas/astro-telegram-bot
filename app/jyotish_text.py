@@ -207,27 +207,27 @@ def _dignity_clause(locale: str, pl: PlanetPlacement, *, style: str = "terms") -
     if not _use_terms(style):
         if pl.dignity == "exalted":
             return (
-                "Здесь эта тема даётся легко и естественно."
+                "Тут тема даётся легко — как VIP-вход без очереди."
                 if lang == "ru"
-                else "This theme comes easily and naturally."
+                else "This theme comes easily — like VIP entry without the queue."
             )
         if pl.dignity == "debilitated":
             return (
-                "Здесь важна сознательная работа с этой темой."
+                "Тут не «сломано», но нужна практика — спортзал для характера, не приговор."
                 if lang == "ru"
-                else "This theme asks for conscious work."
+                else "Not broken, but it takes practice — a gym for character, not a verdict."
             )
         if pl.dignity == "own":
             return (
-                "Планета здесь чувствует себя «дома»."
+                "Планета тут как дома — без лишней адаптации и «а где тут туалет?»."
                 if lang == "ru"
-                else "The planet feels at home here."
+                else "The planet is at home here — no awkward orientation phase."
             )
         if pl.retrograde and pl.key not in {"RAHU", "KETU"}:
             return (
-                "Энергия идёт внутрь — эффект глубже, чем кажется снаружи."
+                "Энергия идёт внутрь — снаружи тихо, внутри полный монтажный стол."
                 if lang == "ru"
-                else "The energy turns inward — the effect runs deeper than it looks."
+                else "Energy turns inward — quiet outside, full edit bay inside."
             )
         return ""
     if pl.dignity == "exalted":
@@ -378,18 +378,19 @@ def _planet_prose_special(
                 )
             elif omit_house:
                 text = (
-                    f"Солнце в {sign_name} — сильное ядро личности: "
-                    "тянет к реализации, статусу и собственному курсу."
+                    f"Солнце в {sign_name} — сильное ядро: "
+                    "тянет к реализации и своему курсу, а не к роли «тихий исполнитель в углу»."
                 )
             else:
                 text = (
-                    f"В сфере «{theme}» Солнце в {sign_name} — сильное ядро личности: "
-                    "тянет к реализации, статусу и собственному курсу."
+                    f"В сфере «{theme}» Солнце в {sign_name} — сильное ядро: "
+                    "тянет к реализации, статусу и собственному курсу — "
+                    "не обязательно к трону, но точно не к роли серого фона."
                 )
             return f"{text} {dignity}{nak_bit}".replace("  ", " ").strip()
         if pl.key == "MERCURY" and pl.sign == "Aries":
             retro = (
-                " Мысли часто идут внутрь, а не наружу."
+                " Мысли часто идут внутрь — снаружи молчишь, внутри уже три версии ответа."
                 if pl.retrograde and not _use_terms(style)
                 else (
                     " Ретроградность усиливает внутреннюю переработку мыслей."
@@ -397,15 +398,29 @@ def _planet_prose_special(
                     else ""
                 )
             )
-            return (
-                f"Меркурий в {sign_name} даёт быстрый, острый ум — "
-                f"слово здесь настоящий инструмент, хотя порой звучит резко и нетерпеливо.{retro}{nak_bit}"
-            ).strip()
+            if _use_terms(style):
+                body = (
+                    f"Меркурий в {sign_name} даёт быстрый, острый ум — "
+                    f"слово здесь настоящий инструмент, хотя порой звучит резко и нетерпеливо.{retro}{nak_bit}"
+                )
+            else:
+                body = (
+                    f"Меркурий в {sign_name} — ум быстрый, как сообщение «ответь срочно»: "
+                    f"схватываешь на лету, но иногда перебиваешь и себя, и собеседника.{retro}{nak_bit}"
+                )
+            return body.strip()
         if pl.key == "VENUS" and pl.sign == "Aries":
-            return (
-                f"Венера в {sign_name} окрашивает вкус ярко: в чувствах нужна искра, "
-                f"в делах — вдохновение, и иногда внимание уходит в цели, как только «загорелось».{nak_bit}"
-            ).strip()
+            if _use_terms(style):
+                body = (
+                    f"Венера в {sign_name} окрашивает вкус ярко: в чувствах нужна искра, "
+                    f"в делах — вдохновение, и иногда внимание уходит в цели, как только «загорелось».{nak_bit}"
+                )
+            else:
+                body = (
+                    f"Венера в {sign_name} — вкус яркий: в любви нужна искра, "
+                    f"а не «ну, сойдёт»; в делах — вдохновение, иначе быстро скучно.{nak_bit}"
+                )
+            return body.strip()
         return None
 
     if pl.key == "SUN" and pl.dignity == "exalted":
@@ -792,7 +807,7 @@ def _focus_house_prose(chart: JyotishChart, locale: str, house: int, *, style: s
         else:
             intro = (
                 f"В сфере «{theme}» сходятся {names} — "
-                "один из главных сюжетов твоей карты. "
+                "не декоративная деталь, а один из главных сезонов сериала «Ты». "
             )
     elif _use_terms(style):
         intro = (
@@ -802,7 +817,7 @@ def _focus_house_prose(chart: JyotishChart, locale: str, house: int, *, style: s
     else:
         intro = (
             f"In the arena of {theme}, {names} meet — "
-            "one of the chart's main storylines. "
+            "not background music, but one of the main seasons of «You». "
         )
 
     planet_bits = [_render_planet(locale, pl, omit_house=True, style=style) for pl in planets]
@@ -838,22 +853,23 @@ def _houses_summary_prose(chart: JyotishChart, locale: str, *, style: str = "ter
 
         parts = [
             "В карте особенно ярко звучат несколько жизненных сфер — "
-            "не только знаки планет, но и темы, где они складываются вместе."
+            "не только «кто ты по знаку», но и где складывается основной сюжет."
         ]
         house_bits = []
         for h in chart.strong_houses[:4]:
             cnt = chart.house_planet_count[h]
             house_bits.append(f"«{_house_theme(locale, h)}» — {cnt} планет(ы)")
         if house_bits:
-            parts.append("Сильнее всего: " + ", ".join(house_bits) + ".")
+            parts.append("Громче всего: " + ", ".join(house_bits) + ".")
         if chart.kendra_planet_count >= 3:
             parts.append(
-                "Центральные темы жизни (личность, дом, отношения, реализация) насыщены — "
-                "судьба строится на реальных событиях, а не на мечтах."
+                "Центральные темы (ты, дом, отношения, реализация) насыщены — "
+                "жизнь строится на реальных событиях, а не на «когда-нибудь начну»."
             )
         if chart.dusthana_planet_count <= 2:
             parts.append(
-                "Сложные периоды возможны, но карта не выглядит перегруженной напряжением."
+                "Сложные периоды возможны, но карта не похожа на бесконечный драма-сериал — "
+                "напряжение есть, но не весь сюжет."
             )
         return " ".join(parts)
 
@@ -865,11 +881,21 @@ def _houses_summary_prose(chart: JyotishChart, locale: str, *, style: str = "ter
         return " ".join(parts)
 
     parts = [
-        "Several life arenas stand out — not just planet signs, but themes where they cluster."
+        "Several life arenas stand out — not just signs, but where your main plot thickens."
     ]
     for h in chart.strong_houses[:4]:
         cnt = chart.house_planet_count[h]
         parts.append(f"{_house_theme(locale, h).capitalize()} — {cnt} planet(s).")
+    if chart.kendra_planet_count >= 3:
+        parts.append(
+            "Core themes (you, home, partnership, career) are packed — "
+            "life runs on real events, not «I'll start someday»."
+        )
+    if chart.dusthana_planet_count <= 2:
+        parts.append(
+            "Hard periods happen, but the chart isn't an endless drama series — "
+            "tension exists, it doesn't own the whole plot."
+        )
     return " ".join(parts)
 
 
@@ -898,7 +924,8 @@ def _part2(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
         else:
             paragraphs.append(
                 "🌌 Планеты\n\n"
-                "Здесь — как каждая планета окрашивает характер и жизненные темы."
+                "Вторая часть — кто во что «одет» в твоей карте и где это проявляется в жизни. "
+                "Без таблиц: просто разные роли одного человека."
             )
     elif _use_terms(style):
         paragraphs.append(
@@ -908,7 +935,8 @@ def _part2(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
     else:
         paragraphs.append(
             "🌌 Planets\n\n"
-            "How each planet colors character and life themes."
+            "Part two — how each planet colors you and where that shows up in life. "
+            "No tables: just different roles of the same person."
         )
 
     focus_prose = _focus_house_prose(chart, locale, focus_house, style=style)
@@ -919,11 +947,17 @@ def _part2(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                 f"({_house_theme(locale, focus_house)})"
             )
         else:
-            header = f"🔥 Главный нерв карты — «{_house_theme(locale, focus_house)}»"
+            header = (
+                f"🔥 Главная сцена карты — «{_house_theme(locale, focus_house)}» "
+                "(не фоновая музыка, а саундтрек)"
+            )
     elif _use_terms(style):
         header = f"🔥 Main chart nerve — house {focus_house}"
     else:
-        header = f"🔥 Main chart nerve — {_house_theme(locale, focus_house)}"
+        header = (
+            f"🔥 Main chart stage — {_house_theme(locale, focus_house)} "
+            "(not background music — the soundtrack)"
+        )
 
     if focus_prose:
         paragraphs.append(f"{header}\n\n{focus_prose}")
@@ -969,20 +1003,20 @@ def _part2(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                 )
             else:
                 moon_rahu = (
-                    "Луна и узел карты связаны — ум восприимчив к деталям и нестандартным идеям, "
-                    "но порой труднее сохранить покой. "
+                    "Луна и узел карты связаны — ум ловит детали и нестандартные идеи, "
+                    "но выключить «режим прокрутки в голове» бывает сложнее. "
                 )
         nodes_header = (
-            "🌫 Узлы карты (Раху / Кету)" if _use_terms(style) else "🌫 Узлы карты"
+            "🌫 Узлы карты (Раху / Кету)" if _use_terms(style) else "🌫 Узлы карты — куда тянет и от чего отпускать"
         )
-        houses_header = "🏠 Дома" if _use_terms(style) else "🏠 Жизненные сферы"
+        houses_header = "🏠 Дома" if _use_terms(style) else "🏠 Где в жизни это звучит громче всего"
         paragraphs.append(f"{nodes_header}\n\n{moon_rahu}{nodes_text}")
         paragraphs.append(f"{houses_header}\n\n{_houses_summary_prose(chart, locale, style=style)}")
     else:
         nodes_header = (
-            "🌫 Lunar nodes (Rahu / Ketu)" if _use_terms(style) else "🌫 Chart nodes"
+            "🌫 Lunar nodes (Rahu / Ketu)" if _use_terms(style) else "🌫 Chart nodes — pull and release"
         )
-        houses_header = "🏠 Houses" if _use_terms(style) else "🏠 Life arenas"
+        houses_header = "🏠 Houses" if _use_terms(style) else "🏠 Where life turns the volume up"
         paragraphs.append(f"{nodes_header}\n\n{nodes_text}")
         paragraphs.append(f"{houses_header}\n\n{_houses_summary_prose(chart, locale, style=style)}")
 
@@ -991,10 +1025,16 @@ def _part2(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
 
 def _part3(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
     lang = _lang(locale)
-    strengths, weaknesses, risks, opportunities = _derive_summary(chart, lang)
+    strengths, weaknesses, risks, opportunities = _derive_summary(chart, lang, style=style)
 
     if lang == "ru":
-        paragraphs = ["🌟 Итог"]
+        if _use_terms(style):
+            paragraphs = ["🌟 Итог"]
+        else:
+            paragraphs = [
+                "🌟 Итог\n\n"
+                "Собрали картину в несколько строк — без мистики ради мистики."
+            ]
         if chart.gandanta_lagna or chart.gandanta_moon:
             if _use_terms(style):
                 paragraphs.append(
@@ -1003,18 +1043,29 @@ def _part3(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
                 )
             else:
                 paragraphs.append(
-                    "Вход в жизнь или Луна в особой точке карты — знак внутренней глубины и крайних переживаний. "
-                    "Такой человек чувствует сильнее обычного, но дольше учится устойчивости."
+                    "Вход в жизнь или Луна в особой точке карты — переживаешь глубже среднего; "
+                    "эмоции как Wi‑Fi: сигнал сильный, иногда слишком. "
+                    "Устойчивость приходит с опытом, не с первого дня."
                 )
-        paragraphs.append(f"Сильные стороны — {_list_to_prose(strengths, lang)}.")
-        paragraphs.append(f"Слабее проявляются {_list_to_prose(weaknesses, lang)}.")
-        paragraphs.append(f"Главный риск — {risks}.")
-        paragraphs.append(f"Главная возможность — {opportunities}.")
+        if _use_terms(style):
+            paragraphs.append(f"Сильные стороны — {_list_to_prose(strengths, lang)}.")
+            paragraphs.append(f"Слабее проявляются {_list_to_prose(weaknesses, lang)}.")
+            paragraphs.append(f"Главный риск — {risks}.")
+            paragraphs.append(f"Главная возможность — {opportunities}.")
+        else:
+            paragraphs.append(f"💪 Сильные стороны: {_list_to_prose(strengths, lang)}.")
+            paragraphs.append(f"🌱 Слабее выходит: {_list_to_prose(weaknesses, lang)}.")
+            paragraphs.append(f"⚠️ Главный риск: {risks}.")
+            paragraphs.append(f"✨ Главная возможность: {opportunities}.")
         return "\n\n".join(paragraphs)
 
-    paragraphs = [
-        "🌟 Summary",
-    ]
+    if _use_terms(style):
+        paragraphs = ["🌟 Summary"]
+    else:
+        paragraphs = [
+            "🌟 Summary\n\n"
+            "The picture in a few lines — no mystique for mystique's sake."
+        ]
     if chart.gandanta_lagna or chart.gandanta_moon:
         if _use_terms(style):
             paragraphs.append(
@@ -1023,19 +1074,31 @@ def _part3(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
             )
         else:
             paragraphs.append(
-                "Rising sign or Moon in a sensitive chart point marks inner depth — "
-                "feelings run strong, stability takes longer to build."
+                "Rising sign or Moon in a sensitive chart point — you feel deeper than average; "
+                "emotions like Wi‑Fi: strong signal, sometimes too strong. "
+                "Stability comes with experience, not day one."
             )
-    paragraphs.extend([
-        f"Strengths — {_list_to_prose(strengths, lang)}.",
-        f"Growth edges — {_list_to_prose(weaknesses, lang)}.",
-        f"Main risk — {risks}.",
-        f"Main opportunity — {opportunities}.",
-    ])
+    if _use_terms(style):
+        paragraphs.extend([
+            f"Strengths — {_list_to_prose(strengths, lang)}.",
+            f"Growth edges — {_list_to_prose(weaknesses, lang)}.",
+            f"Main risk — {risks}.",
+            f"Main opportunity — {opportunities}.",
+        ])
+    else:
+        paragraphs.extend([
+            f"💪 Strengths: {_list_to_prose(strengths, lang)}.",
+            f"🌱 Growth edges: {_list_to_prose(weaknesses, lang)}.",
+            f"⚠️ Main risk: {risks}.",
+            f"✨ Main opportunity: {opportunities}.",
+        ])
     return "\n\n".join(paragraphs)
 
 
-def _derive_summary(chart: JyotishChart, lang: str) -> tuple[list[str], list[str], str, str]:
+def _derive_summary(
+    chart: JyotishChart, lang: str, *, style: str = "terms"
+) -> tuple[list[str], list[str], str, str]:
+    plain = not _use_terms(style)
     strengths: list[str] = []
     weaknesses: list[str] = []
 
@@ -1043,75 +1106,180 @@ def _derive_summary(chart: JyotishChart, lang: str) -> tuple[list[str], list[str
         if key in {"RAHU", "KETU"}:
             continue
         if pl.dignity == "exalted":
-            strengths.append(_summary_strength(key, pl, lang))
+            strengths.append(_summary_strength(key, pl, lang, plain=plain))
         if pl.dignity == "debilitated":
-            weaknesses.append(_summary_weakness(key, pl, lang))
+            weaknesses.append(_summary_weakness(key, pl, lang, plain=plain))
 
     if chart.stellium_house == 10 or chart.house_planet_count.get(10, 0) >= 2:
-        strengths.append(
-            "яркая профессиональная энергия и потенциал заметности"
-            if lang == "ru"
-            else "strong professional energy and visibility"
-        )
+        if lang == "ru":
+            strengths.append(
+                "яркая профессиональная энергия — потенциал быть заметным, не обязательно в stories"
+                if plain
+                else "яркая профессиональная энергия и потенциал заметности"
+            )
+        else:
+            strengths.append(
+                "strong professional energy — visibility potential, stories optional"
+                if plain
+                else "strong professional energy and visibility"
+            )
     if chart.retrograde_planets:
         if lang == "ru":
-            strengths.append("способность глубоко переваривать опыт и бить точно после паузы")
+            strengths.append(
+                "умение переварить опыт и попасть в точку после паузы — не «сделал на бегу», а «обдумал и сделал»"
+                if plain
+                else "способность глубоко переваривать опыт и бить точно после паузы"
+            )
         else:
-            strengths.append("depth of processing and precision after pause")
+            strengths.append(
+                "digest experience and hit the mark after a pause — not rush, rethink, then act"
+                if plain
+                else "depth of processing and precision after pause"
+            )
     if chart.planets["MOON"].dignity in {"exalted", "own"} and chart.moon_waxing:
-        strengths.append(
-            "хороший внутренний ресурс и способность восстанавливаться"
-            if lang == "ru"
-            else "solid inner resource and recovery capacity"
-        )
+        if lang == "ru":
+            strengths.append(
+                "хороший внутренний ресурс — восстанавливаться умеешь, если не добиваешь себя списком дел"
+                if plain
+                else "хороший внутренний ресурс и способность восстанавливаться"
+            )
+        else:
+            strengths.append(
+                "solid inner resource — you recover if the to-do list doesn't finish you"
+                if plain
+                else "solid inner resource and recovery capacity"
+            )
     if chart.planets["MERCURY"].retrograde or chart.planets["MARS"].retrograde:
-        weaknesses.append(
-            "тревожная перегрузка ума или внутренние споры"
-            if lang == "ru"
-            else "mental overload or inner arguments"
-        )
+        if lang == "ru":
+            weaknesses.append(
+                "перегрузка ума — мысли крутятся дольше, чем хотелось бы"
+                if plain
+                else "тревожная перегрузка ума или внутренние споры"
+            )
+        else:
+            weaknesses.append(
+                "mental overload — thoughts spin longer than you'd like"
+                if plain
+                else "mental overload or inner arguments"
+            )
     if chart.planets["MARS"].house in {2, 3, 8}:
-        weaknesses.append(
-            "резкость в слове и реакции, когда задевают достоинство"
-            if lang == "ru"
-            else "sharp speech when dignity is touched"
-        )
+        if lang == "ru":
+            weaknesses.append(
+                "резкость в словах, когда задевают достоинство — «сначала ответил, потом подумал»"
+                if plain
+                else "резкость в слове и реакции, когда задевают достоинство"
+            )
+        else:
+            weaknesses.append(
+                "sharp words when dignity is touched — reply first, think later"
+                if plain
+                else "sharp speech when dignity is touched"
+            )
     if chart.planets["JUPITER"].dignity == "debilitated":
-        weaknesses.append(
-            "завышенные ожидания и уроки через отношения"
-            if lang == "ru"
-            else "high expectations and lessons through relationships"
-        )
+        if lang == "ru":
+            weaknesses.append(
+                "завышенные ожидания — потом урок «реальность ≠ Pinterest»"
+                if plain
+                else "завышенные ожидания и уроки через отношения"
+            )
+        else:
+            weaknesses.append(
+                "high expectations — then the lesson «reality ≠ Pinterest»"
+                if plain
+                else "high expectations and lessons through relationships"
+            )
     if chart.dusthana_planet_count >= 3:
-        weaknesses.append(
-            "склонность к внутреннему напряжению в сложных периодах"
-            if lang == "ru"
-            else "inner tension during hard periods"
-        )
+        if lang == "ru":
+            weaknesses.append(
+                "внутреннее напряжение в сложные периоды — не паника, но фоновый шум есть"
+                if plain
+                else "склонность к внутреннему напряжению в сложных периодах"
+            )
+        else:
+            weaknesses.append(
+                "inner tension in hard periods — not panic, but background noise"
+                if plain
+                else "inner tension during hard periods"
+            )
 
     if not strengths:
-        strengths = [
-            "воля и способность собраться",
-            "умение учиться через опыт",
-            "многослойность характера",
-        ] if lang == "ru" else ["willpower", "learning through experience", "character depth"]
+        if lang == "ru":
+            strengths = (
+                [
+                    "воля и способность собраться — когда надо, включаешь режим «ладно, сделаем»",
+                    "умение учиться через опыт, а не только через лекции",
+                    "многослойность характера — скучно не бывает",
+                ]
+                if plain
+                else [
+                    "воля и способность собраться",
+                    "умение учиться через опыт",
+                    "многослойность характера",
+                ]
+            )
+        else:
+            strengths = (
+                [
+                    "willpower and «fine, we'll do it» mode when needed",
+                    "learning through experience, not just lectures",
+                    "character depth — boring isn't the default",
+                ]
+                if plain
+                else ["willpower", "learning through experience", "character depth"]
+            )
     if not weaknesses:
-        weaknesses = [
-            "склонность перегружать себя",
-            "сложность с расслаблением",
-        ] if lang == "ru" else ["overloading yourself", "difficulty relaxing"]
+        if lang == "ru":
+            weaknesses = (
+                [
+                    "склонность перегружать себя — список дел длиннее новогодних обещаний",
+                    "сложность с расслаблением — «отдых» иногда тоже в списке задач",
+                ]
+                if plain
+                else [
+                    "склонность перегружать себя",
+                    "сложность с расслаблением",
+                ]
+            )
+        else:
+            weaknesses = (
+                [
+                    "overloading yourself — to-do list longer than New Year's resolutions",
+                    "difficulty relaxing — «rest» sometimes stays on the task list",
+                ]
+                if plain
+                else ["overloading yourself", "difficulty relaxing"]
+            )
 
     strengths = strengths[:5]
     weaknesses = weaknesses[:5]
 
     if lang == "ru":
+        if plain:
+            risks = (
+                "выгореть от «я всё сам», спорить там, где проще отступить на шаг, "
+                "и крутить тревогу в голове, когда снаружи всё нормально"
+            )
+            opportunities = (
+                "сильная реализация и авторитет — не обязательно стать звездой, "
+                "но голос, который слушают, у тебя потенциально есть"
+            )
+        else:
+            risks = (
+                "сжигать себя амбициями, спорить там, где нужна гибкость, "
+                "и жить во внутреннем напряжении, даже когда внешне всё под контролем"
+            )
+            opportunities = (
+                "сильная реализация, заметность, авторитет — "
+                "умение стать человеком, которого слушают и за которым идут"
+            )
+    elif plain:
         risks = (
-            "сжигать себя амбициями, спорить там, где нужна гибкость, "
-            "и жить во внутреннем напряжении, даже когда внешне всё под контролем"
+            "burnout from «I'll do it all myself», arguing where a step back works, "
+            "and spinning anxiety when outside life looks fine"
         )
         opportunities = (
-            "сильная реализация, заметность, авторитет — "
-            "умение стать человеком, которого слушают и за которым идут"
+            "realization and earned authority — not necessarily fame, "
+            "but a voice people may actually listen to"
         )
     else:
         risks = "burnout from ambition and arguing where flexibility is needed"
@@ -1120,34 +1288,164 @@ def _derive_summary(chart: JyotishChart, lang: str) -> tuple[list[str], list[str
     return strengths, weaknesses, risks, opportunities
 
 
-def _summary_strength(key: str, pl: PlanetPlacement, lang: str) -> str:
+def _summary_strength(key: str, pl: PlanetPlacement, lang: str, *, plain: bool = False) -> str:
     if lang == "ru":
         mapping = {
-            "SUN": "лидерский стержень и уверенность в своём курсе",
-            "MOON": "эмоциональная устойчивость и психологическая чуткость",
-            "MARS": "смелость и способность зарабатывать через инициативу",
-            "MERCURY": "острый ум и способность быстро схватывать",
-            "VENUS": "яркий вкус и притяжение",
-            "JUPITER": "мудрость и тяга к росту",
-            "SATURN": "дисциплина и зрелость",
+            "SUN": (
+                "лидерский стержень — свой курс держишь, даже если не кричишь «я главный»"
+                if plain
+                else "лидерский стержень и уверенность в своём курсе"
+            ),
+            "MOON": (
+                "эмоциональная устойчивость — чувствуешь глубоко, но не разваливаешься от каждого повода"
+                if plain
+                else "эмоциональная устойчивость и психологическая чуткость"
+            ),
+            "MARS": (
+                "смелость и инициатива — действуешь, когда другие ещё «обдумывают»"
+                if plain
+                else "смелость и способность зарабатывать через инициативу"
+            ),
+            "MERCURY": (
+                "острый ум — схватываешь быстро, иногда быстрее, чем успеваешь объяснить"
+                if plain
+                else "острый ум и способность быстро схватывать"
+            ),
+            "VENUS": (
+                "яркий вкус и притяжение — знаешь, что нравится, и не стесняешься этого"
+                if plain
+                else "яркий вкус и притяжение"
+            ),
+            "JUPITER": (
+                "мудрость и тяга к росту — «а что если шире?» не пугает"
+                if plain
+                else "мудрость и тяга к росту"
+            ),
+            "SATURN": (
+                "дисциплина и зрелость — терпение есть, даже когда хочется «уже вчера»"
+                if plain
+                else "дисциплина и зрелость"
+            ),
         }
         return mapping.get(key, f"сила {_pl('ru', key).lower()}")
-    return f"strength of {_pl('en', key).lower()}"
+    mapping = {
+        "SUN": (
+            "leadership core — you hold your course without shouting «I'm the boss»"
+            if plain
+            else "leadership core and confidence in your course"
+        ),
+        "MOON": (
+            "emotional steadiness — you feel deeply without falling apart at every trigger"
+            if plain
+            else "emotional steadiness and psychological sensitivity"
+        ),
+        "MARS": (
+            "courage and initiative — you move while others are still «thinking about it»"
+            if plain
+            else "courage and earning through initiative"
+        ),
+        "MERCURY": (
+            "sharp mind — you grasp fast, sometimes faster than you can explain"
+            if plain
+            else "sharp mind and quick grasp"
+        ),
+        "VENUS": (
+            "strong taste and attraction — you know what you like"
+            if plain
+            else "strong taste and attraction"
+        ),
+        "JUPITER": (
+            "wisdom and hunger for growth — «what if wider?» doesn't scare you"
+            if plain
+            else "wisdom and hunger for growth"
+        ),
+        "SATURN": (
+            "discipline and maturity — patience even when you want «yesterday»"
+            if plain
+            else "discipline and maturity"
+        ),
+    }
+    return mapping.get(key, f"strength of {_pl('en', key).lower()}")
 
 
-def _summary_weakness(key: str, pl: PlanetPlacement, lang: str) -> str:
+def _summary_weakness(key: str, pl: PlanetPlacement, lang: str, *, plain: bool = False) -> str:
     if lang == "ru":
         mapping = {
-            "SUN": "гордость и трудность уступать",
-            "MOON": "тревожность и цепляние за детали",
-            "MARS": "импульсивность и резкость",
-            "MERCURY": "поспешность в словах",
-            "VENUS": "перепады в желаниях",
-            "JUPITER": "разочарование в ожиданиях",
-            "SATURN": "жёсткость и недоверие",
+            "SUN": (
+                "гордость — уступить бывает труднее, чем признать, что не прав"
+                if plain
+                else "гордость и трудность уступать"
+            ),
+            "MOON": (
+                "тревожность и цепляние за детали — мозг замечает лишнее"
+                if plain
+                else "тревожность и цепляние за детали"
+            ),
+            "MARS": (
+                "импульс — сначала слово или действие, потом «а, может, не надо было»"
+                if plain
+                else "импульсивность и резкость"
+            ),
+            "MERCURY": (
+                "поспешность в словах — мысль опережает фильтр"
+                if plain
+                else "поспешность в словах"
+            ),
+            "VENUS": (
+                "перепады в желаниях — сегодня «вау», завтра «уже не то»"
+                if plain
+                else "перепады в желаниях"
+            ),
+            "JUPITER": (
+                "разочарование, когда ожидания были слишком розовыми"
+                if plain
+                else "разочарование в ожиданиях"
+            ),
+            "SATURN": (
+                "жёсткость и недоверие — «докажи» звучит чаще, чем хотелось бы"
+                if plain
+                else "жёсткость и недоверие"
+            ),
         }
         return mapping.get(key, f"напряжение {_pl('ru', key).lower()}")
-    return f"tension in {_pl('en', key).lower()}"
+    mapping = {
+        "SUN": (
+            "pride — yielding is harder than admitting you were wrong"
+            if plain
+            else "pride and difficulty yielding"
+        ),
+        "MOON": (
+            "anxiety and clinging to details — the brain notices too much"
+            if plain
+            else "anxiety and clinging to details"
+        ),
+        "MARS": (
+            "impulse — word or action first, «maybe I shouldn't have» later"
+            if plain
+            else "impulsiveness and sharpness"
+        ),
+        "MERCURY": (
+            "hasty words — thought outruns the filter"
+            if plain
+            else "hasty words"
+        ),
+        "VENUS": (
+            "swings in desire — today «wow», tomorrow «not it»"
+            if plain
+            else "swings in desire"
+        ),
+        "JUPITER": (
+            "disappointment when expectations were too rosy"
+            if plain
+            else "disappointment in expectations"
+        ),
+        "SATURN": (
+            "rigidity and mistrust — «prove it» shows up more than you'd like"
+            if plain
+            else "rigidity and mistrust"
+        ),
+    }
+    return mapping.get(key, f"tension in {_pl('en', key).lower()}")
 
 
 def build_jyotish_reading(
