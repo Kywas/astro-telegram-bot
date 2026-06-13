@@ -240,12 +240,21 @@ def build_synastry_sections(
                 user_birth_date=user_birth_date,
                 partner_birth_date=partner_birth_date,
                 style=style,
+                mode=mode_key,
             ),
         )
     )
-    sections.append(SynastrySection("tarot", format_synastry_tarot_section(locale, tarot, style=style)))
     sections.append(
-        SynastrySection("asc", format_synastry_step2_section(locale, asc_dsc, style=style))
+        SynastrySection(
+            "tarot",
+            format_synastry_tarot_section(locale, tarot, style=style, mode=mode_key),
+        )
+    )
+    sections.append(
+        SynastrySection(
+            "asc",
+            format_synastry_step2_section(locale, asc_dsc, style=style, mode=mode_key),
+        )
     )
 
     step3_hits = filter_hits_for_step3(hits, seals)
@@ -268,7 +277,10 @@ def build_synastry_sections(
         SynastrySection("fictitious", format_synastry_fictitious_section(locale, fictitious, style=style))
     )
     sections.append(
-        SynastrySection("composite", format_synastry_composite_section(locale, composite, style=style))
+        SynastrySection(
+            "composite",
+            format_synastry_composite_section(locale, composite, style=style, mode=mode_key),
+        )
     )
     sections.append(
         SynastrySection(
@@ -290,7 +302,10 @@ def build_synastry_sections(
         SynastrySection("moon_venus", format_synastry_step7_section(locale, moon_venus, style=style))
     )
     sections.append(
-        SynastrySection("karma", format_synastry_step8_section(locale, karma, style=style))
+        SynastrySection(
+            "karma",
+            format_synastry_step8_section(locale, karma, style=style, mode=mode_key),
+        )
     )
     sections.append(
         SynastrySection("transits", format_synastry_step9_section(locale, transits, style=style))

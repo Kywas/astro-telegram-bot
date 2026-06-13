@@ -289,39 +289,130 @@ def _plain_task_interpretation(locale: str, link: KarmicLink) -> str:
     return "Don't stockpile — honest talk beats silence."
 
 
-def _format_plain_karma_section(locale: str, analysis: KarmicAnalysis) -> str:
+def _format_plain_karma_section(locale: str, analysis: KarmicAnalysis, *, mode: str = "love") -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
+
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     lines: list[str] = []
 
     if lang == "ru":
-        lines.append("🪷 О чём обычно молчат")
-        lines.append(
-            "Темы, которые пара словно «принесла с собой» — не обязательно «судьба», "
-            "но часто чувствуются телом, а не головой."
-        )
+        headers = {
+            "love": "🪷 О чём обычно молчат",
+            "friendship": "🪷 Где дружба может зацепиться",
+            "work": "🪷 Где проект может поехать",
+        }
+        lines.append(headers[mode_key])
+        intros = {
+            "love": (
+                "Темы, которые пара словно «принесла с собой» — не обязательно «судьба», "
+                "но часто чувствуются телом, а не головой."
+            ),
+            "friendship": (
+                "Темы, которые дружба словно «тащит из прошлого» — обиды, ревность, "
+                "«ты пропал на полгода». Не приговор, но честно назвать полезно."
+            ),
+            "work": (
+                "Темы, которые команда словно «тащит в проект» — контроль, дедлайны, "
+                "«я тут главный». Не KPI, но если не проговорить — будет драма на созвоне."
+            ),
+        }
+        lines.append(intros[mode_key])
     else:
-        lines.append("🪷 What's usually unsaid")
-        lines.append(
-            "Themes you seem to carry into the bond — not always «fate», "
-            "but often felt in the gut, not the spreadsheet."
-        )
+        headers = {
+            "love": "🪷 What's usually unsaid",
+            "friendship": "🪷 Where friendship can snag",
+            "work": "🪷 Where the project can derail",
+        }
+        lines.append(headers[mode_key])
+        intros = {
+            "love": (
+                "Themes you seem to carry into the bond — not always «fate», "
+                "but often felt in the gut, not the spreadsheet."
+            ),
+            "friendship": (
+                "Themes friendship drags along — hurt, jealousy, «you ghosted for six months». "
+                "Not a verdict, but naming them helps."
+            ),
+            "work": (
+                "Themes the team drags into the project — control, deadlines, "
+                "«I'm the boss here». Not KPIs, but unspoken drama kills calls."
+            ),
+        }
+        lines.append(intros[mode_key])
 
     lines.append("")
     if lang == "ru":
-        lines.append("✨ Магнетизм «не просто так»")
-        lines.append("Бывает ощущение, что встретились не случайно — или что жизнь вас проверяет на зрелость.")
+        magnet_headers = {
+            "love": "✨ Магнетизм «не просто так»",
+            "friendship": "✨ «Не просто случайный друг»",
+            "work": "✨ «Не просто случайный коллега»",
+        }
+        lines.append(magnet_headers[mode_key])
+        magnet_intros = {
+            "love": "Бывает ощущение, что встретились не случайно — или что жизнь вас проверяет на зрелость.",
+            "friendship": (
+                "Бывает ощущение, что вы «свои» с первого раза — "
+                "или что дружба вас чему-то учит, даже когда бесит."
+            ),
+            "work": (
+                "Бывает ощущение, что вы «с одного проекта» — "
+                "или что вместе вас чему-то учат, даже когда спорите о Excel."
+            ),
+        }
+        lines.append(magnet_intros[mode_key])
     else:
-        lines.append("✨ «Not just random» magnetism")
-        lines.append("Sometimes it feels meant — or like life is testing how grown-up you can be together.")
+        magnet_headers = {
+            "love": "✨ «Not just random» magnetism",
+            "friendship": "✨ «Not just a random friend»",
+            "work": "✨ «Not just a random colleague»",
+        }
+        lines.append(magnet_headers[mode_key])
+        magnet_intros = {
+            "love": "Sometimes it feels meant — or like life is testing how grown-up you can be together.",
+            "friendship": (
+                "Sometimes you feel «instant friends» — "
+                "or like the friendship teaches you something, even when it annoys you."
+            ),
+            "work": (
+                "Sometimes you feel «same project energy» — "
+                "or like working together teaches you something, even when you argue about spreadsheets."
+            ),
+        }
+        lines.append(magnet_intros[mode_key])
 
     if analysis.best_destined is None:
-        lines.append(
-            "• Яркого «мы с судьбой» тут нет — и это нормально. "
-            "Можете быть глубокими просто потому что подходите, а не потому что «так в карте»."
-            if lang == "ru"
-            else "• No loud «we're fated» marker — and that's fine. "
-            "You can still go deep because you fit, not because a chart said so."
-        )
+        no_destined = {
+            "ru": {
+                "love": (
+                    "• Яркого «мы с судьбой» тут нет — и это нормально. "
+                    "Можете быть глубокими просто потому что подходите, а не потому что «так в карте»."
+                ),
+                "friendship": (
+                    "• Яркого «мы с судьбой, дружим вечно» тут нет — и это нормально. "
+                    "Дружба может быть просто хорошей, без мистики."
+                ),
+                "work": (
+                    "• Яркого «мы с судьбой, тащим стартап» тут нет — и это нормально. "
+                    "Можете быть эффективными просто потому что роли совпали."
+                ),
+            },
+            "en": {
+                "love": (
+                    "• No loud «we're fated» marker — and that's fine. "
+                    "You can still go deep because you fit, not because a chart said so."
+                ),
+                "friendship": (
+                    "• No loud «fated friends forever» marker — and that's fine. "
+                    "Friendship can be good without mysticism."
+                ),
+                "work": (
+                    "• No loud «fated co-founders» marker — and that's fine. "
+                    "You can be effective because roles align."
+                ),
+            },
+        }
+        lines.append(no_destined[lang][mode_key])
     else:
         lines.append(
             f"• Есть линия «не просто случайность»: "
@@ -330,34 +421,82 @@ def _format_plain_karma_section(locale: str, analysis: KarmicAnalysis) -> str:
             else f"• A «not just chance» thread: "
             f"{_format_plain_karmic_link(locale, analysis.best_destined)}."
         )
-        lines.append(
-            "• Ощущение, что встретились с задачей — не всегда легко, но живо."
-            if lang == "ru"
-            else "• A sense you met with a task — not always easy, but alive."
-        )
+        felt_lines = {
+            "ru": {
+                "love": "• Ощущение, что встретились с задачей — не всегда легко, но живо.",
+                "friendship": "• Ощущение, что дружба «не просто так» — иногда бесит, но не скучно.",
+                "work": "• Ощущение, что вместе «не просто так» — иногда напряжно, но результат есть.",
+            },
+            "en": {
+                "love": "• A sense you met with a task — not always easy, but alive.",
+                "friendship": "• A sense the friendship isn't random — sometimes annoying, never boring.",
+                "work": "• A sense you're together for a reason — tense sometimes, but productive.",
+            },
+        }
+        lines.append(felt_lines[lang][mode_key])
         for link in analysis.destined[1:2]:
             lines.append(f"• ↳ {_format_plain_karmic_link(locale, link).capitalize()}.")
 
     lines.append("")
     if lang == "ru":
-        lines.append("🎯 Уроки, которые тянут на честность")
-        lines.append(
-            "Не обязательно «карма прошлых жизней» — скорее темы, "
-            "которые жизнь будет повторять, пока не научитесь по-новому."
-        )
+        lesson_headers = {
+            "love": "🎯 Уроки, которые тянут на честность",
+            "friendship": "🎯 Уроки, которые тянут на «давай поговорим»",
+            "work": "🎯 Уроки, которые тянут на нормальный brief",
+        }
+        lines.append(lesson_headers[mode_key])
+        lesson_intros = {
+            "love": (
+                "Не обязательно «карма прошлых жизней» — скорее темы, "
+                "которые жизнь будет повторять, пока не научитесь по-новому."
+            ),
+            "friendship": (
+                "Не обязательно «карма» — скорее темы, которые дружба будет повторять, "
+                "пока не научитесь говорить «мне обидно» без passive-aggressive."
+            ),
+            "work": (
+                "Не обязательно «карма» — скорее темы, которые проект будет повторять, "
+                "пока не научитесь фиксировать «кто за что отвечает»."
+            ),
+        }
+        lines.append(lesson_intros[mode_key])
     else:
-        lines.append("🎯 Lessons that ask for honesty")
-        lines.append(
-            "Not necessarily «past-life karma» — more like themes life repeats "
-            "until you respond differently."
-        )
+        lesson_headers = {
+            "love": "🎯 Lessons that ask for honesty",
+            "friendship": "🎯 Lessons that ask for «let's talk»",
+            "work": "🎯 Lessons that ask for a clear brief",
+        }
+        lines.append(lesson_headers[mode_key])
+        lesson_intros = {
+            "love": (
+                "Not necessarily «past-life karma» — more like themes life repeats "
+                "until you respond differently."
+            ),
+            "friendship": (
+                "Not necessarily «karma» — themes friendship repeats "
+                "until you can say «that hurt» without passive-aggressive."
+            ),
+            "work": (
+                "Not necessarily «karma» — themes the project repeats "
+                "until you write down «who owns what»."
+            ),
+        }
+        lines.append(lesson_intros[mode_key])
 
     if not analysis.has_karmic_task:
-        lines.append(
-            "• Громких сюрпризов не видно — уроки мягче или проявятся через быт."
-            if lang == "ru"
-            else "• No loud surprises here — lessons are softer or show up in daily life."
-        )
+        soft_lines = {
+            "ru": {
+                "love": "• Громких сюрпризов не видно — уроки мягче или проявятся через быт.",
+                "friendship": "• Громких сюрпризов не видно — дружба может быть просто спокойной.",
+                "work": "• Громких сюрпризов не видно — рабочая связка может быть ровной.",
+            },
+            "en": {
+                "love": "• No loud surprises here — lessons are softer or show up in daily life.",
+                "friendship": "• No loud surprises — friendship can stay calm and steady.",
+                "work": "• No loud surprises — the work link can stay steady.",
+            },
+        }
+        lines.append(soft_lines[lang][mode_key])
     else:
         for link in analysis.karmic_tasks[:3]:
             lines.append(
@@ -366,11 +505,19 @@ def _format_plain_karma_section(locale: str, analysis: KarmicAnalysis) -> str:
             )
         if len(analysis.karmic_tasks) > 3:
             extra = len(analysis.karmic_tasks) - 3
-            lines.append(
-                f"• … и ещё {extra} похожих тем — не игнорируйте, но и не драматизируйте."
-                if lang == "ru"
-                else f"• … plus {extra} similar themes — notice them, don't doom-scroll your bond."
-            )
+            extra_lines = {
+                "ru": {
+                    "love": f"• … и ещё {extra} похожих тем — не игнорируйте, но и не драматизируйте.",
+                    "friendship": f"• … и ещё {extra} похожих тем — не копите, но и не устраивайте триллер.",
+                    "work": f"• … и ещё {extra} похожих тем — зафиксируйте в задачах, не в passive-aggressive.",
+                },
+                "en": {
+                    "love": f"• … plus {extra} similar themes — notice them, don't doom-scroll your bond.",
+                    "friendship": f"• … plus {extra} similar themes — notice them, don't turn it into a drama.",
+                    "work": f"• … plus {extra} similar themes — put them in tasks, not in side-eye on calls.",
+                },
+            }
+            lines.append(extra_lines[lang][mode_key])
 
     return "\n".join(lines)
 
@@ -386,11 +533,17 @@ def _task_interpretation(locale: str, link: KarmicLink) -> str:
     return "the node adds tension — the bond pushes change and honesty."
 
 
-def format_synastry_step8_section(locale: str, analysis: KarmicAnalysis, *, style: str = "terms") -> str:
+def format_synastry_step8_section(
+    locale: str,
+    analysis: KarmicAnalysis,
+    *,
+    style: str = "terms",
+    mode: str = "love",
+) -> str:
     from app.synastry_style import use_synastry_terms
 
     if not use_synastry_terms(style):
-        return _format_plain_karma_section(locale, analysis)
+        return _format_plain_karma_section(locale, analysis, mode=mode)
 
     lang = _lang(locale)
     lines: list[str] = []

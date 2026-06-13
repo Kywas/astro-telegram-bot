@@ -77,9 +77,19 @@ def plain_sun_sign_narrative(locale: str, compat: SunSignCompat, *, mode: str = 
     partner_v = _sign_vibe(locale, compat.partner_sign)
 
     if lang == "ru":
-        title = "☀️ Кто вы по знакам"
+        titles = {
+            "love": "☀️ Кто вы по знакам",
+            "friendship": "☀️ Вы как друзья по знакам",
+            "work": "☀️ Вы как команда по знакам",
+        }
+        title = titles[mode_key]
     else:
-        title = "☀️ Who you are by sign"
+        titles = {
+            "love": "☀️ Who you are by sign",
+            "friendship": "☀️ You as friends by sign",
+            "work": "☀️ You as a team by sign",
+        }
+        title = titles[mode_key]
 
     if compat.kind == SunSignKind.SAME_SIGN:
         openings = {
@@ -199,9 +209,19 @@ def plain_element_balance_narrative(locale: str, balance: ElementBalance, *, mod
     same = balance.user.dominant == balance.partner.dominant
 
     if lang == "ru":
-        title = "⚖️ Темп и ритм"
+        titles = {
+            "love": "⚖️ Темп и ритм",
+            "friendship": "⚖️ Темп дружбы",
+            "work": "⚖️ Рабочий ритм",
+        }
+        title = titles[mode_key]
     else:
-        title = "⚖️ Pace and rhythm"
+        titles = {
+            "love": "⚖️ Pace and rhythm",
+            "friendship": "⚖️ Friendship pace",
+            "work": "⚖️ Work pace",
+        }
+        title = titles[mode_key]
 
     if same:
         cores = {

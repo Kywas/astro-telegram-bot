@@ -128,12 +128,61 @@ UNION_PLANET_PLAIN = {
 }
 
 
-def _union_planet_label(locale: str, planet: str, *, style: str) -> str:
+UNION_PLANET_PLAIN_BY_MODE = {
+    "ru": {
+        "love": UNION_PLANET_PLAIN["ru"],
+        "friendship": {
+            "SUN": "общий вайб дружбы",
+            "MOON": "настроение в компании",
+            "MERCURY": "как болтаете",
+            "VENUS": "тепло и поддержка",
+            "MARS": "энергия для приключений",
+            "JUPITER": "рост дружбы",
+            "SATURN": "границы и честность",
+        },
+        "work": {
+            "SUN": "главная цель проекта",
+            "MOON": "настроение в команде",
+            "MERCURY": "как договариваетесь",
+            "VENUS": "комфорт на работе",
+            "MARS": "драйв к задачам",
+            "JUPITER": "рост проекта",
+            "SATURN": "дисциплина и сроки",
+        },
+    },
+    "en": {
+        "love": UNION_PLANET_PLAIN["en"],
+        "friendship": {
+            "SUN": "friendship vibe",
+            "MOON": "mood when you hang out",
+            "MERCURY": "how you chat",
+            "VENUS": "warmth and support",
+            "MARS": "energy for adventures",
+            "JUPITER": "friendship growth",
+            "SATURN": "boundaries and honesty",
+        },
+        "work": {
+            "SUN": "main project goal",
+            "MOON": "team mood",
+            "MERCURY": "how you align",
+            "VENUS": "comfort at work",
+            "MARS": "task drive",
+            "JUPITER": "project growth",
+            "SATURN": "discipline and deadlines",
+        },
+    },
+}
+
+
+def _union_planet_label(locale: str, planet: str, *, style: str, mode: str = "love") -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     if use_synastry_terms(style):
         return _planet_name(locale, planet)
-    return UNION_PLANET_PLAIN[_lang(locale)].get(planet, "тема" if _lang(locale) == "ru" else "theme")
+    lang = _lang(locale)
+    table = UNION_PLANET_PLAIN_BY_MODE[lang][_mode_key(mode)]
+    return table.get(planet, "тема" if lang == "ru" else "theme")
 
 
 def _longitude_to_sign(longitude: float) -> str:
@@ -256,15 +305,27 @@ def _house_area_label(locale: str, house: int, *, style: str) -> str:
     return f"area {house}"
 
 
-def _sun_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
+def _sun_house_line(locale: str, analysis: CompositeAnalysis, *, style: str, mode: str = "love") -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     sign = _sign_name(locale, analysis.sun_sign)
     if analysis.sun_house is None:
         if lang == "ru":
-            return f"• Солнце композита в {sign} — ядро целей и смысла союза."
-        return f"• Composite Sun in {sign} — core purpose and meaning of the bond."
+            no_house = {
+                "love": f"• Солнце композита в {sign} — ядро целей и смысла союза.",
+                "friendship": f"• Солнце композита в {sign} — о чём ваша дружба «в целом».",
+                "work": f"• Солнце композита в {sign} — зачем вы вместе на проекте.",
+            }
+            return no_house[mode_key]
+        no_house = {
+            "love": f"• Composite Sun in {sign} — core purpose and meaning of the bond.",
+            "friendship": f"• Composite Sun in {sign} — what the friendship is «about» overall.",
+            "work": f"• Composite Sun in {sign} — why you're on the project together.",
+        }
+        return no_house[mode_key]
 
     house = analysis.sun_house
     hint = SUN_HOUSE_HINT[lang].get(
@@ -275,17 +336,29 @@ def _sun_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> 
         if use_synastry_terms(style):
             return f"• Солнце композита в {sign}, {house}-й дом — {hint}."
         area = _house_area_label(locale, house, style=style)
-        return f"• Главная цель союза — знак {sign}. Тема «{area}»: {hint}."
+        goal_labels = {
+            "love": f"• Главная цель союза — знак {sign}. Тема «{area}»: {hint}.",
+            "friendship": f"• Главная тема дружбы — знак {sign}. Тема «{area}»: {hint}.",
+            "work": f"• Главная цель команды — знак {sign}. Тема «{area}»: {hint}.",
+        }
+        return goal_labels[mode_key]
     if use_synastry_terms(style):
         return f"• Composite Sun in {sign}, {house}th house — {hint}."
     area = _house_area_label(locale, house, style=style)
-    return f"• Main goal of the bond — {sign}. Theme «{area}»: {hint}."
+    goal_labels = {
+        "love": f"• Main goal of the bond — {sign}. Theme «{area}»: {hint}.",
+        "friendship": f"• Main friendship theme — {sign}. Theme «{area}»: {hint}.",
+        "work": f"• Main team goal — {sign}. Theme «{area}»: {hint}.",
+    }
+    return goal_labels[mode_key]
 
 
-def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
+def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str, mode: str = "love") -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     if not analysis.has_moon or analysis.moon_sign is None:
         if lang == "ru":
             return "• Луна композита: нужно время рождения у обоих для эмоционального ядра."
@@ -294,8 +367,18 @@ def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) ->
     sign = _sign_name(locale, analysis.moon_sign)
     if analysis.moon_house is None:
         if lang == "ru":
-            return f"• Луна композита в {sign} — эмоциональный тон союза."
-        return f"• Composite Moon in {sign} — emotional tone of the bond."
+            no_house = {
+                "love": f"• Луна композита в {sign} — эмоциональный тон союза.",
+                "friendship": f"• Луна композита в {sign} — настроение, когда вы вместе.",
+                "work": f"• Луна композита в {sign} — атмосфера в команде.",
+            }
+            return no_house[mode_key]
+        no_house = {
+            "love": f"• Composite Moon in {sign} — emotional tone of the bond.",
+            "friendship": f"• Composite Moon in {sign} — mood when you're together.",
+            "work": f"• Composite Moon in {sign} — atmosphere on the team.",
+        }
+        return no_house[mode_key]
 
     house = analysis.moon_house
     hint = MOON_HOUSE_HINT[lang].get(house, _house_theme(locale, house))
@@ -303,17 +386,29 @@ def _moon_house_line(locale: str, analysis: CompositeAnalysis, *, style: str) ->
         if use_synastry_terms(style):
             return f"• Луна композита в {sign}, {house}-й дом — {hint}."
         area = _house_area_label(locale, house, style=style)
-        return f"• Эмоции в паре — знак {sign}. Тема «{area}»: {hint}."
+        mood_labels = {
+            "love": f"• Эмоции в паре — знак {sign}. Тема «{area}»: {hint}.",
+            "friendship": f"• Настроение в дружбе — знак {sign}. Тема «{area}»: {hint}.",
+            "work": f"• Настроение в команде — знак {sign}. Тема «{area}»: {hint}.",
+        }
+        return mood_labels[mode_key]
     if use_synastry_terms(style):
         return f"• Composite Moon in {sign}, {house}th house — {hint}."
     area = _house_area_label(locale, house, style=style)
-    return f"• Pair feelings — {sign}. Theme «{area}»: {hint}."
+    mood_labels = {
+        "love": f"• Pair feelings — {sign}. Theme «{area}»: {hint}.",
+        "friendship": f"• Friendship mood — {sign}. Theme «{area}»: {hint}.",
+        "work": f"• Team mood — {sign}. Theme «{area}»: {hint}.",
+    }
+    return mood_labels[mode_key]
 
 
-def _asc_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
+def _asc_line(locale: str, analysis: CompositeAnalysis, *, style: str, mode: str = "love") -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     if analysis.asc_sign is None:
         if lang == "ru":
             return (
@@ -326,10 +421,20 @@ def _asc_line(locale: str, analysis: CompositeAnalysis, *, style: str) -> str:
     if lang == "ru":
         if use_synastry_terms(style):
             return f"• ASC композита в {sign} (1‑й дом) — {hint}."
-        return f"• Как пара выглядит «в мире» — {sign}: {hint}."
+        asc_labels = {
+            "love": f"• Как пара выглядит «в мире» — {sign}: {hint}.",
+            "friendship": f"• Как вас видят вместе — {sign}: {hint}.",
+            "work": f"• Как команда выглядит «на работе» — {sign}: {hint}.",
+        }
+        return asc_labels[mode_key]
     if use_synastry_terms(style):
         return f"• Composite Ascendant in {sign} (1st house) — {hint}."
-    return f"• How the pair shows up in the world — {sign}: {hint}."
+    asc_labels = {
+        "love": f"• How the pair shows up in the world — {sign}: {hint}.",
+        "friendship": f"• How you look together — {sign}: {hint}.",
+        "work": f"• How the team shows up at work — {sign}: {hint}.",
+    }
+    return asc_labels[mode_key]
 
 
 def format_synastry_composite_section(
@@ -337,66 +442,134 @@ def format_synastry_composite_section(
     analysis: CompositeAnalysis,
     *,
     style: str = "terms",
+    mode: str = "love",
 ) -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     lines: list[str] = []
 
     if lang == "ru":
-        lines.append(
-            "🌐 Композитная карта"
-            if use_synastry_terms(style)
-            else "🌐 Карта вашего союза"
-        )
+        if use_synastry_terms(style):
+            lines.append("🌐 Композитная карта")
+        else:
+            plain_titles = {
+                "love": "🌐 Карта вашего союза",
+                "friendship": "🌐 Как вы как друзья",
+                "work": "🌐 Как вы как рабочая связка",
+            }
+            lines.append(plain_titles[mode_key])
         if use_synastry_terms(style):
             lines.append(
                 "Композит — средняя точка между одинаковыми планетами двух карт. "
                 "Это «карта отношений» как отдельного существа (метод midpoints)."
             )
         else:
-            lines.append(
-                "Это как общее «фото» вашего союза — как вы выглядите вместе и что для вас главное."
-            )
+            plain_intros = {
+                "love": (
+                    "Это как общее «фото» вашего союза — как вы выглядите вместе "
+                    "и что для вас главное."
+                ),
+                "friendship": (
+                    "Это как общее «фото» вашей дружбы — как вы вместе в компании "
+                    "и на что опираетесь, когда всё не весело."
+                ),
+                "work": (
+                    "Это как общее «фото» вашей команды — как вы выглядите на проекте "
+                    "и что для вас «мы сделали»."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
     else:
-        lines.append(
-            "🌐 Composite chart"
-            if use_synastry_terms(style)
-            else "🌐 Your union chart"
-        )
+        if use_synastry_terms(style):
+            lines.append("🌐 Composite chart")
+        else:
+            plain_titles = {
+                "love": "🌐 Your union chart",
+                "friendship": "🌐 You as friends",
+                "work": "🌐 You as a work duo",
+            }
+            lines.append(plain_titles[mode_key])
         if use_synastry_terms(style):
             lines.append(
                 "The composite is the midpoint between matching planets in both charts — "
                 "a “relationship chart” as its own entity (midpoint method)."
             )
         else:
-            lines.append(
-                "A snapshot of your bond: how you look together and what matters most."
-            )
+            plain_intros = {
+                "love": "A snapshot of your bond: how you look together and what matters most.",
+                "friendship": (
+                    "A snapshot of your friendship: how you show up together "
+                    "and what you lean on when it's not fun."
+                ),
+                "work": (
+                    "A snapshot of your team: how you look on a project "
+                    "and what «we shipped» means to you."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
 
     lines.append("")
-    lines.append("Ядро отношений" if lang == "ru" else "Core of the bond")
-    lines.append(_sun_house_line(locale, analysis, style=style))
-    lines.append(_moon_house_line(locale, analysis, style=style))
+    if lang == "ru":
+        core_headers = {
+            "love": "Ядро отношений",
+            "friendship": "Ядро дружбы",
+            "work": "Ядро команды",
+        }
+        lines.append(core_headers[mode_key] if not use_synastry_terms(style) else "Ядро отношений")
+    else:
+        core_headers = {
+            "love": "Core of the bond",
+            "friendship": "Core of the friendship",
+            "work": "Core of the team",
+        }
+        lines.append(core_headers[mode_key] if not use_synastry_terms(style) else "Core of the bond")
+    lines.append(_sun_house_line(locale, analysis, style=style, mode=mode_key))
+    lines.append(_moon_house_line(locale, analysis, style=style, mode=mode_key))
 
     lines.append("")
-    lines.append(
-        "Стиль пары в мире" if lang == "ru" else "How the pair meets the world"
-    )
-    lines.append(_asc_line(locale, analysis, style=style))
+    if lang == "ru":
+        world_headers = {
+            "love": "Стиль пары в мире",
+            "friendship": "Как вас видят вместе",
+            "work": "Как вас видят на работе",
+        }
+        lines.append(
+            world_headers[mode_key] if not use_synastry_terms(style) else "Стиль пары в мире"
+        )
+    else:
+        world_headers = {
+            "love": "How the pair meets the world",
+            "friendship": "How you look together",
+            "work": "How you look at work",
+        }
+        lines.append(
+            world_headers[mode_key] if not use_synastry_terms(style) else "How the pair meets the world"
+        )
+    lines.append(_asc_line(locale, analysis, style=style, mode=mode_key))
 
     lines.append("")
     if lang == "ru":
         header = (
             "Планеты в угловых домах (1, 4, 7, 10)"
             if use_synastry_terms(style)
-            else "Ключевые темы союза (главные сферы)"
+            else {
+                "love": "Ключевые темы союза (главные сферы)",
+                "friendship": "Где дружба «живёт» сильнее всего",
+                "work": "Где команда «живёт» сильнее всего",
+            }[mode_key]
         )
     else:
         header = (
             "Planets in angular houses (1, 4, 7, 10)"
             if use_synastry_terms(style)
-            else "Key union themes (main life areas)"
+            else {
+                "love": "Key union themes (main life areas)",
+                "friendship": "Where the friendship runs hottest",
+                "work": "Where the team runs hottest",
+            }[mode_key]
         )
     lines.append(header)
 
@@ -415,7 +588,7 @@ def format_synastry_composite_section(
     else:
         for planet, house in analysis.angular_planets:
             theme = _house_theme(locale, house)
-            planet_name = _union_planet_label(locale, planet, style=style)
+            planet_name = _union_planet_label(locale, planet, style=style, mode=mode_key)
             if lang == "ru":
                 if use_synastry_terms(style):
                     lines.append(f"• {planet_name} в {house}-м доме — {theme}. ⭐")

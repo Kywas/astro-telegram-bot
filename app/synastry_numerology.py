@@ -170,30 +170,47 @@ def format_synastry_numerology_section(
     user_birth_date: date,
     partner_birth_date: date,
     style: str = "terms",
+    mode: str = "love",
 ) -> str:
+    from app.compat_mode_plain import mode_key as _mode_key, other_label_cap
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
+    other = other_label_cap(locale, mode_key)
     lines: list[str] = []
     user_date = _format_date(lang, user_birth_date)
     partner_date = _format_date(lang, partner_birth_date)
     compat = analysis.compatibility_number
 
     if lang == "ru":
-        lines.append(
-            "🔢 Нумерология отношений"
-            if use_synastry_terms(style)
-            else "🔢 Числа вашей пары"
-        )
+        if use_synastry_terms(style):
+            lines.append("🔢 Нумерология отношений")
+        else:
+            plain_titles = {
+                "love": "🔢 Числа вашей пары",
+                "friendship": "🔢 Числа вашей дружбы",
+                "work": "🔢 Числа вашей команды",
+            }
+            lines.append(plain_titles[mode_key])
         if use_synastry_terms(style):
             lines.append(
                 "Складываем все цифры даты рождения каждого до одной цифры, "
                 "затем суммируем числа пары — получаем число совместимости."
             )
         else:
-            lines.append(
-                "По датам рождения считаем два личных числа и одно общее для пары."
-            )
+            plain_intros = {
+                "love": "По датам рождения считаем два личных числа и одно общее для пары.",
+                "friendship": (
+                    "По датам рождения — два личных числа и одно «нашей дружбы». "
+                    "Не экзамен, просто любопытно."
+                ),
+                "work": (
+                    "По датам рождения — два личных числа и одно «нашей команды». "
+                    "KPI всё равно в переговорах, но посмотреть можно."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
     else:
         lines.append(
             "🔢 Relationship numerology"
@@ -237,9 +254,14 @@ def format_synastry_numerology_section(
         user_hint = LIFE_PATH_HINT[lang][analysis.user_life_path]
         partner_hint = LIFE_PATH_HINT[lang][analysis.partner_life_path]
         if lang == "ru":
+            pair_labels = {
+                "love": "Число пары",
+                "friendship": "Число дружбы",
+                "work": "Число команды",
+            }
             lines.append(f"• Ваше число: {analysis.user_life_path} ({user_hint}).")
-            lines.append(f"• Число партнёра: {analysis.partner_life_path} ({partner_hint}).")
-            lines.append(f"• Число пары: {compat}.")
+            lines.append(f"• Число {other.lower()}: {analysis.partner_life_path} ({partner_hint}).")
+            lines.append(f"• {pair_labels[mode_key]}: {compat}.")
         else:
             lines.append(f"• Your number: {analysis.user_life_path} ({user_hint}).")
             lines.append(f"• Partner's number: {analysis.partner_life_path} ({partner_hint}).")

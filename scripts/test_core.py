@@ -223,6 +223,28 @@ def test_synastry_style() -> None:
     )
     assert plain_syn.themes[1].title != friend_syn.themes[1].title
     assert friend_syn.themes[1].title != work_syn.themes[1].title
+    love_overview = next(t for t in plain_syn.themes if t.key == "overview")
+    friend_overview = next(t for t in friend_syn.themes if t.key == "overview")
+    work_overview = next(t for t in work_syn.themes if t.key == "overview")
+    assert love_overview.body != friend_overview.body
+    assert friend_overview.body != work_overview.body
+    love_attraction = next(t for t in plain_syn.themes if t.key == "attraction")
+    friend_attraction = next(t for t in friend_syn.themes if t.key == "attraction")
+    work_attraction = next(t for t in work_syn.themes if t.key == "attraction")
+    assert love_attraction.body != friend_attraction.body
+    assert friend_attraction.body != work_attraction.body
+    love_bond = next(t for t in plain_syn.themes if t.key == "bond")
+    friend_bond = next(t for t in friend_syn.themes if t.key == "bond")
+    work_bond = next(t for t in work_syn.themes if t.key == "bond")
+    assert love_bond.body != friend_bond.body
+    assert friend_bond.body != work_bond.body
+    love_depth = next(t for t in plain_syn.themes if t.key == "depth")
+    friend_depth = next(t for t in friend_syn.themes if t.key == "depth")
+    work_depth = next(t for t in work_syn.themes if t.key == "depth")
+    assert love_depth.body != friend_depth.body
+    assert friend_depth.body != work_depth.body
+    assert "дружба" in friend_bond.body.lower() or "друз" in friend_bond.body.lower()
+    assert "команд" in work_bond.body.lower() or "рабоч" in work_bond.body.lower()
     terms_syn = build_synastry_for_partner_profile(
         "ru", full_profile, partner, "love", style="terms"
     )

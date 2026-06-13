@@ -44,6 +44,47 @@ POSITION_LABELS_PLAIN = {
     },
 }
 
+POSITION_LABELS_PLAIN_BY_MODE = {
+    "ru": {
+        "love": POSITION_LABELS_PLAIN["ru"],
+        "friendship": {
+            "past": "Откуда вы как друзья",
+            "present": "Сейчас в дружбе",
+            "future": "Куда может пойти",
+            "strengths": "Сильные стороны",
+            "weaknesses": "Слабые места",
+            "advice": "Совет",
+        },
+        "work": {
+            "past": "Откуда вы как команда",
+            "present": "Сейчас на проекте",
+            "future": "Куда может пойти",
+            "strengths": "Сильные стороны",
+            "weaknesses": "Слабые места",
+            "advice": "Совет",
+        },
+    },
+    "en": {
+        "love": POSITION_LABELS_PLAIN["en"],
+        "friendship": {
+            "past": "Where you started as friends",
+            "present": "Friendship now",
+            "future": "Where it might go",
+            "strengths": "Strengths",
+            "weaknesses": "Weak spots",
+            "advice": "Advice",
+        },
+        "work": {
+            "past": "Where you started as a team",
+            "present": "Project now",
+            "future": "Where it might go",
+            "strengths": "Strengths",
+            "weaknesses": "Weak spots",
+            "advice": "Advice",
+        },
+    },
+}
+
 # Major Arcana: (name_ru, name_en, readings ru×6, readings en×6)
 _MAJOR: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = [
     (
@@ -594,42 +635,74 @@ def format_synastry_tarot_section(
     analysis: TarotCompatSpread,
     *,
     style: str = "terms",
+    mode: str = "love",
 ) -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
     lines: list[str] = []
     terms = use_synastry_terms(style)
 
     if lang == "ru":
-        lines.append(
-            "🃏 Таро-расклад «Совместимость пары»"
-            if terms
-            else "🃏 Карты вашей пары"
-        )
-        lines.append(
-            "Шесть позиций по датам рождения: прошлое, настоящее, будущее, "
-            "сильные и слабые стороны, совет."
-            if terms
-            else "Шесть карт о вашей связи: от прошлого до совета."
-        )
+        if terms:
+            lines.append("🃏 Таро-расклад «Совместимость пары»")
+        else:
+            plain_titles = {
+                "love": "🃏 Карты вашей пары",
+                "friendship": "🃏 Карты вашей дружбы",
+                "work": "🃏 Карты вашей команды",
+            }
+            lines.append(plain_titles[mode_key])
+        if terms:
+            lines.append(
+                "Шесть позиций по датам рождения: прошлое, настоящее, будущее, "
+                "сильные и слабые стороны, совет."
+            )
+        else:
+            plain_intros = {
+                "love": "Шесть карт о вашей связи: от прошлого до совета.",
+                "friendship": (
+                    "Шесть карт о дружбе: от «как познакомились» до «не пропадай на полгода»."
+                ),
+                "work": (
+                    "Шесть карт о команде: от «как попали в проект» до «кто пишет итоговый слайд»."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
     else:
-        lines.append(
-            "🃏 Tarot spread «Couple compatibility»"
-            if terms
-            else "🃏 Your pair's cards"
-        )
-        lines.append(
-            "Six positions from birth dates: past, present, future, "
-            "strengths, weaknesses, advice."
-            if terms
-            else "Six cards about your bond: from past to advice."
-        )
+        if terms:
+            lines.append("🃏 Tarot spread «Couple compatibility»")
+        else:
+            plain_titles = {
+                "love": "🃏 Your pair's cards",
+                "friendship": "🃏 Your friendship's cards",
+                "work": "🃏 Your team's cards",
+            }
+            lines.append(plain_titles[mode_key])
+        if terms:
+            lines.append(
+                "Six positions from birth dates: past, present, future, "
+                "strengths, weaknesses, advice."
+            )
+        else:
+            plain_intros = {
+                "love": "Six cards about your bond: from past to advice.",
+                "friendship": (
+                    "Six cards about friendship: from «how you met» to «don't ghost for six months»."
+                ),
+                "work": (
+                    "Six cards about the team: from «how you landed on the project» "
+                    "to «who writes the final slide»."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
 
-    labels = POSITION_LABELS if terms else POSITION_LABELS_PLAIN
+    labels = POSITION_LABELS[lang] if terms else POSITION_LABELS_PLAIN_BY_MODE[lang][mode_key]
     lines.append("")
     for card in analysis.cards:
-        label = labels[lang][card.position]
+        label = labels[card.position]
         if terms:
             lines.append(f"• {label}: {card.name} — {card.reading}.")
         else:

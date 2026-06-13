@@ -131,11 +131,19 @@ def _sign_name(locale: str, sign: str | None) -> str:
     return SIGN_LABELS[_lang(locale)][sign]
 
 
-def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
+def _match_line(
+    locale: str,
+    kind: AngleMatchKind,
+    *,
+    style: str,
+    mode: str = "love",
+) -> str:
+    from app.compat_mode_plain import mode_key as _mode_key
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
     terms = use_synastry_terms(style)
+    mode_key = _mode_key(mode)
 
     if kind == AngleMatchKind.USER_ASC_PARTNER_DSC:
         if lang == "ru":
@@ -143,6 +151,16 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                 return (
                     "• Ваш ASC совпадает с DSC партнёра — сильное притяжение: "
                     "вы близки к его/её образу идеального партнёра."
+                )
+            if mode_key == "friendship":
+                return (
+                    "• Вы — как раз тот тип, с кем друг «на автомате» хочет болтать до закрытия. "
+                    "Совпадение по вайбу."
+                )
+            if mode_key == "work":
+                return (
+                    "• Вы попадаете в образ «идеального коллеги» — как будто HR читал мысли второго. "
+                    "Роли складываются сами."
                 )
             return (
                 "• Вы — как раз тот тип, которого партнёр ищет «на автомате». "
@@ -165,6 +183,16 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "• ASC партнёра совпадает с вашим DSC — он/она попадает в ваш образ "
                     "идеального партнёра."
                 )
+            if mode_key == "friendship":
+                return (
+                    "• Друг попадает в ваш «идеальный тип» для компании — "
+                    "как будто заказывали на день рождения."
+                )
+            if mode_key == "work":
+                return (
+                    "• Коллега попадает в ваш «идеальный тип» для задачи — "
+                    "как будто вы вместе уже работали."
+                )
             return (
                 "• Партнёр попадает в ваш «идеальный тип» — как будто заказывали."
             )
@@ -180,6 +208,16 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                 return (
                     "• ASC совпадают — похожие темпераменты и манера проявляться, "
                     "но возможны конфликты из‑за одинаковых слабых сторон."
+                )
+            if mode_key == "friendship":
+                return (
+                    "• Снаружи вы похожи — шутки заходят с полуслова. "
+                    "Минус: одни и те же косяки в дружбе умножаете на два."
+                )
+            if mode_key == "work":
+                return (
+                    "• Снаружи вы похожи — меньше объяснять «как мы работаем». "
+                    "Минус: слепые зоны команды тоже общие."
                 )
             return (
                 "• Вы похожи снаружи — понимаете друг друга быстро. "
@@ -201,6 +239,16 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "• Ваш ASC и DSC партнёра — противоположные знаки: "
                     "классическое притяжение «я ↔ идеальный партнёр»."
                 )
+            if mode_key == "friendship":
+                return (
+                    "• Вы — как специи: разные, но без вас скучно. "
+                    "Дружба живее, если не спорить, кто «нормальный»."
+                )
+            if mode_key == "work":
+                return (
+                    "• Разные стили снаружи — один структура, другой идеи. "
+                    "В проекте это плюс, если не перебивать на созвонах."
+                )
             return (
                 "• Вы — как плюс и минус на магните: тянет, хотя снаружи всё наоборот."
             )
@@ -221,6 +269,16 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
                     "• ASC в противоположных знаках — сильный контраст темпераментов "
                     "и взаимное дополнение."
                 )
+            if mode_key == "friendship":
+                return (
+                    "• Снаружи — полные противоположности. "
+                    "Классика «странный друг, но без него скучно»."
+                )
+            if mode_key == "work":
+                return (
+                    "• Снаружи — полные противоположности. "
+                    "Классика «он Excel, я хаос — и вместе мы что-то делаем»."
+                )
             return "• Снаружи вы — полные противоположности. Классика «меня тянет, хотя мы не похожи»."
         if terms:
             return (
@@ -232,44 +290,83 @@ def _match_line(locale: str, kind: AngleMatchKind, *, style: str) -> str:
     return ""
 
 
-def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, style: str = "terms") -> str:
+def format_synastry_step2_section(
+    locale: str,
+    analysis: AscDscAnalysis,
+    *,
+    style: str = "terms",
+    mode: str = "love",
+) -> str:
+    from app.compat_mode_plain import mode_key as _mode_key, other_label_cap
     from app.synastry_style import use_synastry_terms
 
     lang = _lang(locale)
+    mode_key = _mode_key(mode)
+    other = other_label_cap(locale, mode_key)
     lines: list[str] = []
 
     if lang == "ru":
-        lines.append(
-            "↗️ Шаг 2. ASC и DSC"
-            if use_synastry_terms(style)
-            else "↗️ Как выглядите и кого ищете"
-        )
+        if use_synastry_terms(style):
+            lines.append("↗️ Шаг 2. ASC и DSC")
+        else:
+            plain_titles = {
+                "love": "↗️ Как выглядите и кого ищете",
+                "friendship": "↗️ Как вас видят и кого зовёте в друзья",
+                "work": "↗️ Как вы на работе и кого ищете в команду",
+            }
+            lines.append(plain_titles[mode_key])
         if use_synastry_terms(style):
             lines.append(
                 "ASC — восходящий знак (как вы проявляетесь); "
                 "DSC — куспид 7‑го дома (какого партнёра ищете). Система домов: Placidus."
             )
         else:
-            lines.append(
-                "Первое впечатление и «мой тип» — нужны время и город рождения у обоих. "
-                "Без этого блок пропускаем."
-            )
+            plain_intros = {
+                "love": (
+                    "Первое впечатление и «мой тип» — нужны время и город рождения у обоих. "
+                    "Без этого блок пропускаем."
+                ),
+                "friendship": (
+                    "Как вас видят снаружи и с кем хочется дружить «на автомате» — "
+                    "нужны время и город у обоих. Без этого — тишина."
+                ),
+                "work": (
+                    "Как вы смотрите на работу и кого ищете в коллегу — "
+                    "нужны время и город у обоих. Без данных — пропуск."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
     else:
-        lines.append(
-            "↗️ Step 2. ASC and DSC"
-            if use_synastry_terms(style)
-            else "↗️ First impression and «my type»"
-        )
+        if use_synastry_terms(style):
+            lines.append("↗️ Step 2. ASC and DSC")
+        else:
+            plain_titles = {
+                "love": "↗️ First impression and «my type»",
+                "friendship": "↗️ How you show up and who you pick as friends",
+                "work": "↗️ Your work vibe and who you want on the team",
+            }
+            lines.append(plain_titles[mode_key])
         if use_synastry_terms(style):
             lines.append(
                 "Ascendant — rising sign (how you show up); "
                 "Descendant — 7th-house cusp (partner type you seek). House system: Placidus."
             )
         else:
-            lines.append(
-                "How each of you shows up in the world and the partner type you subconsciously seek — "
-                "from birth time and place."
-            )
+            plain_intros = {
+                "love": (
+                    "How each of you shows up and the partner type you subconsciously seek — "
+                    "from birth time and place."
+                ),
+                "friendship": (
+                    "How you come across and who feels like «my people» — "
+                    "needs birth time and place for both."
+                ),
+                "work": (
+                    "How you work in public and who you want as a colleague — "
+                    "needs birth time and place for both."
+                ),
+            }
+            lines.append(plain_intros[mode_key])
 
     if not analysis.available:
         lines.append("")
@@ -294,9 +391,14 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
                     f"DSC {_sign_name(locale, analysis.user_dsc_sign)}."
                 )
             else:
+                seek_labels = {
+                    "love": f"ищете партнёра в ключе {_sign_name(locale, analysis.user_dsc_sign)}",
+                    "friendship": f"тянет к друзьям в ключе {_sign_name(locale, analysis.user_dsc_sign)}",
+                    "work": f"ищете коллегу в ключе {_sign_name(locale, analysis.user_dsc_sign)}",
+                }
                 lines.append(
                     f"• Вы: образ «в мире» — {_sign_name(locale, analysis.user_asc_sign)}; "
-                    f"ищете партнёра в ключе {_sign_name(locale, analysis.user_dsc_sign)}."
+                    f"{seek_labels[mode_key]}."
                 )
         elif use_synastry_terms(style):
             lines.append(
@@ -321,9 +423,14 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
                     f"DSC {_sign_name(locale, analysis.partner_dsc_sign)}."
                 )
             else:
+                seek_labels = {
+                    "love": f"ищет партнёра в ключе {_sign_name(locale, analysis.partner_dsc_sign)}",
+                    "friendship": f"тянет к друзьям в ключе {_sign_name(locale, analysis.partner_dsc_sign)}",
+                    "work": f"ищет коллегу в ключе {_sign_name(locale, analysis.partner_dsc_sign)}",
+                }
                 lines.append(
-                    f"• Партнёр: образ «в мире» — {_sign_name(locale, analysis.partner_asc_sign)}; "
-                    f"ищет партнёра в ключе {_sign_name(locale, analysis.partner_dsc_sign)}."
+                    f"• {other}: образ «в мире» — {_sign_name(locale, analysis.partner_asc_sign)}; "
+                    f"{seek_labels[mode_key]}."
                 )
         elif use_synastry_terms(style):
             lines.append(
@@ -336,26 +443,56 @@ def format_synastry_step2_section(locale: str, analysis: AscDscAnalysis, *, styl
                 f"seeks a partner like {_sign_name(locale, analysis.partner_dsc_sign)}."
             )
     elif lang == "ru":
-        lines.append("• ASC/DSC партнёра: нужны его время рождения и город.")
+        missing = {
+            "love": "• ASC/DSC партнёра: нужны его время рождения и город.",
+            "friendship": "• ASC/DSC друга: нужны время рождения и город.",
+            "work": "• ASC/DSC коллеги: нужны время рождения и город.",
+        }
+        lines.append(missing[mode_key])
     else:
         lines.append("• Partner ASC/DSC: their birth time and city are required.")
 
     if analysis.full_analysis and analysis.matches:
         lines.append("")
         if lang == "ru":
-            lines.append("Связки углов:" if use_synastry_terms(style) else "Почему тянет:")
+            match_headers = {
+                "love": "Почему тянет:",
+                "friendship": "Почему легко найти общий язык:",
+                "work": "Почему срабатываете как связка:",
+            }
+            lines.append(match_headers[mode_key] if not use_synastry_terms(style) else "Связки углов:")
         else:
-            lines.append("Angle links:" if use_synastry_terms(style) else "What this means for the pair:")
+            match_headers = {
+                "love": "What this means for the pair:",
+                "friendship": "Why you click as friends:",
+                "work": "Why you work as a duo:",
+            }
+            lines.append(
+                "Angle links:" if use_synastry_terms(style) else match_headers[mode_key]
+            )
         for kind in analysis.matches:
-            line = _match_line(locale, kind, style=style)
+            line = _match_line(locale, kind, style=style, mode=mode_key)
             if line:
                 lines.append(line)
     elif analysis.full_analysis:
         if lang == "ru":
             lines.append("")
-            lines.append(
+            no_match = {
+                "love": (
+                    "• Ярких «идеальных пар» тут нет — зато притяжение может быть в других местах."
+                ),
+                "friendship": (
+                    "• Ярких «идеальных друзей по учебнику» нет — "
+                    "зато дружба может строиться на других темах."
+                ),
+                "work": (
+                    "• Ярких «идеальных коллег по учебнику» нет — "
+                    "зато рабочая связка может держаться на задачах, не на образе."
+                ),
+            }
+            lines.append(no_match[mode_key] if not use_synastry_terms(style) else (
                 "• Ярких «идеальных пар» тут нет — зато притяжение может быть в других местах."
-            )
+            ))
         else:
             lines.append("")
             lines.append("• No strong ASC↔DSC matches — the theme runs through other chart layers.")
