@@ -40,11 +40,21 @@ THEME_ORDER: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("result", ("summary", "advice", "disclaimers", "compat_summary")),
 )
 
+# Shorter themed pages for plain-language partner compat (Telegram UI).
+THEME_ORDER_PLAIN: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("overview", ("sun", "elements")),
+    ("attraction", ("asc", "aspects")),
+    ("bond", ("composite",)),
+    ("depth", ("karma",)),
+    ("symbols", ("numerology", "tarot")),
+    ("result", ("summary", "advice")),
+)
+
 THEME_LABELS = {
     "ru": {
         "overview": "📋 Обзор пары",
         "attraction": "💞 Притяжение",
-        "bond": "🤝 Союз и дома",
+        "bond": "🤝 Союз",
         "depth": "🌑 Глубина и карма",
         "symbols": "🔢 Числа и Таро",
         "result": "📊 Итог и совет",
@@ -52,10 +62,29 @@ THEME_LABELS = {
     "en": {
         "overview": "📋 Pair overview",
         "attraction": "💞 Attraction",
-        "bond": "🤝 Bond and houses",
+        "bond": "🤝 Bond",
         "depth": "🌑 Depth and karma",
         "symbols": "🔢 Numbers and Tarot",
         "result": "📊 Summary and advice",
+    },
+}
+
+THEME_LABELS_TERMS = {
+    "ru": {
+        "overview": "📋 Шаги 1–6: знаки и элементы",
+        "attraction": "💞 ASC, синастрия, Луна/Венера",
+        "bond": "🤝 Композит, дома, прогрессии",
+        "depth": "🌑 Лилит, карма, печати, транзиты",
+        "symbols": "🔢 Нумерология и Таро",
+        "result": "📊 Сводка и рекомендации",
+    },
+    "en": {
+        "overview": "📋 Steps 1–6: signs and elements",
+        "attraction": "💞 ASC, synastry, Moon/Venus",
+        "bond": "🤝 Composite, houses, progressions",
+        "depth": "🌑 Lilith, karma, seals, transits",
+        "symbols": "🔢 Numerology and Tarot",
+        "result": "📊 Summary and recommendations",
     },
 }
 
@@ -73,9 +102,13 @@ class SynastryTheme:
     body: str
 
 
-def theme_label(locale: str, theme_key: str) -> str:
+def theme_label(locale: str, theme_key: str, *, style: str = "plain") -> str:
     lang = _lang(locale)
-    return THEME_LABELS[lang].get(theme_key, theme_key)
+    if use_synastry_terms(style):
+        table = THEME_LABELS_TERMS[lang]
+    else:
+        table = THEME_LABELS[lang]
+    return table.get(theme_key, THEME_LABELS[lang].get(theme_key, theme_key))
 
 
 def build_synastry_sections(
@@ -235,17 +268,23 @@ def build_synastry_sections(
     return sections, summary
 
 
-def group_synastry_themes(locale: str, sections: list[SynastrySection]) -> list[SynastryTheme]:
+def group_synastry_themes(
+    locale: str,
+    sections: list[SynastrySection],
+    *,
+    style: str = "plain",
+) -> list[SynastryTheme]:
     by_key = {section.key: section.body for section in sections}
+    order = THEME_ORDER if use_synastry_terms(style) else THEME_ORDER_PLAIN
     themes: list[SynastryTheme] = []
-    for theme_key, section_keys in THEME_ORDER:
+    for theme_key, section_keys in order:
         bodies = [by_key[key] for key in section_keys if key in by_key and by_key[key].strip()]
         if not bodies:
             continue
         themes.append(
             SynastryTheme(
                 key=theme_key,
-                title=theme_label(locale, theme_key),
+                title=theme_label(locale, theme_key, style=style),
                 body="\n\n".join(bodies),
             )
         )

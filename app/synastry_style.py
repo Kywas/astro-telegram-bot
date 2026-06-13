@@ -416,11 +416,96 @@ _PLAIN_REPLACEMENTS = {
 }
 
 
+_PLAIN_BULLET_LIMIT = {
+    "overview": 4,
+    "attraction": 5,
+    "bond": 4,
+    "depth": 4,
+    "symbols": 4,
+    "result": 5,
+}
+
+_PLAIN_HEADER = re.compile(
+    r"^[☀️⚖️🏠🌐✨📊💞🔢🌑🤝📋↗️🔗🔥🧠💡ℹ️⚠️]",
+)
+
+
+def compact_plain_theme_body(text: str, theme_key: str, locale: str) -> str:
+    """Trim plain themed compat pages for shorter Telegram reads."""
+    if not text.strip():
+        return text
+    lang = _lang(locale)
+    skip_prefixes = ("ℹ️", "⚠️", "💡 Что бы")
+    if lang == "ru":
+        skip_contains = ("Swiss Ephemeris", "Placidus", "данный разбор", "не является")
+    else:
+        skip_contains = ("Swiss Ephemeris", "Placidus", "this reading", "not a substitute")
+
+    cleaned_lines: list[str] = []
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            cleaned_lines.append("")
+            continue
+        if any(stripped.startswith(prefix) for prefix in skip_prefixes):
+            continue
+        if any(part in stripped.lower() for part in skip_contains):
+            continue
+        cleaned_lines.append(line)
+    text = "\n".join(cleaned_lines)
+
+    bullet_limit = _PLAIN_BULLET_LIMIT.get(theme_key, 5)
+    bullets_used = 0
+    kept_blocks: list[str] = []
+
+    for block in re.split(r"\n\s*\n", text.strip()):
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        if not lines:
+            continue
+        header = lines[0]
+        if _PLAIN_HEADER.match(header):
+            compact = [header]
+            intro_added = False
+            for ln in lines[1:]:
+                if ln.startswith("•"):
+                    if bullets_used >= bullet_limit:
+                        continue
+                    bullets_used += 1
+                    compact.append(ln)
+                elif not intro_added and len(compact) == 1:
+                    sentence = ln.split(". ")[0].strip()
+                    if len(sentence) > 100:
+                        sentence = sentence[:97].rstrip() + "…"
+                    if sentence and not sentence.endswith((".", "…", "!")):
+                        sentence += "."
+                    if sentence:
+                        compact.append(sentence)
+                        intro_added = True
+            if len(compact) > 1:
+                kept_blocks.append("\n".join(compact))
+        else:
+            bullets = [ln for ln in lines if ln.startswith("•")]
+            prose = [ln for ln in lines if not ln.startswith("•")]
+            if bullets:
+                for ln in bullets:
+                    if bullets_used >= bullet_limit:
+                        break
+                    kept_blocks.append(ln)
+                    bullets_used += 1
+            elif theme_key == "result" and prose:
+                kept_blocks.append("\n".join(prose[:2]))
+
+    result = re.sub(r"\n{3,}", "\n\n", "\n\n".join(kept_blocks).strip())
+    return result.strip()
+
+
 def apply_synastry_style(text: str, locale: str, style: str) -> str:
     if use_synastry_terms(style):
         return text
     result = _ORB_PATTERN.sub("", text)
     result = _PLAIN_STEP_HEADER.sub(r"\1\2", result)
+    result = re.sub(r"Шаг \d+\.\s*", "", result)
+    result = re.sub(r"Step \d+\.\s*", "", result, flags=re.IGNORECASE)
     lang = _lang(locale)
     for pattern, replacement in _PLAIN_REPLACEMENTS[lang]:
         if callable(replacement):

@@ -10,7 +10,7 @@ from app.i18n import t
 from app.keyboards import breadcrumb, compat_style_picker_keyboard, glossary_help_button, premium_upsell_keyboard
 from app.premium import is_premium_active
 from app.synastry import build_synastry, build_synastry_for_partner_profile
-from app.synastry_style import resolve_compat_style
+from app.synastry_style import resolve_compat_style, use_synastry_terms
 from app.reading_voice import (
     compat_score_hook,
     menu_pick_cta,
@@ -188,22 +188,40 @@ async def show_compat_mode_panel(
         await show_panel_from_message(message, text, reply_markup=keyboard)
 
 
-def compat_result_header(locale: str, profile, syn, mode: str, *, compact: bool = False) -> str:
+def compat_result_header(
+    locale: str,
+    profile,
+    syn,
+    mode: str,
+    *,
+    compact: bool = False,
+    style: str | None = None,
+) -> str:
+    style = style or resolve_compat_style(profile)
     partner_name = syn.partner_name or get_sign_name(syn.partner_sign, locale)
     sign_a = get_sign_name(profile.sign, locale)
     sign_b = get_sign_name(syn.partner_sign, locale)
     mode_label = compat_mode_label(locale, mode)
     if compact:
-        if locale == "ru":
-            return p(
-                b(f"💞 {mode_label} · {syn.score}/100"),
-                h(f"{sign_a} + {partner_name} ({sign_b})"),
-            )
         return p(
             b(f"💞 {mode_label} · {syn.score}/100"),
             h(f"{sign_a} + {partner_name} ({sign_b})"),
         )
-    score_hook = compat_score_hook(locale, syn.score, mode)
+    score_hook = compat_score_hook(locale, syn.score, mode, style=style)
+    if use_synastry_terms(style):
+        if locale == "ru":
+            return p(
+                b(f"💞 Синастрия · {mode_label}"),
+                h(f"{sign_a} + {partner_name} ({sign_b})"),
+                b(f"Оценка: {syn.score}/100"),
+                format_screen_body(score_hook),
+            )
+        return p(
+            b(f"💞 Synastry · {mode_label}"),
+            h(f"{sign_a} + {partner_name} ({sign_b})"),
+            b(f"Score: {syn.score}/100"),
+            format_screen_body(score_hook),
+        )
     if locale == "ru":
         return p(
             b(f"💞 Совместимость · {mode_label}"),
@@ -288,30 +306,48 @@ def compat_theme_view_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def render_compat_theme_menu(locale: str, profile, syn, mode: str) -> str:
-    if locale == "ru":
-        guide = (
-            "Я разбил всё на 6 коротких тем — каждая минут на две–три. "
-            "Можно читать подряд, можно сразу прыгнуть туда, где интереснее."
-        )
+def render_compat_theme_menu(locale: str, profile, syn, mode: str, *, style: str | None = None) -> str:
+    style = style or resolve_compat_style(profile)
+    if use_synastry_terms(style):
+        if locale == "ru":
+            guide = (
+                "Разбор по 6 блокам: от солнечных знаков до сводной таблицы. "
+                "Внутри — шаги синастрии с терминами (ASC, аспекты, композит и т.д.)."
+            )
+        else:
+            guide = (
+                "Six blocks from Sun signs to the final scorecard. "
+                "Inside — synastry steps with terms (ASC, aspects, composite, etc.)."
+            )
+    elif locale == "ru":
+        guide = "6 коротких тем — выбирай, с чего начать."
     else:
         guide = (
             "I split this into 6 short themes — two or three minutes each. "
             "Read in order or jump to whatever catches you."
         )
     theme_blocks = [
-        labeled_block(theme.title, theme_menu_teaser(locale, theme.key))
+        labeled_block(theme.title, theme_menu_teaser(locale, theme.key, style=style))
         for theme in syn.themes
     ]
     return p(
-        compat_result_header(locale, profile, syn, mode),
+        compat_result_header(locale, profile, syn, mode, style=style),
         format_screen_body(guide),
         *theme_blocks,
-        format_screen_body(menu_pick_cta()),
+        format_screen_body(menu_pick_cta(locale, style=style)),
     )
 
 
-def render_compat_theme_page(locale: str, profile, syn, mode: str, theme_key: str) -> str:
+def render_compat_theme_page(
+    locale: str,
+    profile,
+    syn,
+    mode: str,
+    theme_key: str,
+    *,
+    style: str | None = None,
+) -> str:
+    style = style or resolve_compat_style(profile)
     themes = list(syn.themes)
     theme = next((item for item in themes if item.key == theme_key), themes[0])
     keys = [item.key for item in themes]
@@ -320,16 +356,17 @@ def render_compat_theme_page(locale: str, profile, syn, mode: str, theme_key: st
     except ValueError:
         index = 0
     next_theme = themes[(index + 1) % len(themes)]
-    hook = theme_opening_hook(locale, theme.key, mode, syn.score)
+    hook = theme_opening_hook(locale, theme.key, mode, syn.score, style=style)
     parts = [
-        compat_result_header(locale, profile, syn, mode, compact=True),
-        format_screen_body(hook),
-        p(b(theme.title), format_report(theme.body)),
+        compat_result_header(locale, profile, syn, mode, compact=True, style=style),
     ]
-    if len(themes) > 1 and theme.key != "result":
+    if use_synastry_terms(style):
+        parts.append(format_screen_body(hook))
+    parts.append(p(b(theme.title), format_report(theme.body)))
+    if len(themes) > 1 and theme.key != "result" and use_synastry_terms(style):
         parts.append(
             format_screen_body(
-                theme_next_teaser(locale, next_theme.title, next_theme.key),
+                theme_next_teaser(locale, next_theme.title, next_theme.key, style=style),
             )
         )
     return p(*parts)
@@ -346,8 +383,9 @@ async def show_compat_theme_panel(
     theme_key: str,
     callback: CallbackQuery,
 ) -> None:
+    style = resolve_compat_style(profile)
     if theme_key == "menu" or not theme_key:
-        text = render_compat_theme_menu(locale, profile, syn, mode)
+        text = render_compat_theme_menu(locale, profile, syn, mode, style=style)
         keyboard = compat_themes_menu_keyboard(
             locale,
             partner_id=partner_id,
@@ -355,7 +393,7 @@ async def show_compat_theme_panel(
             themes=syn.themes,
         )
     else:
-        text = render_compat_theme_page(locale, profile, syn, mode, theme_key)
+        text = render_compat_theme_page(locale, profile, syn, mode, theme_key, style=style)
         keyboard = compat_theme_view_keyboard(
             locale,
             partner_id=partner_id,
@@ -402,7 +440,7 @@ async def deliver_compat_result(
         await db.log_event(user_id, "compat_result")
         return
 
-    header = compat_result_header(locale, profile, syn, mode)
+    header = compat_result_header(locale, profile, syn, mode, style=resolve_compat_style(profile))
     if len(themes) == 1:
         result_text = p(header, b(themes[0].title), format_report(themes[0].body))
     else:

@@ -9,7 +9,7 @@ from app.sun_sign_compat import (
 )
 from app.astro_engine import build_synastry_analysis
 from app.compatibility import compatibility_summary
-from app.synastry_style import apply_synastry_style
+from app.synastry_style import apply_synastry_style, compact_plain_theme_body
 from app.synastry_sections import SynastrySection, SynastryTheme, group_synastry_themes
 from app.zodiac import resolve_sun_sign
 
@@ -156,13 +156,17 @@ def build_synastry(
 
     summary_text = compatibility_summary(locale, analysis.score, style=style)
     sections = (*analysis.sections, SynastrySection("compat_summary", summary_text))
-    themes = tuple(group_synastry_themes(locale, list(sections)))
+    themes = tuple(group_synastry_themes(locale, list(sections), style=style))
     if style == "plain":
         themes = tuple(
             SynastryTheme(
                 theme.key,
                 theme.title,
-                apply_synastry_style(theme.body, locale, style),
+                compact_plain_theme_body(
+                    apply_synastry_style(theme.body, locale, style),
+                    theme.key,
+                    locale,
+                ),
             )
             for theme in themes
         )

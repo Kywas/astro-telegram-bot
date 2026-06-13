@@ -8,16 +8,26 @@ def _lang(locale: str) -> str:
     return "ru" if locale == "ru" else "en"
 
 
-def compat_score_hook(locale: str, score: int, mode: str) -> str:
+def compat_score_hook(locale: str, score: int, mode: str, *, style: str = "plain") -> str:
     lang = _lang(locale)
+    if style != "plain":
+        if lang == "ru":
+            return (
+                f"Итоговая оценка {score}/100 (Swiss Ephemeris). "
+                f"Ниже — разбор по шагам синастрии."
+            )
+        return (
+            f"Composite score {score}/100 (Swiss Ephemeris). "
+            f"Step-by-step synastry breakdown below."
+        )
     if lang == "ru":
         if score >= 85:
-            return "Между вами правда сильная связь. Сейчас разложу по полочкам, на чём она держится."
+            return "Между вами сильная связь — разложу по полочкам."
         if score >= 70:
-            return "Картина хорошая — есть на что опереться. Пройдёмся по деталям."
+            return "Картина хорошая — пройдёмся по деталям."
         if score >= 55:
-            return "Не сказка, но и не провал. Скорее живая пара, где многое решает разговор."
-        return "Буду честен: не всё просто. Но если дочитаешь — станет понятнее, что с этим делать."
+            return "Живая пара: многое решает разговор."
+        return "Не всё просто — но станет понятнее, если дочитаешь."
     if score >= 85:
         return "There's a real bond here. I'll walk you through what it's built on."
     if score >= 70:
@@ -27,16 +37,36 @@ def compat_score_hook(locale: str, score: int, mode: str) -> str:
     return "I'll be straight with you: it's not easy. But read through and you'll see clearer next steps."
 
 
-def theme_menu_teaser(locale: str, theme_key: str) -> str:
+def theme_menu_teaser(locale: str, theme_key: str, *, style: str = "plain") -> str:
     lang = _lang(locale)
+    if style != "plain":
+        teasers = {
+            "ru": {
+                "overview": "Солнечные знаки, стихии, общий фон пары.",
+                "attraction": "ASC/DSC, аспекты синастрии, Луна и Венера.",
+                "bond": "Композитная карта, наложение домов, прогрессии.",
+                "depth": "Лилит, Селена, кармические узлы, транзиты.",
+                "symbols": "Число союза, расклад Таро на пару.",
+                "result": "Сводная таблица +1/−1, рекомендации.",
+            },
+            "en": {
+                "overview": "Sun signs, elements, pair baseline.",
+                "attraction": "ASC/DSC, synastry aspects, Moon and Venus.",
+                "bond": "Composite chart, house overlay, progressions.",
+                "depth": "Lilith, Selena, lunar nodes, transits.",
+                "symbols": "Union number, couple Tarot spread.",
+                "result": "+1/−1 scorecard and recommendations.",
+            },
+        }
+        return teasers[lang].get(theme_key, "")
     teasers = {
         "ru": {
-            "overview": "Кто вы друг для друга и совпадаете ли по темпу.",
-            "attraction": "За что тянет — и где может щекотать.",
-            "bond": "Быт, «мы» и куда пара смотрит вместе.",
-            "depth": "То, о чём обычно молчат, но чувствуют.",
-            "symbols": "Числа и карты — взгляд чуть с другой стороны.",
-            "result": "Сводка, совет и что из этого вынести.",
+            "overview": "Знаки и темп — совпадаете ли.",
+            "attraction": "Притяжение и возможные трения.",
+            "bond": "Как складывается «мы».",
+            "depth": "Скрытые темы пары.",
+            "symbols": "Числа и карты — другой ракурс.",
+            "result": "Сводка и один совет.",
         },
         "en": {
             "overview": "Who you are to each other and whether your rhythms match.",
@@ -50,16 +80,36 @@ def theme_menu_teaser(locale: str, theme_key: str) -> str:
     return teasers[lang].get(theme_key, "")
 
 
-def theme_opening_hook(locale: str, theme_key: str, mode: str, score: int) -> str:
+def theme_opening_hook(locale: str, theme_key: str, mode: str, score: int, *, style: str = "plain") -> str:
     lang = _lang(locale)
+    if style != "plain":
+        hooks = {
+            "ru": {
+                "overview": "Базовый уровень: знаки Солнца и баланс стихий.",
+                "attraction": "ASC/DSC и ключевые аспекты синастрии.",
+                "bond": "Композит, дома и прогрессии — структура союза.",
+                "depth": "Кармические и транзитные маркеры.",
+                "symbols": "Нумерология и Таро — дополнительный слой.",
+                "result": "Сводка по всем шагам и итоговая рекомендация.",
+            },
+            "en": {
+                "overview": "Baseline: Sun signs and element balance.",
+                "attraction": "ASC/DSC and key synastry aspects.",
+                "bond": "Composite, houses, and progressions — union structure.",
+                "depth": "Karmic and transit markers.",
+                "symbols": "Numerology and Tarot — an extra layer.",
+                "result": "Full step summary and final recommendation.",
+            },
+        }
+        return hooks[lang].get(theme_key, "")
     hooks = {
         "ru": {
-            "overview": "Начну с базы — кто вы как пара и на одной ли волне.",
-            "attraction": "Тут самое живое: что между вами реально цепляет.",
-            "bond": "Теперь про жизнь вдвоём — быт, решения, общий «мы».",
-            "depth": "Дальше честнее. Про то, что обычно не выносят на первый разговор.",
-            "symbols": "Чуть отступлю от карты — числа и Таро иногда попадают в точку.",
-            "result": "Финал. Соберу всё в одну понятную мысль.",
+            "overview": "Кто вы как пара и на одной ли волне.",
+            "attraction": "Что цепляет — и где щекотит.",
+            "bond": "Жизнь вдвоём и общий «мы».",
+            "depth": "То, о чём реже говорят вслух.",
+            "symbols": "Числа и Таро — короткий взгляд сбоку.",
+            "result": "Финал: одна понятная мысль.",
         },
         "en": {
             "overview": "Starting with the basics — who you are as a pair and whether you're in sync.",
@@ -78,17 +128,25 @@ def theme_opening_hook(locale: str, theme_key: str, mode: str, score: int) -> st
     return base
 
 
-def theme_next_teaser(locale: str, next_title: str, next_key: str) -> str:
+def theme_next_teaser(locale: str, next_title: str, next_key: str, *, style: str = "plain") -> str:
     lang = _lang(locale)
-    hint = theme_menu_teaser(locale, next_key)
+    hint = theme_menu_teaser(locale, next_key, style=style)
+    if style != "plain":
+        if lang == "ru":
+            return f"Далее: «{next_title}». {hint}"
+        return f"Next: «{next_title}». {hint}"
     if lang == "ru":
         return f"Если не устал читать — дальше «{next_title}». {hint}"
     return f"If you're still with me — next up «{next_title}». {hint}"
 
 
-def menu_pick_cta(locale: str) -> str:
+def menu_pick_cta(locale: str, *, style: str = "plain") -> str:
+    if style != "plain":
+        if _lang(locale) == "ru":
+            return "Выберите блок — внутри шаги синастрии с терминами и маркерами карты."
+        return "Pick a block — each contains synastry steps with chart markers."
     if _lang(locale) == "ru":
-        return "Выбирай тему — с любой можно начать, каждая минут на две–три."
+        return "6 тем — выбирай любую."
     return "Pick a theme — start anywhere, each takes two or three minutes."
 
 

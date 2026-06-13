@@ -178,6 +178,46 @@ def test_synastry_style() -> None:
     assert use_synastry_terms("terms")
     assert "Простым языком" not in apply_synastry_style(terms_line, "ru", "terms")
 
+    from datetime import date, time
+    from app.synastry import build_synastry_for_partner_profile
+
+    partner = SimpleNamespace(
+        id=1,
+        name="Test",
+        birth_date=date(1993, 8, 20),
+        birth_time=time(10, 0),
+        city="SPb",
+        timezone="Europe/Moscow",
+        lat=59.93,
+        lon=30.31,
+    )
+    full_profile = SimpleNamespace(
+        user_id=1,
+        sign="Aries",
+        birth_date=date(1995, 4, 15),
+        birth_time=time(14, 30),
+        city="Moscow",
+        timezone="Europe/Moscow",
+        birth_lat=55.75,
+        birth_lon=37.62,
+        birth_timezone="Europe/Moscow",
+        compat_style="plain",
+    )
+    plain_syn = build_synastry_for_partner_profile(
+        "ru", full_profile, partner, "love", style="plain"
+    )
+    terms_syn = build_synastry_for_partner_profile(
+        "ru", full_profile, partner, "love", style="terms"
+    )
+    assert len(plain_syn.themes) > 1
+    assert plain_syn.themes[1].title != terms_syn.themes[1].title
+    assert plain_syn.themes[1].body != terms_syn.themes[1].body
+    assert "ASC" in terms_syn.themes[1].body
+    assert "Шаг 2" not in plain_syn.themes[1].body
+    plain_total = sum(len(theme.body) for theme in plain_syn.themes)
+    terms_total = sum(len(theme.body) for theme in terms_syn.themes)
+    assert plain_total < terms_total // 2
+
 
 def test_horoscope_style() -> None:
     from datetime import date, time

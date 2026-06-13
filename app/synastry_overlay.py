@@ -229,31 +229,13 @@ def format_synastry_step3_section(
     else:
         if lang == "ru":
             lines.append("🔗 Как вы влияете друг на друга")
-            lines.append(
-                "Тут видно, где между вами легко, а где без разговора начнётся напряжение."
-            )
-            lines.append("Поддержка — хочется быть рядом. Напряжение — не конец света, а повод поговорить.")
+            lines.append("Где легко — и где лучше поговорить заранее.")
         else:
             lines.append("🔗 How you affect each other")
-            lines.append(
-                "This shows where things flow easily — and where you'll need honest talk."
-            )
-            lines.append("Support — you want to be close; tension — a growth spot, not a verdict.")
+            lines.append("Where it's easy — and where to talk early.")
 
-    mode_intro = {
-        "ru": {
-            "love": "Смотрю через призму отношений — где близость, где притяжение.",
-            "friendship": "Смотрю через дружбу — где доверие, где лёгкость общения.",
-            "work": "Смотрю через работу — где слаженность, где могут тереться роли.",
-        },
-        "en": {
-            "love": "Looking through a relationship lens — closeness and pull.",
-            "friendship": "Looking through friendship — trust and ease of talk.",
-            "work": "Looking through work — teamwork and where roles may rub.",
-        },
-    }
     if not use_synastry_terms(style):
-        lines.append(mode_intro[lang][mode_key])
+        pass
     else:
         mode_intro_terms = {
             "ru": {
@@ -310,10 +292,13 @@ def format_synastry_step3_section(
             if use_synastry_terms(style):
                 group = _aspect_group_label(locale, aspect)
                 lines.append(f"• {aspect_line.capitalize()} · {_capitalize_group(lang, group)}")
+                interpretation = _key_pair_interpretation(locale, spec, hit, mode=mode_key)
+                lines.append(f"• {interpretation}")
             else:
                 lines.append(f"• {aspect_line.capitalize()}.")
-        interpretation = _key_pair_interpretation(locale, spec, hit, mode=mode_key)
-        lines.append(f"• {interpretation}")
+        else:
+            interpretation = _key_pair_interpretation(locale, spec, hit, mode=mode_key)
+            lines.append(f"• {interpretation}")
 
     used = _used_hit_keys(key_hits)
     other_hits = [
@@ -326,7 +311,7 @@ def format_synastry_step3_section(
         lines.append("")
         label = "Другие сильные связи" if lang == "ru" else "Other strong links"
         lines.append(f"{label}:")
-        for hit in other_hits[:3]:
+        for hit in other_hits[: (3 if use_synastry_terms(style) else 2)]:
             orb, user_planet, partner_planet, aspect = hit
             lines.append(
                 "• "
