@@ -33,6 +33,7 @@ class UserProfile:
     mood_streak: int
     last_mood_date: Optional[str]
     lunar_notify_enabled: bool
+    moon_focus: str
     premium_until: Optional[str]
     trial_used: bool
     natal_mode: str
@@ -164,6 +165,7 @@ class Database:
                 "mood_streak": "INTEGER DEFAULT 0",
                 "last_mood_date": "TEXT",
                 "lunar_notify_enabled": "INTEGER DEFAULT 1",
+                "moon_focus": "TEXT DEFAULT 'practices'",
                 "premium_until": "TEXT",
                 "trial_used": "INTEGER DEFAULT 0",
                 "natal_mode": "TEXT DEFAULT 'full'",
@@ -410,6 +412,7 @@ class Database:
                     mood_streak=row["mood_streak"] or 0,
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
+                    moon_focus=row["moon_focus"] if row["moon_focus"] else "practices",
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
@@ -617,6 +620,7 @@ class Database:
                     mood_streak=row["mood_streak"] or 0,
                     last_mood_date=row["last_mood_date"],
                     lunar_notify_enabled=bool(row["lunar_notify_enabled"] if row["lunar_notify_enabled"] is not None else 1),
+                    moon_focus=row["moon_focus"] if row["moon_focus"] else "practices",
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
@@ -715,6 +719,15 @@ class Database:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 "UPDATE users SET natal_style = ? WHERE user_id = ?",
+                (normalized, user_id),
+            )
+            await db.commit()
+
+    async def set_moon_focus(self, user_id: int, focus: str) -> None:
+        normalized = focus if focus in {"practices", "health", "creativity"} else "practices"
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET moon_focus = ? WHERE user_id = ?",
                 (normalized, user_id),
             )
             await db.commit()

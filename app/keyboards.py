@@ -877,7 +877,58 @@ def build_telegram_share_url(*, text: str, url: str) -> str:
     return f"https://t.me/share/url?url={quote(url, safe='')}&text={quote(text, safe='')}"
 
 
-def moon_period_keyboard(locale: str, *, help_back: str = "nav:moon") -> InlineKeyboardMarkup:
+def moon_style_picker_keyboard(locale: str, *, current_style: str) -> InlineKeyboardMarkup:
+    style = "plain" if current_style == "plain" else "terms"
+    plain_mark = "✓ " if style == "plain" else ""
+    terms_mark = "✓ " if style == "terms" else ""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{plain_mark}{t(locale, 'natal_style_plain')}",
+                    callback_data="moon:style:plain",
+                ),
+                InlineKeyboardButton(
+                    text=f"{terms_mark}{t(locale, 'natal_style_terms')}",
+                    callback_data="moon:style:terms",
+                ),
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
+        ]
+    )
+
+
+def _moon_focus_button_label(locale: str, focus: str, current_focus: str) -> str:
+    label = t(locale, f"moon_focus_{focus}")
+    if focus == current_focus:
+        return f"✓ {label}"
+    return label
+
+
+def _moon_focus_row(locale: str, current_focus: str, return_to: str) -> list[InlineKeyboardButton]:
+    normalized = current_focus if current_focus in {"practices", "health", "creativity"} else "practices"
+    return [
+        InlineKeyboardButton(
+            text=_moon_focus_button_label(locale, "practices", normalized),
+            callback_data=f"moon:focus:practices:{return_to}",
+        ),
+        InlineKeyboardButton(
+            text=_moon_focus_button_label(locale, "health", normalized),
+            callback_data=f"moon:focus:health:{return_to}",
+        ),
+        InlineKeyboardButton(
+            text=_moon_focus_button_label(locale, "creativity", normalized),
+            callback_data=f"moon:focus:creativity:{return_to}",
+        ),
+    ]
+
+
+def moon_period_keyboard(
+    locale: str,
+    *,
+    help_back: str = "nav:moon",
+    current_focus: str = "practices",
+) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -885,13 +936,21 @@ def moon_period_keyboard(locale: str, *, help_back: str = "nav:moon") -> InlineK
                 InlineKeyboardButton(text=t(locale, "moon_7_days"), callback_data="moon:7"),
                 InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
             ],
+            _moon_focus_row(locale, current_focus, "picker"),
+            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data="moon:style:picker")],
             [glossary_help_button(locale, "moon", help_back)],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]
     )
 
 
-def moon_content_keyboard(locale: str, *, content_action: str) -> InlineKeyboardMarkup:
+def moon_content_keyboard(
+    locale: str,
+    *,
+    content_action: str,
+    current_focus: str = "practices",
+) -> InlineKeyboardMarkup:
+    return_to = content_action.rsplit(":", 1)[-1] if content_action.startswith("moon:") else "today"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -899,6 +958,8 @@ def moon_content_keyboard(locale: str, *, content_action: str) -> InlineKeyboard
                 InlineKeyboardButton(text=t(locale, "moon_7_days"), callback_data="moon:7"),
                 InlineKeyboardButton(text=t(locale, "moon_30_days"), callback_data="moon:30"),
             ],
+            _moon_focus_row(locale, current_focus, return_to),
+            [InlineKeyboardButton(text=t(locale, "btn_moon_style"), callback_data="moon:style:picker")],
             [glossary_help_button(locale, "moon", content_action)],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")],
         ]

@@ -138,6 +138,23 @@ TEXTS = {
         "crumb_relationship": "Статус",
         "moon_header": "Лунный календарь",
         "choose_moon_period": "Выбери период лунного календаря:",
+        "choose_moon_style": (
+            "Как описывать лунный календарь?\n\n"
+            "📖 С терминами — лунный день, фазы, освещённость, знак Луны.\n"
+            "💬 Простым языком — те же смыслы без астрологического жаргона."
+        ),
+        "btn_moon_style": "📝 Стиль описания",
+        "moon_planning_blocks": (
+            "Три блока планирования — выбери фокус, затем период:\n\n"
+            "🧘 Практики — медитации, ритуалы, мантры\n"
+            "💚 Здоровье — диеты, разгрузочные дни, режим\n"
+            "✨ Творчество — инсайты, идеи, саморазвитие"
+        ),
+        "moon_focus_practices": "🧘 Практики",
+        "moon_focus_health": "💚 Здоровье",
+        "moon_focus_creativity": "✨ Творчество",
+        "moon_focus_saved": "Фокус: {focus}",
+        "moon_premium_all_focuses": "Premium: ниже все три блока планирования.",
         "moon_7_days": "7 дней",
         "moon_30_days": "30 дней ⭐",
         "btn_glossary_help": "❓ Что это значит?",
@@ -505,6 +522,23 @@ TEXTS = {
         "crumb_relationship": "Status",
         "moon_header": "Moon calendar",
         "choose_moon_period": "Choose moon calendar period:",
+        "choose_moon_style": (
+            "How should the moon calendar be written?\n\n"
+            "📖 With terms — lunar day, phases, illumination, Moon sign.\n"
+            "💬 Plain language — same meanings without astrological jargon."
+        ),
+        "btn_moon_style": "📝 Description style",
+        "moon_planning_blocks": (
+            "Three planning blocks — pick a focus, then a period:\n\n"
+            "🧘 Practices — meditation, rituals, mantras\n"
+            "💚 Health — diet, light days, routine\n"
+            "✨ Creativity — insights, ideas, self-development"
+        ),
+        "moon_focus_practices": "🧘 Practices",
+        "moon_focus_health": "💚 Health",
+        "moon_focus_creativity": "✨ Creativity",
+        "moon_focus_saved": "Focus: {focus}",
+        "moon_premium_all_focuses": "Premium: all three planning blocks below.",
         "moon_7_days": "7 days",
         "moon_30_days": "30 days ⭐",
         "btn_glossary_help": "❓ What does this mean?",

@@ -16,6 +16,7 @@ from app.moon_calendar import (
     format_lunar_day_notification,
     format_lunar_preview_notification,
     major_lunar_phase_on,
+    normalize_moon_focus,
 )
 from app.premium import is_premium_active
 from app.premium_lifecycle import (
@@ -129,6 +130,8 @@ async def _send_lunar_preview(
         event_date,
         days_left=days_left,
         early=early,
+        focus=normalize_moon_focus(user.moon_focus),
+        style=user.natal_style or "terms",
     )
     try:
         await bot.send_message(
@@ -187,11 +190,24 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
         if await db.was_daily_sent(user.user_id, period, date_key):
             continue
 
+        focus = normalize_moon_focus(user.moon_focus)
+        style = user.natal_style or "terms"
         phase_today = major_lunar_phase_on(local_today)
         if phase_today:
-            text = format_lunar_day_notification(phase_today, locale, local_today)
+            text = format_lunar_day_notification(
+                phase_today,
+                locale,
+                local_today,
+                focus=focus,
+                style=style,
+            )
         else:
-            text = format_lunar_daily_reminder(locale, local_today)
+            text = format_lunar_daily_reminder(
+                locale,
+                local_today,
+                focus=focus,
+                style=style,
+            )
 
         try:
             await bot.send_message(
