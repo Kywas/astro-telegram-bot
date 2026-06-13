@@ -1,10 +1,12 @@
 """Inline panel UI: edit-or-send, panel tracking."""
 from aiogram import Bot
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from app.bot_context import db, settings
 from app.error_reporting import report_error
+from app.text_format import split_telegram_text
 
 _USER_PANELS: dict[int, list[tuple[int, int]]] = {}
 
@@ -48,6 +50,68 @@ def _is_not_modified_error(exc: TelegramBadRequest) -> bool:
     return "message is not modified" in str(exc).lower()
 
 
+def _is_message_too_long_error(exc: TelegramBadRequest) -> bool:
+    return "message is too long" in str(exc).lower()
+
+
+async def _send_text_chunks(
+    bot: Bot,
+    chat_id: int,
+    chunks: list[str],
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    parse_mode: ParseMode = ParseMode.HTML,
+) -> Message:
+    sent: Message | None = None
+    for index, chunk in enumerate(chunks):
+        markup = reply_markup if index == len(chunks) - 1 else None
+        sent = await bot.send_message(
+            chat_id,
+            chunk,
+            reply_markup=markup,
+            parse_mode=parse_mode,
+        )
+    if sent is None:
+        raise ValueError("chunks must not be empty")
+    return sent
+
+
+async def _show_ui_panel_chunks(
+    *,
+    bot: Bot,
+    user_id: int,
+    chat_id: int,
+    chunks: list[str],
+    reply_markup: InlineKeyboardMarkup | None = None,
+    edit_message: Message | None = None,
+) -> None:
+    await _delete_user_panels(bot, user_id)
+
+    start_index = 0
+    if edit_message is not None and chunks:
+        try:
+            await bot.edit_message_text(
+                text=chunks[0],
+                chat_id=edit_message.chat.id,
+                message_id=edit_message.message_id,
+                parse_mode=ParseMode.HTML,
+            )
+            start_index = 1
+        except TelegramBadRequest:
+            start_index = 0
+
+    for chunk in chunks[start_index:-1]:
+        await bot.send_message(chat_id, chunk, parse_mode=ParseMode.HTML)
+
+    sent = await bot.send_message(
+        chat_id,
+        chunks[-1],
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML,
+    )
+    _save_user_panel(user_id, sent.chat.id, sent.message_id)
+
+
 async def show_ui_panel(
     *,
     bot: Bot,
@@ -58,6 +122,19 @@ async def show_ui_panel(
     edit_message: Message | None = None,
     fallback_message: Message | None = None,
 ) -> None:
+    chunks = split_telegram_text(text)
+    if len(chunks) > 1:
+        await _show_ui_panel_chunks(
+            bot=bot,
+            user_id=user_id,
+            chat_id=chat_id,
+            chunks=chunks,
+            reply_markup=reply_markup,
+            edit_message=edit_message,
+        )
+        return
+
+    text = chunks[0]
     targets: list[tuple[int, int]] = []
     if edit_message is not None:
         targets.append((edit_message.chat.id, edit_message.message_id))
@@ -72,6 +149,7 @@ async def show_ui_panel(
                 chat_id=target_chat_id,
                 message_id=target_msg_id,
                 reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML,
             )
             await _delete_user_panels(bot, user_id, keep=(target_chat_id, target_msg_id))
             _save_user_panel(user_id, target_chat_id, target_msg_id)
@@ -81,16 +159,37 @@ async def show_ui_panel(
                 await _delete_user_panels(bot, user_id, keep=(target_chat_id, target_msg_id))
                 _save_user_panel(user_id, target_chat_id, target_msg_id)
                 return
+            if _is_message_too_long_error(exc):
+                break
 
     await _delete_user_panels(bot, user_id)
 
     try:
-        sent = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+        sent = await bot.send_message(
+            chat_id,
+            text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
         _save_user_panel(user_id, sent.chat.id, sent.message_id)
         return
-    except TelegramBadRequest:
+    except TelegramBadRequest as exc:
+        if _is_message_too_long_error(exc):
+            await _show_ui_panel_chunks(
+                bot=bot,
+                user_id=user_id,
+                chat_id=chat_id,
+                chunks=split_telegram_text(text),
+                reply_markup=reply_markup,
+                edit_message=edit_message,
+            )
+            return
         if fallback_message is not None:
-            sent = await fallback_message.answer(text=text, reply_markup=reply_markup)
+            sent = await fallback_message.answer(
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML,
+            )
             _save_user_panel(user_id, sent.chat.id, sent.message_id)
             return
         raise
@@ -134,7 +233,11 @@ async def show_panel_from_message(
             context=f"user_id={user.id}",
         )
         await _delete_user_panels(message.bot, user.id)
-        sent = await message.answer(text=text, reply_markup=reply_markup)
+        sent = await message.answer(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
         _save_user_panel(user.id, sent.chat.id, sent.message_id)
 
 

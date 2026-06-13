@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from app.astro_engine import AstroForecast, build_astro_forecast
 from app.forecast_text import format_forecast_opening, format_score_word
+from app.text_format import b, h, labeled_block, p, section_block
 
 SECTION_TEMPLATES = {
     "ru": {
@@ -205,7 +206,7 @@ def _format_domain_block(
             header = f"{focus}{icon} {title} · {tone} energy"
     else:
         header = f"{focus}{icon} {title}"
-    return f"{header}\n{prose}"
+    return section_block(header, prose)
 
 
 def _personalization_banner(locale: str, ctx: PersonalizationContext) -> str:
@@ -285,7 +286,7 @@ def _format_forecast(
     style: str = "terms",
 ) -> str:
     labels = SECTION_TEMPLATES[locale]
-    parts = [_period_header(locale, period, style=style)]
+    parts = [b(_period_header(locale, period, style=style))]
 
     opening = format_forecast_opening(
         locale,
@@ -325,9 +326,9 @@ def _format_forecast(
         )
 
     tip = _collapse_prose(forecast.advice)
-    parts.append(f"💡 {labels['advice_title']}\n{tip}")
-    parts.append(f"⚠️ {labels['avoid_title']}\n{_collapse_prose(forecast.avoid)}")
-    parts.append(f"🕐 {labels['lucky_time_title']}: {forecast.lucky_time}")
+    parts.append(labeled_block(f"💡 {labels['advice_title']}", tip))
+    parts.append(labeled_block(f"⚠️ {labels['avoid_title']}", _collapse_prose(forecast.avoid)))
+    parts.append(p(b(f"🕐 {labels['lucky_time_title']}"), h(forecast.lucky_time)))
 
     footnotes = _summary_footnotes(forecast.summary_lines)
     if footnotes:

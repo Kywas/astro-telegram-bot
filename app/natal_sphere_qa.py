@@ -13,6 +13,7 @@ from app.jyotish_text import (
     _use_terms,
 )
 from app.natal_qa_synthesis import QaSynthFocus, finish_qa_body
+from app.text_format import b, h, p, qa_response
 
 HOUSE_BUTTON = {
     "ru": {
@@ -603,7 +604,7 @@ def truncate_button_text(text: str, *, max_len: int = BUTTON_TEXT_MAX) -> str:
 
 
 def format_numbered_questions(questions: tuple[str, ...] | list[str]) -> str:
-    return "\n\n".join(f"{idx + 1}️⃣ {question}" for idx, question in enumerate(questions))
+    return p(*(f"{idx + 1}️⃣ {h(question)}" for idx, question in enumerate(questions)))
 
 
 def popular_button_label(locale: str, question_id: str) -> str:
@@ -612,7 +613,10 @@ def popular_button_label(locale: str, question_id: str) -> str:
 
 
 def format_popular_block(block: PopularBlock) -> str:
-    return f"{block.number}️⃣ {block.emoji} {block.title}\n{block.question}"
+    return p(
+        f"{block.number}️⃣ {block.emoji} {b(block.title)}",
+        h(block.question),
+    )
 
 
 def question_button_label(index: int, question: str) -> str:
@@ -777,7 +781,7 @@ def family_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def finance_picker_intro(locale: str) -> str:
@@ -800,7 +804,7 @@ def finance_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def karma_picker_intro(locale: str) -> str:
@@ -823,7 +827,7 @@ def karma_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def traits_picker_intro(locale: str) -> str:
@@ -844,7 +848,7 @@ def traits_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def lineage_picker_intro(locale: str) -> str:
@@ -865,7 +869,7 @@ def lineage_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def health_picker_intro(locale: str) -> str:
@@ -888,7 +892,7 @@ def health_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def purpose_picker_intro(locale: str) -> str:
@@ -911,7 +915,7 @@ def purpose_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def dharma_picker_intro(locale: str) -> str:
@@ -934,7 +938,7 @@ def dharma_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def travel_picker_intro(locale: str) -> str:
@@ -957,7 +961,7 @@ def travel_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def upaya_picker_intro(locale: str) -> str:
@@ -978,59 +982,77 @@ def upaya_picker_intro(locale: str) -> str:
         title = "❓ Вопросы по натальной карте"
     else:
         title = "❓ Natal chart questions"
-    return f"{title}\n\n{header}\n{format_numbered_questions(questions)}"
+    return p(b(title), header.strip(), format_numbered_questions(questions))
 
 
 def popular_blocks_text(locale: str) -> str:
     blocks = popular_blocks(locale)
     if _lang(locale) == "ru":
-        header = "🔥 Популярные вопросы\n\nВыбери вопрос — ответ строится по твоей карте.\n"
+        intro = p(
+            b("🔥 Популярные вопросы"),
+            h("Выбери вопрос — ответ строится по твоей карте."),
+        )
     else:
-        header = "🔥 Popular questions\n\nPick a question — the answer comes from your chart.\n"
-    body = "\n\n".join(format_popular_block(block) for block in blocks)
-    return f"{header}\n{body}"
+        intro = p(
+            b("🔥 Popular questions"),
+            h("Pick a question — the answer comes from your chart."),
+        )
+    body = p(*(format_popular_block(block) for block in blocks))
+    return p(intro, body)
 
 
 def qa_picker_intro(locale: str) -> str:
     if _lang(locale) == "ru":
-        return (
-            "❓ Вопросы по натальной карте\n\n"
-            "Выбери блок — ответ строится по твоей карте.\n\n"
-            "🔥 Популярные вопросы — главные темы карты.\n"
-            "💍 Отношение / Брак / Семья — партнёрство, союз и дом.\n"
-            "💼 Финансы / Инвестиции / Карьера — деньги, рост и профессия.\n"
-            "🪷 Прошлые воплощения / Карма — уроки, прошлый опыт и осознанность.\n"
-            "✨ Твои изначальные характеристики — темперамент, «я» и врождённые качества.\n"
-            "🌳 Род / Мать / Отец — родители, предки и семейные корни.\n"
-            "💪 Здоровье / Тело — энергия, режим и забота о себе.\n"
-            "🎯 Предназначение / Таланты / Реализация — смысл, дар и своё дело.\n"
-            "🕉️ Духовность / Путь / Дхарма — вера, смысл и духовная практика.\n"
-            "✈️ Эмиграция / Путешествия — переезд, дорога и жизнь за границей.\n"
-            "🪬 Гармонизация / Упайи — практики баланса, мантры и благотворительность.\n"
-            "✍️ Свой вопрос — задай формулировку, ответ построится по карте (Premium)."
+        return p(
+            b("❓ Вопросы по натальной карте"),
+            h("Выбери блок — ответ строится по твоей карте."),
+            h(
+                "🔥 Популярные вопросы — главные темы карты.\n"
+                "💍 Отношение / Брак / Семья — партнёрство, союз и дом.\n"
+                "💼 Финансы / Инвестиции / Карьера — деньги, рост и профессия.\n"
+                "🪷 Прошлые воплощения / Карма — уроки, прошлый опыт и осознанность.\n"
+                "✨ Твои изначальные характеристики — темперамент, «я» и врождённые качества."
+            ),
+            h(
+                "🌳 Род / Мать / Отец — родители, предки и семейные корни.\n"
+                "💪 Здоровье / Тело — энергия, режим и забота о себе.\n"
+                "🎯 Предназначение / Таланты / Реализация — смысл, дар и своё дело.\n"
+                "🕉️ Духовность / Путь / Дхарма — вера, смысл и духовная практика.\n"
+                "✈️ Эмиграция / Путешествия — переезд, дорога и жизнь за границей."
+            ),
+            h(
+                "🪬 Гармонизация / Упайи — практики баланса, мантры и благотворительность.\n"
+                "✍️ Свой вопрос — задай формулировку, ответ построится по карте (Premium)."
+            ),
         )
-    return (
-        "❓ Natal chart questions\n\n"
-        "Pick a section — the answer comes from your chart.\n\n"
-        "🔥 Popular questions — main chart themes.\n"
-        "💍 Relationship / Marriage / Family — partnership, union, and home.\n"
-        "💼 Finance / Investments / Career — money, growth, and profession.\n"
-        "🪷 Past Incarnations / Karma — lessons, past experience, and awareness.\n"
-        "✨ Your Innate Characteristics — temperament, self, and inborn qualities.\n"
-        "🌳 Lineage / Mother / Father — parents, ancestors, and family roots.\n"
-        "💪 Health / Body — energy, routine, and self-care.\n"
-        "🎯 Purpose / Talents / Realization — meaning, gift, and your calling.\n"
-        "🕉️ Spirituality / Path / Dharma — faith, meaning, and spiritual practice.\n"
-        "✈️ Emigration / Travel — relocation, the road, and life abroad.\n"
-        "🪬 Harmonization / Upayas — balance practices, mantras, and charity.\n"
-        "✍️ Your question — ask in your words, the answer comes from your chart (Premium)."
+    return p(
+        b("❓ Natal chart questions"),
+        h("Pick a section — the answer comes from your chart."),
+        h(
+            "🔥 Popular questions — main chart themes.\n"
+            "💍 Relationship / Marriage / Family — partnership, union, and home.\n"
+            "💼 Finance / Investments / Career — money, growth, and profession.\n"
+            "🪷 Past Incarnations / Karma — lessons, past experience, and awareness.\n"
+            "✨ Your Innate Characteristics — temperament, self, and inborn qualities."
+        ),
+        h(
+            "🌳 Lineage / Mother / Father — parents, ancestors, and family roots.\n"
+            "💪 Health / Body — energy, routine, and self-care.\n"
+            "🎯 Purpose / Talents / Realization — meaning, gift, and your calling.\n"
+            "🕉️ Spirituality / Path / Dharma — faith, meaning, and spiritual practice.\n"
+            "✈️ Emigration / Travel — relocation, the road, and life abroad."
+        ),
+        h(
+            "🪬 Harmonization / Upayas — balance practices, mantras, and charity.\n"
+            "✍️ Your question — ask in your words, the answer comes from your chart (Premium)."
+        ),
     )
 
 
 def popular_list_intro(locale: str) -> str:
     if _lang(locale) == "ru":
-        return f"❓ Вопросы по натальной карте\n\n{popular_blocks_text(locale)}"
-    return f"❓ Natal chart questions\n\n{popular_blocks_text(locale)}"
+        return p(b("❓ Вопросы по натальной карте"), popular_blocks_text(locale))
+    return p(b("❓ Natal chart questions"), popular_blocks_text(locale))
 
 
 def popular_picker_intro(locale: str) -> str:
@@ -1213,7 +1235,7 @@ def build_sphere_answer(
         header = f"Сфера: {sphere}"
     else:
         header = f"Sphere: {sphere}"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_family_answer(
@@ -1361,7 +1383,7 @@ def build_family_answer(
         header = "💍 Отношение / Брак / Семья"
     else:
         header = "💍 Relationship / Marriage / Family"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_finance_answer(
@@ -1525,7 +1547,7 @@ def build_finance_answer(
         header = "💼 Финансы / Инвестиции / Карьера"
     else:
         header = "💼 Finance / Investments / Career"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_karma_answer(
@@ -1670,7 +1692,7 @@ def build_karma_answer(
         header = "🪷 Прошлые воплощения / Карма"
     else:
         header = "🪷 Past Incarnations / Karma"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_traits_answer(
@@ -1819,7 +1841,7 @@ def build_traits_answer(
         header = "✨ Твои изначальные характеристики"
     else:
         header = "✨ Your Innate Characteristics"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_lineage_answer(
@@ -1958,7 +1980,7 @@ def build_lineage_answer(
         header = "🌳 Род / Мать / Отец"
     else:
         header = "🌳 Lineage / Mother / Father"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_health_answer(
@@ -2097,7 +2119,7 @@ def build_health_answer(
         header = "💪 Здоровье / Тело"
     else:
         header = "💪 Health / Body"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_purpose_answer(
@@ -2306,7 +2328,7 @@ def build_purpose_answer(
         header = "🎯 Предназначение / Таланты / Реализация"
     else:
         header = "🎯 Purpose / Talents / Realization"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_dharma_answer(
@@ -2440,7 +2462,7 @@ def build_dharma_answer(
         header = "🕉️ Духовность / Путь / Дхарма"
     else:
         header = "🕉️ Spirituality / Path / Dharma"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_travel_answer(
@@ -2598,7 +2620,7 @@ def build_travel_answer(
         header = "✈️ Эмиграция / Путешествия"
     else:
         header = "✈️ Emigration / Travel"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def build_upaya_answer(
@@ -2739,7 +2761,7 @@ def build_upaya_answer(
         header = "🪬 Гармонизация / Упайи"
     else:
         header = "🪬 Harmonization / Upayas"
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 _CUSTOM_TOPIC_RULES: tuple[tuple[tuple[str, ...], tuple[int, ...], tuple[str, ...]], ...] = (
@@ -2877,7 +2899,7 @@ def build_custom_answer(
     cfg = QaSynthFocus(houses_tuple, planets_tuple)
     body = _qa_synth(locale, question, chart, evidence, cfg, style=style)
     shown_q = question if len(question) <= 220 else question[:219].rstrip() + "…"
-    return f"{header}\n\n❓ {shown_q}\n\n{body}"
+    return qa_response(header, shown_q, body)
 
 
 def build_popular_answer(
@@ -2955,11 +2977,17 @@ def build_popular_answer(
         if lang == "ru":
             body = f"Сильные стороны — {_list_to_prose(strengths, lang)}."
             if chart.planets["SUN"].dignity == "exalted":
-                body += " Солнце в силе даёт уверенный стержень и ощущение своего курса."
+                if _use_terms(style):
+                    body += " Солнце в силе даёт уверенный стержень и ощущение своего курса."
+                else:
+                    body += " Внутренний стержень и ощущение своего курса у тебя сильные."
         else:
             body = f"Strengths — {_list_to_prose(strengths, lang)}."
             if chart.planets["SUN"].dignity == "exalted":
-                body += " Exalted Sun adds a confident core and sense of direction."
+                if _use_terms(style):
+                    body += " Exalted Sun adds a confident core and sense of direction."
+                else:
+                    body += " You have a confident inner core and a clear sense of direction."
 
     elif question_id == "weak":
         if lang == "ru":
@@ -3088,12 +3116,12 @@ def build_popular_answer(
             body,
             style=style,
         )
-    return f"{header}\n\n❓ {question}\n\n{body}"
+    return qa_response(header, question, body)
 
 
 def questions_intro(locale: str, house: int, *, style: str) -> str:
     sphere = _sphere_label(locale, house, style=style)
     questions = sphere_questions(locale, house)
     if _lang(locale) == "ru":
-        return f"Сфера: {sphere}\n\n{format_numbered_questions(questions)}"
-    return f"Sphere: {sphere}\n\n{format_numbered_questions(questions)}"
+        return p(b(f"Сфера: {sphere}"), format_numbered_questions(questions))
+    return p(b(f"Sphere: {sphere}"), format_numbered_questions(questions))

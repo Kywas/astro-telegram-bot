@@ -5,6 +5,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot_context import DAILY_PRESET_TIMES, EVENING_PRESET_TIMES, GOAL_TEXT_KEYS, settings
 from app.i18n import t
+from app.text_format import breadcrumb_html
 from app.payments import PayCurrency, available_payment_options
 from app.premium import PREMIUM_PERIOD_DAYS
 from app.timezones import TIMEZONE_OPTIONS, timezone_label_with_offset
@@ -1345,7 +1346,7 @@ def home_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
 
 
 def breadcrumb(locale: str, *parts: str) -> str:
-    return " > ".join([t(locale, "crumb_root"), *parts])
+    return breadcrumb_html(t(locale, "crumb_root"), *parts)
 
 
 def premium_menu_keyboard(locale: str, *, active: bool = False) -> InlineKeyboardMarkup:

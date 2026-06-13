@@ -745,11 +745,27 @@ def test_synastry_overlay() -> None:
     assert "Меркурий ↔ Меркурий" in result.details
 
 
+def test_split_telegram_text() -> None:
+    from app.text_format import TELEGRAM_SAFE_LIMIT, split_telegram_text
+
+    assert split_telegram_text("hello") == ["hello"]
+    long = "line\n" * 3000
+    chunks = split_telegram_text(long)
+    assert len(chunks) > 1
+    assert all(len(chunk) <= TELEGRAM_SAFE_LIMIT for chunk in chunks)
+    assert "".join(chunks) == long.rstrip("\n")  # lines joined without trailing
+
+
 def test_natal_qa_synthesis() -> None:
     from datetime import date, time
 
     from app.jyotish_engine import build_jyotish_chart
-    from app.natal_sphere_qa import build_family_answer, build_popular_answer, build_sphere_answer
+    from app.natal_sphere_qa import (
+        build_family_answer,
+        build_finance_answer,
+        build_popular_answer,
+        build_sphere_answer,
+    )
 
     chart = build_jyotish_chart(
         birth_date=date(1995, 4, 15),
@@ -761,19 +777,29 @@ def test_natal_qa_synthesis() -> None:
     assert chart is not None
 
     family = build_family_answer(chart, "ru", 0, style="plain")
-    assert "Ответ:" in family
-    assert "Подробнее по карте:" in family
+    assert "Ответ:" not in family
+    assert "Подробнее по карте:" not in family
+    assert family.count(".") >= 3
     assert "❓" in family
 
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
-    assert "Ответ:" in sphere
+    assert "Ответ:" not in sphere
+    assert sphere.count(".") >= 3
 
     theme = build_popular_answer(chart, "ru", "theme", style="plain")
-    assert "Ответ:" in theme
+    assert "Ответ:" not in theme
 
     love = build_popular_answer(chart, "ru", "love", style="plain")
-    assert "Ответ:" in love
-    assert "Подробнее по карте:" in love
+    assert "Ответ:" not in love
+    assert love.count(".") >= 3
+
+    finance = build_finance_answer(chart, "ru", 0, style="plain")
+    assert "С деньгами и ценностями" in finance
+    assert "В отношениях у тебя" not in finance
+
+    family_terms = build_family_answer(chart, "ru", 0, style="terms")
+    assert "Ответ:" in family_terms
+    assert "Подробнее по карте:" in family_terms
 
 
 def main() -> None:
@@ -801,6 +827,7 @@ def main() -> None:
     test_synastry_houses()
     test_synastry_seals()
     test_synastry_overlay()
+    test_split_telegram_text()
     test_natal_qa_synthesis()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
