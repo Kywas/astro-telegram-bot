@@ -12,6 +12,7 @@ from app.jyotish_text import (
     _render_planet,
     _use_terms,
 )
+from app.natal_qa_synthesis import QaSynthFocus, finish_qa_body
 
 HOUSE_BUTTON = {
     "ru": {
@@ -281,6 +282,118 @@ UPAYA_QUESTIONS: dict[str, tuple[str, str, str, str, str]] = {
         "Mantras, charity, and gems — what applies to me?",
     ),
 }
+
+FAMILY_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((7,), ("VENUS", "MOON")),
+    QaSynthFocus((7,), ("VENUS",)),
+    QaSynthFocus((7,), ("JUPITER",)),
+    QaSynthFocus((4,), ("MOON",)),
+    QaSynthFocus((4, 7), ("MARS", "SATURN", "RAHU"), "challenge"),
+)
+
+FINANCE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((2,), ("VENUS", "JUPITER")),
+    QaSynthFocus((10,), ("SUN", "SATURN")),
+    QaSynthFocus((5, 8), ("MARS", "RAHU"), "challenge"),
+    QaSynthFocus((2, 11), ("JUPITER",)),
+    QaSynthFocus((2, 8, 12), ("SATURN", "RAHU"), "challenge"),
+)
+
+KARMA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((12,), ("SATURN", "KETU")),
+    QaSynthFocus((12, 8), ("KETU", "RAHU")),
+    QaSynthFocus((9, 10), ("SATURN",)),
+    QaSynthFocus((12, 8), ("RAHU", "KETU")),
+    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
+)
+
+TRAITS_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((1,), ()),
+    QaSynthFocus((1,), ("SUN", "MARS"), "strength"),
+    QaSynthFocus((4,), ("MOON",)),
+    QaSynthFocus((3,), ("MARS", "MERCURY")),
+    QaSynthFocus((1,), ("SUN",), "strength"),
+)
+
+LINEAGE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((4,), ("MOON",)),
+    QaSynthFocus((9,), ("SUN",)),
+    QaSynthFocus((4, 9), ("MOON", "JUPITER")),
+    QaSynthFocus((4,), ("MOON",), "strength"),
+    QaSynthFocus((4, 9), ("SATURN", "RAHU"), "challenge"),
+)
+
+HEALTH_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((1,), ("SUN", "MARS")),
+    QaSynthFocus((6,), ("SATURN", "MARS")),
+    QaSynthFocus((1, 6), ("SUN",), "strength"),
+    QaSynthFocus((6, 8), ("SATURN",), "challenge"),
+    QaSynthFocus((6,), ("MOON",)),
+)
+
+PURPOSE_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((9, 10), ("SUN", "JUPITER")),
+    QaSynthFocus((5,), ("SUN", "JUPITER"), "strength"),
+    QaSynthFocus((10,), ("SUN", "SATURN")),
+    QaSynthFocus((10, 12), ("SATURN",), "challenge"),
+    QaSynthFocus((5, 9), ("JUPITER",)),
+)
+
+DHARMA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
+    QaSynthFocus((9,), ("JUPITER",)),
+    QaSynthFocus((12,), ("KETU",)),
+    QaSynthFocus((9, 12), ("JUPITER", "KETU")),
+    QaSynthFocus((9,), ("SUN", "JUPITER")),
+)
+
+TRAVEL_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((9, 12), ("RAHU", "JUPITER")),
+    QaSynthFocus((9,), ("JUPITER", "MOON")),
+    QaSynthFocus((9, 3), ("RAHU",)),
+    QaSynthFocus((12,), ("SATURN", "RAHU"), "challenge"),
+    QaSynthFocus((4, 12), ("MOON",)),
+)
+
+UPAYA_QA_SYNTH: tuple[QaSynthFocus, ...] = (
+    QaSynthFocus((1, 9), ("JUPITER", "SATURN")),
+    QaSynthFocus((), ("SATURN", "MARS", "RAHU"), "challenge"),
+    QaSynthFocus((1, 10), ("SUN", "JUPITER"), "strength"),
+    QaSynthFocus((9, 12), ("JUPITER", "SATURN")),
+    QaSynthFocus((), ("SATURN", "RAHU", "KETU")),
+)
+
+POPULAR_QA_SYNTH: dict[str, QaSynthFocus] = {
+    "love": QaSynthFocus((7,), ("VENUS", "MOON")),
+    "career": QaSynthFocus((10,), ("SUN", "SATURN")),
+    "money": QaSynthFocus((2,), ("VENUS", "JUPITER")),
+}
+
+
+def _qa_synth(
+    locale: str,
+    question: str,
+    chart: JyotishChart,
+    evidence: str,
+    cfg: QaSynthFocus,
+    *,
+    style: str,
+    lagna_first: bool = False,
+    direct_answer: str | None = None,
+) -> str:
+    return finish_qa_body(
+        locale,
+        question,
+        chart,
+        evidence,
+        houses=cfg.houses,
+        planet_keys=cfg.planet_keys,
+        focus=cfg.focus,
+        style=style,
+        lagna_first=lagna_first,
+        direct_answer=direct_answer,
+    )
+
 
 UPAYA_BY_PLANET: dict[str, dict[str, str]] = {
     "ru": {
@@ -1084,6 +1197,17 @@ def build_sphere_answer(
     if house == 1 and question_index == 0:
         body = f"{_house1_lagna_note(chart, locale, style=style)} {body}"
 
+    body = finish_qa_body(
+        locale,
+        question,
+        chart,
+        body,
+        houses=(house,),
+        focus=focus,
+        style=style,
+        lagna_first=(house == 1 and question_index == 0),
+    )
+
     sphere = _sphere_label(locale, house, style=style)
     if lang == "ru":
         header = f"Сфера: {sphere}"
@@ -1229,6 +1353,9 @@ def build_family_answer(
             )
             tail = " Notice where you react sharply or shut down — growth points, not a verdict."
         body = f"{intro}{' '.join(bits[:3])}{tail}".strip()
+
+    cfg = FAMILY_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
 
     if lang == "ru":
         header = "💍 Отношение / Брак / Семья"
@@ -1391,6 +1518,9 @@ def build_finance_answer(
             tail = " Watch hasty decisions and promises of «easy money»."
         body = f"{intro}{' '.join(bits[:3])}{tail}".strip()
 
+    cfg = FINANCE_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "💼 Финансы / Инвестиции / Карьера"
     else:
@@ -1533,6 +1663,9 @@ def build_karma_answer(
             f"{' '.join(bits)}{tail}"
         ).strip()
 
+    cfg = KARMA_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "🪷 Прошлые воплощения / Карма"
     else:
@@ -1671,6 +1804,17 @@ def build_traits_answer(
                 f"Harder to express: {_list_to_prose(weaknesses, lang)}."
             ).strip()
 
+    cfg = TRAITS_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(
+        locale,
+        question,
+        chart,
+        body,
+        cfg,
+        style=style,
+        lagna_first=(question_index == 0),
+    )
+
     if lang == "ru":
         header = "✨ Твои изначальные характеристики"
     else:
@@ -1807,6 +1951,9 @@ def build_lineage_answer(
             tail = " Not a verdict — notice repeating patterns to heal rather than repeat."
         body = f"{intro}{' '.join(bits[:4])}{tail}".strip()
 
+    cfg = LINEAGE_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "🌳 Род / Мать / Отец"
     else:
@@ -1942,6 +2089,9 @@ def build_health_answer(
             f"{_render_planet(locale, mars, style=style)} "
             f"{_render_planet(locale, moon, style=style)}{tail}"
         ).strip()
+
+    cfg = HEALTH_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
 
     if lang == "ru":
         header = "💪 Здоровье / Тело"
@@ -2149,6 +2299,9 @@ def build_purpose_answer(
             f"{intro}{focus}{tail} {_render_planet(locale, jupiter, style=style)}"
         ).strip()
 
+    cfg = PURPOSE_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "🎯 Предназначение / Таланты / Реализация"
     else:
@@ -2279,6 +2432,9 @@ def build_dharma_answer(
             f"{_render_planet(locale, lord10, style=style)} "
             f"{_render_planet(locale, jupiter, style=style)}{tail}"
         ).strip()
+
+    cfg = DHARMA_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
 
     if lang == "ru":
         header = "🕉️ Духовность / Путь / Дхарма"
@@ -2435,6 +2591,9 @@ def build_travel_answer(
             f"{' '.join(bits)}{tail}"
         ).strip()
 
+    cfg = TRAVEL_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "✈️ Эмиграция / Путешествия"
     else:
@@ -2573,6 +2732,9 @@ def build_upaya_answer(
             )
         body = f"{intro}{tail} {_render_planet(locale, focus, style=style)}".strip()
 
+    cfg = UPAYA_QA_SYNTH[max(0, min(4, question_index))]
+    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+
     if lang == "ru":
         header = "🪬 Гармонизация / Упайи"
     else:
@@ -2709,7 +2871,11 @@ def build_custom_answer(
         )
         header = "✍️ Your question"
 
-    body = f"{intro}{' '.join(bits[:4])}".strip()
+    evidence = f"{intro}{' '.join(bits[:4])}".strip()
+    houses_tuple = tuple(houses[:2])
+    planets_tuple = tuple(planet_keys[:4])
+    cfg = QaSynthFocus(houses_tuple, planets_tuple)
+    body = _qa_synth(locale, question, chart, evidence, cfg, style=style)
     shown_q = question if len(question) <= 220 else question[:219].rstrip() + "…"
     return f"{header}\n\n❓ {shown_q}\n\n{body}"
 
@@ -2896,6 +3062,32 @@ def build_popular_answer(
 
     block = popular_block(locale, question_id)
     header = f"🔥 {block.emoji} {block.title}"
+    if question_id in {"theme", "strength"}:
+        body = finish_qa_body(
+            locale,
+            question,
+            chart,
+            "",
+            style=style,
+            direct_answer=body,
+        )
+    elif question_id in POPULAR_QA_SYNTH:
+        body = _qa_synth(
+            locale,
+            question,
+            chart,
+            body,
+            POPULAR_QA_SYNTH[question_id],
+            style=style,
+        )
+    else:
+        body = finish_qa_body(
+            locale,
+            question,
+            chart,
+            body,
+            style=style,
+        )
     return f"{header}\n\n❓ {question}\n\n{body}"
 
 

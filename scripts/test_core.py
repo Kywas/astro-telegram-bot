@@ -745,6 +745,37 @@ def test_synastry_overlay() -> None:
     assert "Меркурий ↔ Меркурий" in result.details
 
 
+def test_natal_qa_synthesis() -> None:
+    from datetime import date, time
+
+    from app.jyotish_engine import build_jyotish_chart
+    from app.natal_sphere_qa import build_family_answer, build_popular_answer, build_sphere_answer
+
+    chart = build_jyotish_chart(
+        birth_date=date(1995, 4, 15),
+        birth_time=time(14, 30),
+        city="Moscow",
+        timezone_name="Europe/Moscow",
+        locale="ru",
+    )
+    assert chart is not None
+
+    family = build_family_answer(chart, "ru", 0, style="plain")
+    assert "Ответ:" in family
+    assert "Подробнее по карте:" in family
+    assert "❓" in family
+
+    sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
+    assert "Ответ:" in sphere
+
+    theme = build_popular_answer(chart, "ru", "theme", style="plain")
+    assert "Ответ:" in theme
+
+    love = build_popular_answer(chart, "ru", "love", style="plain")
+    assert "Ответ:" in love
+    assert "Подробнее по карте:" in love
+
+
 def main() -> None:
     test_payment_payloads()
     test_payment_options()
@@ -770,6 +801,7 @@ def main() -> None:
     test_synastry_houses()
     test_synastry_seals()
     test_synastry_overlay()
+    test_natal_qa_synthesis()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 
