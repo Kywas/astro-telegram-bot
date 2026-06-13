@@ -176,7 +176,7 @@ def _finance(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Перед крупной тратой — пауза 24 часа и вопрос «это ценность или импульс?»" if lang == "ru" else "Before big spending — 24h pause: value or impulse?"
         markers = pick_markers(locale, [saturn, rahu, mars], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Karma ---
@@ -222,7 +222,7 @@ def _karma(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Когда сценарий повторяется — измени реакцию на 10%, не ломая себя." if lang == "ru" else "When a pattern repeats — shift reaction 10%."
         markers = pick_markers(locale, [jupiter, lord9, moon], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Traits ---
@@ -273,7 +273,7 @@ def _traits(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Раз в неделю опирайся на одну сильную сторону сознательно." if lang == "ru" else "Once a week, lean on one strength consciously."
         markers = pick_markers(locale, [sun] + planets_in_house(chart, 1)[:2], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Lineage ---
@@ -319,7 +319,7 @@ def _lineage(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Назови вслух одну обиду без обвинения — первый шаг к исцелению." if lang == "ru" else "Name one hurt aloud without blame."
         markers = pick_markers(locale, [moon, sun, saturn], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Health ---
@@ -360,7 +360,7 @@ def _health(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Неделя: умеренная нагрузка + один день полного отдыха." if lang == "ru" else "One week: moderate load + one full rest day."
         markers = pick_markers(locale, [lord6, mars, moon], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Purpose ---
@@ -412,7 +412,7 @@ def _purpose(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Выбери одну сферу на квартал — не пять одновременно." if lang == "ru" else "Pick one sphere for the quarter."
         markers = pick_markers(locale, [lord9, lord10, sun], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Dharma ---
@@ -450,7 +450,7 @@ def _dharma(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Честность в одном маленьком деле сегодня — это дхарма, не только медитация." if lang == "ru" else "Honesty in one small deed today."
         markers = pick_markers(locale, [lord9, lord10, jupiter], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Travel ---
@@ -489,7 +489,7 @@ def _travel(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Создай один якорь дома в чемодане/комнате — запах, музыка, ритуал." if lang == "ru" else "Create one home anchor where you are."
         markers = pick_markers(locale, [moon, lord_of(chart, 4), lord12], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Upaya ---
@@ -536,7 +536,7 @@ def _upaya_block(chart, locale, idx, question, style) -> StructuredQaAnswer:
         practice = "Без консультации — мантра и дана безопаснее камня." if lang == "ru" else "Without consult — mantra and charity beat gems."
         markers = (_upaya(locale, focus.key), placement_label(locale, focus, style=style))
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- House sphere (12 houses x 3 questions) ---
@@ -635,7 +635,7 @@ def _house(chart, locale, idx, question, style, *, house: int, focus: str) -> St
             prefix = f"Лагна {lagna} — {essence}. " if lang == "ru" else f"Lagna {lagna} — {essence}. "
         body = prefix + body
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 # --- Popular blocks ---
@@ -678,7 +678,7 @@ def _popular(chart, locale, idx, question, style, *, question_id: str) -> Struct
         practice = "Один маленький шаг в эту сторону на этой неделе." if lang == "ru" else "One small step that way this week."
         markers = pick_markers(locale, [chart.planets["JUPITER"]], style=style)
 
-    return StructuredQaAnswer(make_brief(locale, frame, body), markers, practice)
+    return StructuredQaAnswer(make_brief(locale, frame, body, style=style), markers, practice)
 
 
 _BLOCK_BUILDERS = {

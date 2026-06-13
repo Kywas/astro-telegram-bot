@@ -12,6 +12,7 @@ from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import _house_theme, _lang, _pl, _use_terms
 from app.natal_qa_synthesis import _classify_question, _question_frame
+from app.natal_qa_common import make_brief
 from app.natal_qa_voice import humanize_natal_plain, plain_area, plain_placement_line, plain_role
 from app.text_format import b, h, p
 
@@ -424,6 +425,12 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
     return points[:3]
 
 
+def _family_brief(locale: str, frame: str, body: str, *, style: str) -> str:
+    if _use_terms(style):
+        return p(b(frame), h(body))
+    return make_brief(locale, frame, body, style=style)
+
+
 def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
     intent = _classify_question(question, lang)
@@ -434,6 +441,26 @@ def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) ->
     lord7 = _lord(chart, 7)
 
     if lang == "ru":
+        if not _use_terms(style):
+            opening = (
+                "Ты строишь романтику не «для галочки» — тебе нужна связь, "
+                "где правда приятно, красиво и по-настоящему."
+            )
+            parts = [
+                _venus_love_filter(locale, venus, style=style) + ".",
+                f"Эмоции у тебя такие: {_moon_relationship_mode(locale, moon, style=style)}.",
+            ]
+            if h7:
+                for pl in h7[:2]:
+                    note = _planet_in_7_note(locale, pl.key)
+                    if note:
+                        parts.append(f"В паре это усиливает: {note}.")
+            elif lord7.house != 7:
+                parts.append(
+                    f"Пара у тебя складывается через {plain_area(locale, lord7.house)} — "
+                    f"{_lord7_circumstance(locale, lord7.house, style=style)}."
+                )
+            return _family_brief(locale, opening, " ".join(parts), style=style)
         steps = [
             _venus_love_filter(locale, venus, style=style),
             f"Эмоционально: {_moon_relationship_mode(locale, moon, style=style)}.",
@@ -458,7 +485,19 @@ def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) ->
                     f"{_lord7_circumstance(locale, lord7.house, style=style)}."
                 )
         body = " ".join(steps)
-        return p(b(frame), h(body))
+        return _family_brief(locale, frame, body, style=style)
+
+    if not _use_terms(style):
+        opening = "You don't do romance «for show» — you want a bond that feels real and warm."
+        parts = [
+            _venus_love_filter(locale, venus, style=style) + ".",
+            f"Emotionally: {_moon_relationship_mode(locale, moon, style=style)}.",
+        ]
+        for pl in h7[:2]:
+            note = _planet_in_7_note(locale, pl.key)
+            if note:
+                parts.append(f"In a pair this adds: {note}.")
+        return _family_brief(locale, opening, " ".join(parts), style=style)
 
     steps = [
         _venus_love_filter(locale, venus, style=style),
@@ -468,7 +507,7 @@ def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) ->
         note = _planet_in_7_note(locale, pl.key)
         if note:
             steps.append(f"{_pl(locale, pl.key)} in the 7th: {note}.")
-    return p(b(frame), h(" ".join(steps)))
+    return _family_brief(locale, frame, " ".join(steps), style=style)
 
 
 def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
@@ -494,17 +533,18 @@ def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) ->
                 if note and pl.key not in {lord7.key}:
                     lines.append(f"В 7-м {_pl(locale, pl.key)} усиливает: {note}")
         else:
+            opening = f"Тебя тянет к типу: {partner} — это твоя базовая «магнитная» линия."
             lines = [
-                f"Тебя тянет к типу: {b(partner)} (оттенок {h7_sign}).",
-                f"Встречаешь людей через {plain_area(locale, lord7.house)}: "
-                f"{_lord7_circumstance(locale, lord7.house, style=style)}.",
+                f"Чаще всего таких людей приносит жизнь через "
+                f"{plain_area(locale, lord7.house)}: {_lord7_circumstance(locale, lord7.house, style=style)}.",
                 _venus_love_filter(locale, venus, style=style) + ".",
             ]
             for pl in in7:
                 note = _planet_in_7_note(locale, pl.key)
                 if note and pl.key not in {lord7.key}:
-                    lines.append(f"В паре добавляет: {note}")
-        return p(b(frame), h(" ".join(lines)))
+                    lines.append(f"Когда вы вместе, добавляется: {note}.")
+            return _family_brief(locale, opening, " ".join(lines), style=style)
+        return _family_brief(locale, frame, " ".join(lines), style=style)
 
     lines = [
         f"7th sign ({h7_sign}) pulls toward: {b(partner)}.",
@@ -512,7 +552,7 @@ def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) ->
         f"{_lord7_circumstance(locale, lord7.house, style=style)}.",
         _venus_love_filter(locale, venus, style=style) + ".",
     ]
-    return p(b(frame), h(" ".join(lines)))
+    return _family_brief(locale, frame, " ".join(lines), style=style)
 
 
 def _brief_q2(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
@@ -540,35 +580,42 @@ def _brief_q2(locale: str, chart: JyotishChart, question: str, *, style: str) ->
             if in7:
                 names = ", ".join(_pl(locale, p.key) for p in in7)
                 extra += f" В 7-м: {names} — они окрашивают повседневность брака."
-            return p(b(frame), h(f"{marriage} {jup}.{extra}"))
+            return _family_brief(locale, frame, f"{marriage} {jup}.{extra}", style=style)
         marriage = (
-            f"Серьёзный союз у тебя через {plain_area(locale, lord7.house)} "
-            f"({sign_label(locale, lord7.sign)}): {_lord7_circumstance(locale, lord7.house, style=style)}."
+            f"Серьёзный союз у тебя не «на фоне» — он может стать одной из главных линий жизни. "
+            f"Он идёт через {plain_area(locale, lord7.house)} "
+            f"({_lord7_circumstance(locale, lord7.house, style=style)})."
         )
         jup = _jupiter_union_maturity(locale, jupiter, style=style)
         extra = ""
-        if lord7.house == 7:
-            extra = " Пара — не «фон», а одна из главных тем."
-        elif lord7.house in (6, 8, 12):
-            extra = " Может тянуть время — не приговор, а «не спеши с подписью»."
-        return p(b(frame), h(f"{marriage} {jup}.{extra}"))
+        if lord7.house in (6, 8, 12):
+            extra = " Может тянуть время — не приговор, а «не спеши с подписью, пока не ясно»."
+        opening = "Брак и долгий союз у тебя — тема не второстепенная."
+        return _family_brief(locale, opening, f"{marriage} {jup}.{extra}", style=style)
 
     marriage = (
         f"Marriage lord — {_pl(locale, lord7.key)} in {sign_label(locale, lord7.sign)}, "
         f"house {lord7.house}: {_lord7_circumstance(locale, lord7.house, style=style)}."
     )
-    return p(b(frame), h(f"{marriage} {_jupiter_union_maturity(locale, jupiter, style=style)}."))
+    return _family_brief(locale, frame, f"{marriage} {_jupiter_union_maturity(locale, jupiter, style=style)}.", style=style)
 
 
 def _brief_q3(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
     if _use_terms(style):
         topic = question.strip().rstrip("?.!")
-        frame = f"На «{topic}» — по 4-му дому, Луне и управителю 4-го:" if lang == "ru" else f"On «{topic}» — from house 4, the Moon, and the 4th lord:"
+        frame = (
+            f"На «{topic}» — по 4-му дому, Луне и управителю 4-го:"
+            if lang == "ru"
+            else f"On «{topic}» — from house 4, the Moon, and the 4th lord:"
+        )
     else:
-        frame = _question_frame(locale, question, "general", style=style)
+        frame = ""
     core = _home_family_core(locale, chart, style=style)
-    return p(b(frame), h(core))
+    if not _use_terms(style) and lang == "ru":
+        opening = "Дом и «свои» для тебя — не абстракция, а то, где сердце выдыхает или, наоборот, сжимается."
+        return _family_brief(locale, opening, core, style=style)
+    return _family_brief(locale, frame, core, style=style)
 
 
 def _brief_q4(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
@@ -576,10 +623,14 @@ def _brief_q4(locale: str, chart: JyotishChart, question: str, *, style: str) ->
     frame = _question_frame(locale, question, "challenge", style=style)
     frictions = _friction_points(locale, chart, style=style)
     if lang == "ru":
+        if not _use_terms(style):
+            opening = "В паре и семье у тебя не «идеальный мультик» — бывают места, где легко зацепиться."
+            body = " ".join(frictions) + " Это не приговор — лучше сказать «мне обидно», чем молчать до взрыва."
+            return _family_brief(locale, opening, body, style=style)
         body = " ".join(frictions) + " Это не приговор — лучше сказать «мне обидно», чем молчать до взрыва."
     else:
         body = " ".join(frictions) + " Not a verdict — say «I'm hurt» before it blows up."
-    return p(b(frame), h(body))
+    return _family_brief(locale, frame, body, style=style)
 
 
 def _markers_q0(locale: str, chart: JyotishChart, *, style: str) -> tuple[str, ...]:

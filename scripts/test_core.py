@@ -865,14 +865,14 @@ def test_natal_qa_synthesis() -> None:
     family = build_family_answer(chart, "ru", 0, style="plain")
     assert "Ответ:" not in family
     assert "Подробнее по карте:" not in family
-    assert "Кратко" in family
-    assert "По карте" in family
-    assert "На практике" in family
+    assert "Кратко" not in family
+    assert "По карте" not in family
+    assert "Почему так" in family or "приговор" in family.lower()
     assert family.count(".") >= 3
     assert "❓" in family
 
     family_briefs = [
-        build_family_answer(chart, "ru", i, style="plain").split("По карте")[0]
+        build_family_answer(chart, "ru", i, style="plain").split("Почему так")[0]
         for i in range(5)
     ]
     assert len(set(family_briefs)) == 5
@@ -889,7 +889,8 @@ def test_natal_qa_synthesis() -> None:
 
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
     assert "Ответ:" not in sphere
-    assert "Кратко" in sphere
+    assert "Кратко" not in sphere
+    assert "приговор" in sphere.lower() or "Почему так" in sphere
     assert sphere.count(".") >= 3
 
     theme = build_popular_answer(chart, "ru", "theme", style="plain")
@@ -905,7 +906,7 @@ def test_natal_qa_synthesis() -> None:
     assert "важно, чтобы рядом было приятно" not in finance.lower()
 
     finance_briefs = [
-        build_finance_answer(chart, "ru", i, style="plain").split("По карте")[0]
+        build_finance_answer(chart, "ru", i, style="plain").split("Почему так")[0]
         for i in range(5)
     ]
     assert len(set(finance_briefs)) == 5

@@ -187,7 +187,10 @@ def topic_frame(locale: str, question: str, *, ru: str, en: str, style: str = "t
     return ru.format(topic=topic) if lang == "ru" else en.format(topic=topic)
 
 
-def make_brief(locale: str, frame: str, body: str) -> str:
+def make_brief(locale: str, frame: str, body: str, *, style: str = "terms") -> str:
+    if not _use_terms(style):
+        combined = f"{frame} {body}".strip() if frame else body.strip()
+        return h(combined)
     return p(b(frame), h(body))
 
 

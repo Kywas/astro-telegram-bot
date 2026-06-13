@@ -1,11 +1,15 @@
-"""Plain-language voice for natal chart Q&A — no jargon, friendly tone."""
+"""Plain-language voice for natal chart Q&A — Joyti-style narrative, no jargon."""
 from __future__ import annotations
 
 import re
+from html import unescape
 
 from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import _house_theme, _lang
+from app.text_format import b, h, p, sentence_paragraphs
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 
 _PLAIN_ROLE = {
     "ru": {
@@ -149,15 +153,118 @@ def plain_lord_line(locale: str, chart: JyotishChart, from_house: int) -> str:
     return f"«{source}» runs through {target} — watch {role} ({sign})."
 
 
+def strip_telegram_html(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = re.sub(r"</?(?:b|i|u|code|pre)>", "", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"<[^>]+>", "", cleaned)
+    return unescape(cleaned).strip()
+
+
+def plain_disclaimer(locale: str) -> str:
+    if _lang(locale) == "ru":
+        return (
+            "Важно помнить: карта показывает потенциал, а не приговор. "
+            "Итог зависит от твоего выбора, зрелости и того, как ты ведёшь себя в жизни."
+        )
+    return (
+        "Remember: the chart shows potential, not a verdict. "
+        "The outcome depends on your choices, maturity, and how you act."
+    )
+
+
+def _marker_to_prose(locale: str, line: str) -> str:
+    text = humanize_natal_plain(strip_telegram_html(line), locale)
+    text = text.lstrip("•·- ").strip()
+    if not text:
+        return ""
+    if text[0].islower():
+        text = text[0].upper() + text[1:]
+    if not text.endswith((".", "!", "?", "…")):
+        text += "."
+    return text
+
+
+def _build_summary(locale: str, sentences: list[str], markers: tuple[str, ...]) -> str:
+    lang = _lang(locale)
+    if len(sentences) >= 2:
+        return sentences[-1] if len(sentences[-1]) < 220 else sentences[0]
+    if markers:
+        first = _marker_to_prose(locale, markers[0])
+        if first:
+            return first
+    if lang == "ru":
+        return "Картина индивидуальная — смотри, откликается ли тебе описание."
+    return "The picture is individual — see if it resonates."
+
+
+def compose_plain_qa_answer(
+    locale: str,
+    core_html: str,
+    markers: tuple[str, ...] = (),
+    practice: str = "",
+) -> str:
+    """Assemble a flowing plain answer: opening → detail → why → short summary → disclaimer."""
+    lang = _lang(locale)
+    core = humanize_natal_plain(strip_telegram_html(core_html), locale)
+    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(core) if s.strip()]
+
+    blocks: list[str] = []
+
+    if sentences:
+        blocks.append(h(sentences[0]))
+        if len(sentences) > 1:
+            rest = " ".join(sentences[1:])
+            if lang == "ru" and not rest.lower().startswith("скажу"):
+                lead = rest[0].lower() + rest[1:] if rest else rest
+                rest = f"Скажу прямо: {lead}"
+            elif lang == "en" and not rest.lower().startswith("to be clear"):
+                rest = f"To be clear: {rest[0].lower()}{rest[1:]}" if rest else rest
+            blocks.append(sentence_paragraphs(rest, sentences_per_para=2))
+
+    why_lines = [_marker_to_prose(locale, m) for m in markers if m.strip()]
+    why_lines = [line for line in why_lines if line]
+    if why_lines:
+        blocks.append(b("Почему так?" if lang == "ru" else "Why?"))
+        why_body = " ".join(why_lines)
+        blocks.append(sentence_paragraphs(why_body, sentences_per_para=2))
+
+    blocks.append(b("Если совсем коротко 🌙" if lang == "ru" else "In short 🌙"))
+    blocks.append(h(_build_summary(locale, sentences, markers)))
+
+    blocks.append(h(plain_disclaimer(locale)))
+
+    practice_clean = humanize_natal_plain(strip_telegram_html(practice), locale)
+    if practice_clean:
+        blocks.append(h(practice_clean))
+
+    return p(*blocks)
+
+
 def plain_topic_hook(locale: str, question: str, *, hint: str = "") -> str:
     topic = " ".join(question.strip().split()).rstrip("?.!")
     if len(topic) > 80:
         topic = topic[:79].rstrip() + "…"
     lang = _lang(locale)
+    q = question.lower()
     if lang == "ru":
-        base = f"Про «{topic}» — коротко и без загадок"
+        if any(w in q for w in ("люб", "роман", "брак", "партн", "отнош", "союз")):
+            base = "Начну с главного — про твою линию в любви и близости"
+        elif any(w in q for w in ("деньг", "доход", "финанс", "карьер", "работ")):
+            base = "Начну с главного — про твою линию с деньгами и делом"
+        elif any(w in q for w in ("здоров", "тело", "энерг")):
+            base = "Начну с главного — про твоё тело и ресурс сил"
+        elif any(w in q for w in ("карм", "прошл", "урок", "воплощ")):
+            base = "Начну с главного — про уроки, которые жизнь повторяет"
+        else:
+            base = f"Отвечаю на «{topic}» — без загадок и без словаря астролога"
         return f"{base}: {hint}" if hint else f"{base}."
-    base = f"On «{topic}» — short and clear"
+    if any(w in q for w in ("love", "romance", "marriage", "partner", "relationship")):
+        base = "Main point first — your line in love and closeness"
+    elif any(w in q for w in ("money", "income", "finance", "career", "work")):
+        base = "Main point first — your line with money and work"
+    else:
+        base = f"On «{topic}» — clear words, no astro dictionary"
     return f"{base}: {hint}" if hint else f"{base}."
 
 

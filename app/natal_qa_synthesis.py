@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import LAGNA_ESSENCE, _house_theme, _lang, _pl, _sign_line, _use_terms
-from app.natal_qa_voice import humanize_natal_plain, plain_area as voice_plain_area, plain_practice, plain_role, plain_topic_hook
+from app.natal_qa_voice import compose_plain_qa_answer, humanize_natal_plain, plain_practice, plain_topic_hook, strip_telegram_html
 from app.text_format import b, h, labeled_block, p
 
 _DIGNITY_RANK = {"exalted": 4, "own": 3, "neutral": 2, "debilitated": 1}
@@ -602,29 +602,27 @@ def _build_plain_narrative(
     intent = _classify_question(question, lang)
     opening = _question_frame(locale, question, intent, style="plain")
 
-    parts = [b(opening), _plain_primary_sentence(locale, primary, intent)]
+    chunks = [opening, strip_telegram_html(_plain_primary_sentence(locale, primary, intent))]
     if secondary and secondary.key != primary.key:
-        parts.append(
-            _plain_secondary_sentence(locale, primary, secondary, intent=intent)
-        )
+        chunks.append(strip_telegram_html(_plain_secondary_sentence(locale, primary, secondary, intent=intent)))
 
     if primary.dignity == "debilitated":
         dignity = _plain_dignity_sentence(locale, primary, focus)
         if dignity:
-            parts.append(dignity)
+            chunks.append(dignity)
     elif intent == "when":
         if lang == "ru":
-            parts.append(
+            chunks.append(
                 "Точную дату не назову — смотри, когда внутри «да, готов» "
                 "и тема перестаёт быть фоном."
             )
         else:
-            parts.append(
+            chunks.append(
                 "The chart does not give an exact date — watch inner readiness "
-                "and periods when this house theme feels louder."
+                "and periods when this theme feels louder."
             )
 
-    return p(*parts)
+    return h(" ".join(part for part in chunks if part))
 
 
 def _dignity_tag(locale: str, pl: PlanetPlacement) -> str:
@@ -976,15 +974,12 @@ def format_qa_body(
         ][:4]
 
     if not _use_terms(style):
-        labels = ("Кратко", "По карте", "На практике") if lang == "ru" else ("Short answer", "From your chart", "In practice")
-        blocks: list[str] = [p(b(labels[0]), answer)]
-        if marker_lines:
-            cleaned = [humanize_natal_plain(line, locale) for line in marker_lines]
-            bullets = p(*[f"• {h(line)}" for line in cleaned])
-            blocks.append(p(b(labels[1]), bullets))
-        if practice.strip():
-            blocks.append(labeled_block(labels[2], humanize_natal_plain(practice.strip(), locale)))
-        return p(*blocks)
+        return compose_plain_qa_answer(
+            locale,
+            answer,
+            tuple(marker_lines),
+            practice,
+        )
 
     blocks = [labeled_block("💬 Ответ" if lang == "ru" else "💬 Answer", answer)]
     if marker_lines:
