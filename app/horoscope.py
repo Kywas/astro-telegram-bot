@@ -272,6 +272,8 @@ def _format_forecast(
         period,
         forecast.moon_sign,
         accent_line=_summary_accent(forecast.summary_lines),
+        period_start=forecast.period_start,
+        period_end=forecast.period_end,
     )
     parts.append(opening)
 

@@ -163,6 +163,9 @@ class AstroForecast:
     affirmation: str
     advice: str
     moon_sign: str = ""
+    period_key: str = "day"
+    period_start: date | None = None
+    period_end: date | None = None
 
 
 @dataclass
@@ -390,26 +393,189 @@ def _domain_score(domain_hits: list[tuple[float, str, str, str]]) -> int:
     return max(1, min(10, score))
 
 
-def _domain_text(
+def _dedupe_hits(
+    hits: list[tuple[float, str, str, str]],
+) -> list[tuple[float, str, str, str]]:
+    unique: dict[tuple[str, str, str], tuple[float, str, str, str]] = {}
+    for hit in hits:
+        key = (hit[1], hit[2], hit[3])
+        if key not in unique or hit[0] < unique[key][0]:
+            unique[key] = hit
+    return sorted(unique.values(), key=lambda item: item[0])
+
+
+def _hits_for_day(
+    natal_longitudes: dict[str, float],
+    for_date: date,
+    timezone_name: str,
+    *,
+    birth_time: time | None,
+    include_moon_transits: bool,
+    now_utc: datetime | None = None,
+) -> tuple[list[tuple[float, str, str, str]], str, dict[str, float]]:
+    transit_jd = _transit_moment_jd(for_date, timezone_name, now_utc=now_utc)
+    transit_longitudes = _collect_longitudes(transit_jd, TRANSIT_PLANETS)
+    moon_sign = _longitude_to_sign(transit_longitudes["MOON"])
+    hits = _collect_hits(
+        natal_longitudes,
+        transit_longitudes,
+        birth_time=birth_time,
+        include_moon_transits=include_moon_transits,
+    )
+    return hits, moon_sign, transit_longitudes
+
+
+def _peak_day_label(locale: str, day: date, period: str) -> str:
+    lang = _lang(locale)
+    if period == "month":
+        if lang == "ru":
+            return f"{day.day} числа"
+        return f"the {day.day}th"
+    weekday_names_ru = [
+        "понедельник",
+        "вторник",
+        "среда",
+        "четверг",
+        "пятница",
+        "суббота",
+        "воскресенье",
+    ]
+    weekday_names_en = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    names = weekday_names_ru if lang == "ru" else weekday_names_en
+    return names[day.weekday()]
+
+
+def _rank_period_hits(
+    natal_longitudes: dict[str, float],
+    period_dates: list[date],
+    timezone_name: str,
+    *,
+    birth_time: time | None,
+    period: str,
+    now_utc: datetime | None = None,
+) -> list[tuple[tuple[float, str, str, str], date, int]]:
+    """Rank transits by how often they appear in the period (with tightest orb per hit)."""
+    include_moon = period == "day"
+    hit_days: dict[tuple[str, str, str], list[tuple[float, date]]] = {}
+    for day in period_dates:
+        hits, _, _ = _hits_for_day(
+            natal_longitudes,
+            day,
+            timezone_name,
+            birth_time=birth_time,
+            include_moon_transits=include_moon,
+            now_utc=now_utc,
+        )
+        seen_today: set[tuple[str, str, str]] = set()
+        for orb_delta, transit_key, natal_key, aspect_name in hits:
+            key = (transit_key, natal_key, aspect_name)
+            if key in seen_today:
+                continue
+            seen_today.add(key)
+            hit_days.setdefault(key, []).append((orb_delta, day))
+
+    ranked: list[tuple[float, tuple[float, str, str, str], date, int]] = []
+    for key, occurrences in hit_days.items():
+        best_orb, peak_day = min(occurrences, key=lambda item: item[0])
+        day_count = len(occurrences)
+        hit = (best_orb, key[0], key[1], key[2])
+        weight = day_count * 10.0 - best_orb
+        if key[0] in {"JUPITER", "SATURN"} and period == "month":
+            weight += 3.0
+        if key[0] == "MOON" and period == "day":
+            weight += 2.0
+        ranked.append((weight, hit, peak_day, day_count))
+    ranked.sort(key=lambda item: (-item[0], item[1][0]))
+    return [(hit, peak_day, day_count) for _, hit, peak_day, day_count in ranked]
+
+
+def _domain_text_for_period(
     locale: str,
     domain: str,
-    hits: list[tuple[float, str, str, str]],
+    natal_longitudes: dict[str, float],
+    period_dates: list[date],
+    timezone_name: str,
     *,
-    moon_sign: str,
+    birth_time: time | None,
+    period: str,
     natal_sun_sign: str,
     relationship_status: str | None = None,
     style: str = "terms",
+    now_utc: datetime | None = None,
 ) -> str:
-    domain_hits = _domain_hits(hits, domain)
-    return format_domain_section(
+    include_moon = period == "day"
+    best_hit: tuple[float, str, str, str] | None = None
+    best_day: date | None = None
+    best_score = -999
+    best_moon = "Aries"
+
+    for day in period_dates:
+        hits, day_moon, _ = _hits_for_day(
+            natal_longitudes,
+            day,
+            timezone_name,
+            birth_time=birth_time,
+            include_moon_transits=include_moon,
+            now_utc=now_utc,
+        )
+        domain_hits = _domain_hits(hits, domain)
+        score = _domain_score(domain_hits)
+        if domain_hits and (
+            score > best_score
+            or (score == best_score and domain_hits[0][0] < (best_hit[0] if best_hit else 999.0))
+        ):
+            best_score = score
+            best_hit = domain_hits[0]
+            best_day = day
+            best_moon = day_moon
+
+    if best_hit is None:
+        mid_day = period_dates[len(period_dates) // 2]
+        _, mid_moon, _ = _hits_for_day(
+            natal_longitudes,
+            mid_day,
+            timezone_name,
+            birth_time=birth_time,
+            include_moon_transits=False,
+            now_utc=now_utc,
+        )
+        return format_domain_section(
+            locale,
+            domain,
+            [],
+            moon_sign=mid_moon,
+            natal_sun_sign=natal_sun_sign,
+            relationship_status=relationship_status,
+            style=style,
+            period=period,
+        )
+
+    text = format_domain_section(
         locale,
         domain,
-        domain_hits,
-        moon_sign=moon_sign,
+        [best_hit],
+        moon_sign=best_moon,
         natal_sun_sign=natal_sun_sign,
         relationship_status=relationship_status,
         style=style,
+        period=period,
     )
+    if period != "day" and best_day is not None:
+        peak = _peak_day_label(locale, best_day, period)
+        lang = _lang(locale)
+        if lang == "ru":
+            text += f" Ярче всего: {peak}."
+        else:
+            text += f" Strongest: {peak}."
+    return text
 
 
 def _format_hour_ranges(hours: list[int], locale: str) -> str:
@@ -512,15 +678,19 @@ def _lucky_time_text(
 def _avoid_text(
     hits: list[tuple[float, str, str, str]],
     locale: str,
+    *,
+    period: str = "day",
 ) -> str:
-    return format_avoid(locale, hits)
+    return format_avoid(locale, hits, period=period)
 
 
 def _affirmation_text(
     hits: list[tuple[float, str, str, str]],
     locale: str,
+    *,
+    period: str = "day",
 ) -> str:
-    return format_affirmation(locale, hits)
+    return format_affirmation(locale, hits, period=period)
 
 
 def _advice_text(
@@ -528,8 +698,9 @@ def _advice_text(
     locale: str,
     *,
     moon_sign: str,
+    period: str = "day",
 ) -> str:
-    return format_advice(locale, hits, moon_sign)
+    return format_advice(locale, hits, moon_sign, period=period)
 
 
 def _aspect_phrase(
@@ -540,13 +711,14 @@ def _aspect_phrase(
     orb: float,
     *,
     style: str = "terms",
+    period: str = "day",
 ) -> str:
-    return format_summary_aspect(locale, transit, natal, aspect, orb, style=style)
+    return format_summary_aspect(locale, transit, natal, aspect, orb, style=style, period=period)
 
 
 def _build_summary_lines(
     locale: str,
-    hits: list[tuple[float, str, str, str]],
+    ranked_hits: list[tuple[tuple[float, str, str, str], date, int]],
     moon_sign: str,
     *,
     birth_time: time | None,
@@ -558,18 +730,46 @@ def _build_summary_lines(
     del moon_sign
     lang = _lang(locale)
     summary: list[str] = []
-    if hits:
-        orb_delta, transit_key, natal_key, aspect_name = hits[0]
-        summary.append(
-            _aspect_phrase(
-                locale,
-                transit_key,
-                natal_key,
-                aspect_name,
-                orb_delta,
-                style=style,
-            )
+    if ranked_hits:
+        hit, peak_day, _day_count = ranked_hits[0]
+        orb_delta, transit_key, natal_key, aspect_name = hit
+        line = _aspect_phrase(
+            locale,
+            transit_key,
+            natal_key,
+            aspect_name,
+            orb_delta,
+            style=style,
+            period=period,
         )
+        if period == "week":
+            peak = _peak_day_label(locale, peak_day, period)
+            if lang == "ru":
+                line += f" Пик недели — {peak}."
+            else:
+                line += f" Week peak — {peak}."
+        elif period == "month":
+            peak = _peak_day_label(locale, peak_day, period)
+            if lang == "ru":
+                line += f" Пик месяца — {peak}."
+            else:
+                line += f" Month peak — {peak}."
+        summary.append(line)
+        if period != "day" and len(ranked_hits) > 1:
+            hit2, peak2, _ = ranked_hits[1]
+            line2 = _aspect_phrase(
+                locale,
+                hit2[1],
+                hit2[2],
+                hit2[3],
+                hit2[0],
+                style=style,
+                period=period,
+            )
+            if lang == "ru":
+                summary.append(f"↳ Второй акцент — {line2.lower()}")
+            else:
+                summary.append(f"↳ Second theme — {line2}")
     if solar_only:
         summary.append(
             "ℹ️ Расчёт по солнечному знаку — укажите дату рождения для персональной карты."
@@ -598,6 +798,14 @@ def _build_summary_lines(
         summary.append("ℹ️ На «сегодня» учтены транзиты Луны и актуальное локальное время.")
     elif period == "day" and not solar_only:
         summary.append("ℹ️ For today: Moon transits and your current local time are included.")
+    elif period == "week" and lang == "ru":
+        summary.append("ℹ️ Недельный прогноз: каждый блок — свой пик дня, не копия «сегодня».")
+    elif period == "week":
+        summary.append("ℹ️ Weekly forecast: each block has its own peak day, not a copy of today.")
+    elif period == "month" and lang == "ru":
+        summary.append("ℹ️ Месячный прогноз: акценты по дням месяца, медленные планеты важнее.")
+    elif period == "month":
+        summary.append("ℹ️ Monthly forecast: themes by day of month; slow planets weigh more.")
     return summary
 
 
@@ -691,12 +899,30 @@ def build_astro_forecast(
             period=period_key,
             now_utc=now_utc,
         )
+        ranked_hits = _rank_period_hits(
+            natal_longitudes,
+            period_dates,
+            timezone_name,
+            birth_time=birth_time,
+            period=period_key,
+            now_utc=now_utc,
+        )
+        opening_moon_sign = moon_sign
+        if period_key != "day":
+            _, opening_moon_sign, _ = _hits_for_day(
+                natal_longitudes,
+                period_dates[0],
+                timezone_name,
+                birth_time=birth_time,
+                include_moon_transits=False,
+                now_utc=now_utc,
+            )
         natal_sun_sign = _longitude_to_sign(natal_longitudes["SUN"])
 
         summary_lines = _build_summary_lines(
             locale,
-            hits,
-            moon_sign,
+            ranked_hits,
+            opening_moon_sign,
             birth_time=birth_time,
             solar_only=solar_only,
             period=period_key,
@@ -710,26 +936,30 @@ def build_astro_forecast(
             if len(period_dates) > 1:
                 daily_scores = []
                 for day in period_dates:
-                    day_jd = _transit_moment_jd(day, timezone_name, now_utc=now_utc)
-                    day_transit = _collect_longitudes(day_jd, TRANSIT_PLANETS)
-                    day_hits = _collect_hits(
+                    day_hits, _, _ = _hits_for_day(
                         natal_longitudes,
-                        day_transit,
+                        day,
+                        timezone_name,
                         birth_time=birth_time,
                         include_moon_transits=include_moon_transits,
+                        now_utc=now_utc,
                     )
                     daily_scores.append(_domain_score(_domain_hits(day_hits, domain)))
                 score = max(1, min(10, round(sum(daily_scores) / len(daily_scores))))
             else:
                 score = _domain_score(domain_hits)
-            text = _domain_text(
+            text = _domain_text_for_period(
                 locale,
                 domain,
-                hits,
-                moon_sign=moon_sign,
+                natal_longitudes,
+                period_dates,
+                timezone_name,
+                birth_time=birth_time,
+                period=period_key,
                 natal_sun_sign=natal_sun_sign,
                 relationship_status=relationship_status,
                 style=style,
+                now_utc=now_utc,
             )
             sections[domain] = SectionForecast(text=text, score=score)
 
@@ -742,6 +972,8 @@ def build_astro_forecast(
             birth_time=birth_time,
         )
 
+        advice_hits = [hit for hit, _, _ in ranked_hits] if ranked_hits else hits
+
         return AstroForecast(
             summary_lines=summary_lines,
             energy=sections["energy"],
@@ -751,10 +983,18 @@ def build_astro_forecast(
             social=sections["social"],
             health=sections["health"],
             lucky_time=lucky_time,
-            avoid=_avoid_text(hits, locale),
-            affirmation=_affirmation_text(hits, locale),
-            advice=_advice_text(hits, locale, moon_sign=moon_sign),
-            moon_sign=moon_sign,
+            avoid=_avoid_text(advice_hits, locale, period=period_key),
+            affirmation=_affirmation_text(advice_hits, locale, period=period_key),
+            advice=_advice_text(
+                advice_hits,
+                locale,
+                moon_sign=opening_moon_sign,
+                period=period_key,
+            ),
+            moon_sign=opening_moon_sign,
+            period_key=period_key,
+            period_start=period_dates[0],
+            period_end=period_dates[-1],
         )
     except Exception:
         logger.warning(

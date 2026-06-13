@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint
 
 SIGN_ELEMENTS = {
@@ -668,26 +670,30 @@ def format_plain_accent(
     natal: str,
     aspect: str,
     _orb: float,
+    *,
+    period: str = "day",
 ) -> str:
     lang = _lang(locale)
     role = _natal_role_short(locale, natal)
     if lang == "ru":
+        scope = {"day": "день", "week": "неделя", "month": "месяц"}.get(period, "день")
         mapping = {
-            "conjunction": f"Главный акцент — {role}: день усилит эту тему.",
-            "sextile": f"Есть мягкая поддержка в теме «{role}».",
-            "trine": f"День облегчает {role} — можно опираться на это.",
-            "square": f"На {role} идёт давление — не форсируй и снижай темп.",
+            "conjunction": f"Главный акцент {scope} — {role}: усилит эту тему.",
+            "sextile": f"Мягкая поддержка на {scope} в теме «{role}».",
+            "trine": f"{scope.capitalize()} облегчает {role} — можно опираться на это.",
+            "square": f"На {role} давление — не форсируй и снижай темп.",
             "opposition": f"{role.capitalize()} тянут в разные стороны — ищи середину.",
         }
-        return mapping.get(aspect, f"Акцент дня — {role}.")
+        return mapping.get(aspect, f"Акцент {scope} — {role}.")
+    scope = {"day": "today", "week": "this week", "month": "this month"}.get(period, "today")
     mapping = {
-        "conjunction": f"Main focus — {role}: the day amplifies this theme.",
-        "sextile": f"Gentle support around {role}.",
-        "trine": f"The day eases {role} — you can lean on that.",
+        "conjunction": f"Main focus {scope} — {role}: amplifies this theme.",
+        "sextile": f"Gentle support {scope} around {role}.",
+        "trine": f"{scope.capitalize()} eases {role} — you can lean on that.",
         "square": f"Pressure on {role} — don't force it; slow down.",
         "opposition": f"{role.capitalize()} pull in opposite directions — find the middle.",
     }
-    return mapping.get(aspect, f"Today's accent — {role}.")
+    return mapping.get(aspect, f"{scope.capitalize()} accent — {role}.")
 
 
 def format_forecast_opening(
@@ -695,16 +701,43 @@ def format_forecast_opening(
     period: str,
     moon_sign: str,
     accent_line: str | None = None,
+    *,
+    period_start: date | None = None,
+    period_end: date | None = None,
 ) -> str:
     lang = _lang(locale)
     moon = format_moon_in_sign_short(locale, moon_sign)
     hint = moon_in_sign_hint(locale, moon_sign)
-    period_word = {
-        "ru": {"day": "Сегодня", "week": "На этой неделе", "month": "В этом месяце"},
-        "en": {"day": "Today", "week": "This week", "month": "This month"},
-    }[lang][period]
+    if period == "week" and period_start and period_end:
+        if lang == "ru":
+            period_line = (
+                f"На этой неделе ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                f"старт с {moon.lower()}."
+            )
+        else:
+            period_line = (
+                f"This week ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                f"opens with {moon.lower()}."
+            )
+    elif period == "month" and period_start and period_end:
+        if lang == "ru":
+            period_line = (
+                f"В этом месяце ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                f"тон задаёт {moon.lower()}."
+            )
+        else:
+            period_line = (
+                f"This month ({period_start.strftime('%d.%m')}–{period_end.strftime('%d.%m')}) "
+                f"— tone from {moon.lower()}."
+            )
+    else:
+        period_word = {
+            "ru": {"day": "Сегодня", "week": "На этой неделе", "month": "В этом месяце"},
+            "en": {"day": "Today", "week": "This week", "month": "This month"},
+        }[lang][period]
+        period_line = f"{period_word} {moon.lower()}."
 
-    parts = [f"{period_word} {moon.lower()}."]
+    parts = [period_line]
     if hint:
         hint_clean = hint.strip()
         if hint_clean and not hint_clean.endswith("."):
@@ -713,9 +746,19 @@ def format_forecast_opening(
     if accent_line:
         parts.append(accent_line)
     elif lang == "ru":
-        parts.append("Ярких транзитов нет — держи свой обычный ритм.")
+        if period == "week":
+            parts.append("Ярких транзитов мало — выстраивай неделю без рывков.")
+        elif period == "month":
+            parts.append("Ярких транзитов мало — держи ровный месячный ритм.")
+        else:
+            parts.append("Ярких транзитов нет — держи свой обычный ритм.")
     else:
-        parts.append("No strong transits — keep your usual rhythm.")
+        if period == "week":
+            parts.append("Few strong transits — pace the week without forcing.")
+        elif period == "month":
+            parts.append("Few strong transits — keep a steady monthly rhythm.")
+        else:
+            parts.append("No strong transits — keep your usual rhythm.")
     return " ".join(parts)
 
 
@@ -724,6 +767,8 @@ def format_neutral_domain(
     domain: str,
     moon_sign: str,
     natal_sun_sign: str,
+    *,
+    period: str = "day",
 ) -> str:
     lang = _lang(locale)
     element = SIGN_ELEMENTS.get(moon_sign, "air")
@@ -732,7 +777,15 @@ def format_neutral_domain(
     relation_line = SUN_MOON_RELATION[lang][relation]
     moon = _sign_label(locale, moon_sign)
     if lang == "ru":
+        if period == "week":
+            return f"На неделе в {moon} тон такой: {clause}. {relation_line}"
+        if period == "month":
+            return f"В месяце при {moon} тон такой: {clause}. {relation_line}"
         return f"Луна в {moon} задаёт тон: {clause}. {relation_line}"
+    if period == "week":
+        return f"This week in {moon} the tone is: {clause}. {relation_line}"
+    if period == "month":
+        return f"This month with {moon} the tone is: {clause}. {relation_line}"
     return f"Moon in {moon} sets the tone: {clause}. {relation_line}"
 
 
@@ -745,9 +798,16 @@ def format_domain_section(
     natal_sun_sign: str,
     relationship_status: str | None = None,
     style: str = "terms",
+    period: str = "day",
 ) -> str:
     if not hits:
-        return format_neutral_domain(locale, domain, moon_sign, natal_sun_sign)
+        return format_neutral_domain(
+            locale,
+            domain,
+            moon_sign,
+            natal_sun_sign,
+            period=period,
+        )
 
     orb, transit, natal, aspect = hits[0]
     if _use_terms(style):
@@ -780,80 +840,155 @@ def format_summary_aspect(
     orb: float,
     *,
     style: str = "terms",
+    period: str = "day",
 ) -> str:
     if _use_terms(style):
         return _compact_hit_line(locale, transit, natal, aspect, orb)
-    return format_plain_accent(locale, transit, natal, aspect, orb)
+    return format_plain_accent(locale, transit, natal, aspect, orb, period=period)
 
 
-def format_avoid(locale: str, hits: list[Hit]) -> str:
+def format_avoid(locale: str, hits: list[Hit], *, period: str = "day") -> str:
     lang = _lang(locale)
     challenging = [hit for hit in hits if hit[3] in {"square", "opposition"}]
     if not challenging:
         if lang == "ru":
+            if period == "week":
+                return "Острых аспектов на неделе мало — обычная осмотрительность."
+            if period == "month":
+                return "Острых аспектов в месяце мало — обычная осмотрительность."
             return "Острых аспектов в прогнозе нет — придерживайся обычной осмотрительности."
+        if period == "week":
+            return "Few sharp aspects this week — keep your usual caution."
+        if period == "month":
+            return "Few sharp aspects this month — keep your usual caution."
         return "No sharp aspects in the forecast — keep your usual caution."
 
     orb, transit, natal, aspect = challenging[0]
     role = _natal_role_short(locale, natal)
     if lang == "ru":
         if aspect == "square":
+            if period == "week":
+                return f"На неделе не форсируй — {role} под давлением."
+            if period == "month":
+                return f"В месяце не форсируй — {role} под давлением."
             return f"Не форсируй и не спеши — {role} под давлением."
+        if period == "week":
+            return f"На неделе не уходи в крайности — {role} требуют баланса."
+        if period == "month":
+            return f"В месяце не уходи в крайности — {role} требуют баланса."
         return f"Не уходи в крайности — {role} требуют баланса."
     if aspect == "square":
+        if period == "week":
+            return f"This week don't force it — {role} are under pressure."
+        if period == "month":
+            return f"This month don't force it — {role} are under pressure."
         return f"Don't force it or rush — {role} are under pressure."
+    if period == "week":
+        return f"This week avoid extremes — {role} need balance."
+    if period == "month":
+        return f"This month avoid extremes — {role} need balance."
     return f"Avoid extremes — {role} need balance."
 
 
-def format_advice(locale: str, hits: list[Hit], moon_sign: str) -> str:
+def format_advice(locale: str, hits: list[Hit], moon_sign: str, *, period: str = "day") -> str:
     lang = _lang(locale)
     if not hits:
         moon = format_moon_in_sign_short(locale, moon_sign)
         if lang == "ru":
+            if period == "week":
+                return f"Точных аспектов мало — выстраивай неделю по ритму ({moon.lower()})."
+            if period == "month":
+                return f"Точных аспектов мало — планируй месяц по ритму ({moon.lower()})."
             return f"Точных аспектов мало — ориентируйся на ритм ({moon.lower()}) и не разгоняй день искусственно."
+        if period == "week":
+            return f"Few exact aspects — pace the week with {moon.lower()}."
+        if period == "month":
+            return f"Few exact aspects — plan the month with {moon.lower()}."
         return f"Few exact aspects — follow the rhythm ({moon.lower()}) and don't force the pace."
 
     orb, transit, natal, aspect = hits[0]
     role = _natal_role_short(locale, natal)
     if lang == "ru":
         if aspect in {"trine", "sextile"}:
+            if period == "week":
+                return f"На неделе опирайся на поддержку — особенно в теме «{role}»."
+            if period == "month":
+                return f"В месяце опирайся на поддержку — особенно в теме «{role}»."
             return f"Опирайся на поддержку дня — особенно в теме «{role}»."
         if aspect == "conjunction":
+            if period == "week":
+                return f"На неделе выбери один шаг в теме «{role}», не распыляйся."
+            if period == "month":
+                return f"В месяце выбери один главный фокус в теме «{role}»."
             return f"Выбери один конкретный шаг в теме «{role}», не распыляйся."
         if aspect == "square":
+            if period == "week":
+                return f"На неделе сначала снизь напряжение — это про {role}."
+            if period == "month":
+                return f"В месяце не форсируй {role} — снижай темп."
             return f"Сначала снизь напряжение, потом действуй — это про {role}."
+        if period == "week":
+            return f"На неделе ищи середину — {role} тянут в разные стороны."
+        if period == "month":
+            return f"В месяце ищи баланс — {role} требуют терпения."
         return f"Ищи середину — {role} тянут в разные стороны."
 
     if aspect in {"trine", "sextile"}:
+        if period == "week":
+            return f"This week lean on support — especially around {role}."
+        if period == "month":
+            return f"This month lean on support — especially around {role}."
         return f"Use today's support — especially around {role}."
     if aspect == "conjunction":
+        if period == "week":
+            return f"This week pick one step around {role}; don't scatter focus."
+        if period == "month":
+            return f"This month choose one main focus around {role}."
         return f"Pick one concrete step around {role}; don't scatter your focus."
     if aspect == "square":
+        if period == "week":
+            return f"This week ease tension first — especially around {role}."
+        if period == "month":
+            return f"This month don't force {role}; slow the pace."
         return f"Ease tension first, then act — especially around {role}."
+    if period == "week":
+        return f"This week find the middle ground — {role} are pulled two ways."
+    if period == "month":
+        return f"This month find balance — {role} need patience."
     return f"Find the middle ground — {role} are pulled in two directions."
 
 
-def format_affirmation(locale: str, hits: list[Hit]) -> str:
+def format_affirmation(locale: str, hits: list[Hit], *, period: str = "day") -> str:
     lang = _lang(locale)
     if not hits:
         if lang == "ru":
+            if period == "week":
+                return "Я выстраиваю неделю в своём ритме, без лишней спешки."
+            if period == "month":
+                return "Я двигаюсь через месяц спокойно и последовательно."
             return "Я сохраняю свой ритм, даже когда небо не задаёт ярких акцентов."
+        if period == "week":
+            return "I pace my week in my own rhythm, without rush."
+        if period == "month":
+            return "I move through the month calmly and steadily."
         return "I keep my rhythm even when the sky sets no strong accents."
 
     orb, transit, natal, aspect = hits[0]
     role = _natal_role_short(locale, natal)
     if lang == "ru":
+        day_word = "дня" if period == "day" else ("недели" if period == "week" else "месяца")
         mapping = {
-            "trine": f"Я спокойно опираюсь на поддержку дня — {role}.",
-            "sextile": f"Я замечаю возможность и использую её — {role}.",
+            "trine": f"Я спокойно опираюсь на поддержку {day_word} — {role}.",
+            "sextile": f"Я замечаю возможность {day_word} и использую её — {role}.",
             "conjunction": f"Я усиливаю {role} осознанно и без спешки.",
             "square": f"Я не форсирую {role} и сохраняю ясность.",
             "opposition": f"Я нахожу баланс — {role}.",
         }
         return mapping[aspect]
+    scope = "today" if period == "day" else ("this week" if period == "week" else "this month")
     mapping = {
-        "trine": f"I calmly accept today's support in {role}.",
-        "sextile": f"I notice an opening and use it in {role}.",
+        "trine": f"I calmly accept {scope}'s support in {role}.",
+        "sextile": f"I notice an opening {scope} and use it in {role}.",
         "conjunction": f"I strengthen {role} with intention and without rush.",
         "square": f"I don't force {role} and keep my clarity.",
         "opposition": f"I find balance in {role}.",
