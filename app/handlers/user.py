@@ -86,8 +86,6 @@ from app.keyboards import (
     natal_qa_traits_keyboard,
     natal_qa_popular_keyboard,
     natal_qa_spheres_keyboard,
-    natal_qa_custom_prompt_keyboard,
-    natal_qa_custom_answer_keyboard,
     natal_style_picker_keyboard,
     onboarding_relationship_keyboard,
     prefs_gender_keyboard,
@@ -122,8 +120,6 @@ from app.natal_sphere_qa import (
     build_traits_answer,
     build_popular_answer,
     build_sphere_answer,
-    build_custom_answer,
-    custom_picker_intro,
     dharma_picker_intro,
     family_picker_intro,
     finance_picker_intro,
@@ -198,7 +194,6 @@ from app.states import (
     CompatibilityCheck,
     DailySetup,
     MoonDetails,
-    NatalQaCustom,
     PartnerSetup,
     PreferencesSetup,
     ProfileSetup,
@@ -1404,32 +1399,6 @@ async def _ensure_natal_qa_answer_access(
     return False
 
 
-def _natal_qa_custom_prompt_text(locale: str, *, suffix: str = "") -> str:
-    text = (
-        f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
-        f"{custom_picker_intro(locale)}"
-    )
-    if suffix:
-        text = f"{text}\n\n{suffix}"
-    return text
-
-
-async def _show_natal_qa_custom_prompt(
-    *,
-    locale: str,
-    part: int,
-    edit_target: CallbackQuery | None = None,
-    message: Message | None = None,
-    suffix: str = "",
-) -> None:
-    text = _natal_qa_custom_prompt_text(locale, suffix=suffix)
-    keyboard = natal_qa_custom_prompt_keyboard(locale, part=part)
-    if edit_target is not None:
-        await edit_or_send(edit_target, text, inline_keyboard=keyboard)
-    elif message is not None:
-        await show_panel_from_message(message, text, reply_markup=keyboard)
-
-
 @router.callback_query(F.data.startswith("natal:qa:"))
 async def natal_qa_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
     user = callback.from_user
@@ -1488,24 +1457,6 @@ async def natal_qa_callback_handler(callback: CallbackQuery, state: FSMContext) 
             callback,
             text,
             inline_keyboard=natal_qa_pick_keyboard(locale, part=part),
-        )
-        return
-
-    if action == "custom":
-        part = int(parts[3]) if parts[3].isdigit() else 1
-        if not is_premium_active(profile.premium_until):
-            await edit_or_send(
-                callback,
-                f"{t(locale, 'premium_required_natal_qa_custom')}\n\n{t(locale, 'premium_features')}",
-                inline_keyboard=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
-            )
-            return
-        await state.set_state(NatalQaCustom.waiting_question)
-        await state.update_data(natal_qa_part=part)
-        await _show_natal_qa_custom_prompt(
-            locale=locale,
-            part=part,
-            edit_target=callback,
         )
         return
 
@@ -2068,90 +2019,6 @@ async def natal_qa_callback_handler(callback: CallbackQuery, state: FSMContext) 
             inline_keyboard=natal_qa_answer_keyboard(locale, house=house, part=part),
         )
         return
-
-
-@router.message(NatalQaCustom.waiting_question)
-async def natal_qa_custom_question_handler(message: Message, state: FSMContext) -> None:
-    user = message.from_user
-    if user is None:
-        return
-
-    locale = await get_user_locale(user.id)
-    profile = await db.get_user(user.id)
-    if profile is None or profile.birth_date is None or not profile.sign:
-        await state.clear()
-        await show_panel_from_message(
-            message,
-            t(locale, "natal_profile_missing"),
-            reply_markup=home_panel_keyboard(locale),
-        )
-        return
-    if profile.birth_time is None:
-        await state.clear()
-        await show_panel_from_message(
-            message,
-            t(locale, "natal_time_required"),
-            reply_markup=home_panel_keyboard(locale),
-        )
-        return
-
-    data = await state.get_data()
-    part = int(data.get("natal_qa_part") or 1)
-    if not is_premium_active(profile.premium_until):
-        await state.clear()
-        await show_panel_from_message(
-            message,
-            f"{t(locale, 'premium_required_natal_qa_custom')}\n\n{t(locale, 'premium_features')}",
-            reply_markup=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
-        )
-        return
-
-    question = (message.text or "").strip()
-    if len(question) < 5:
-        await _show_natal_qa_custom_prompt(
-            locale=locale,
-            part=part,
-            message=message,
-            suffix=t(locale, "natal_qa_custom_too_short"),
-        )
-        return
-    if len(question) > 300:
-        await _show_natal_qa_custom_prompt(
-            locale=locale,
-            part=part,
-            message=message,
-            suffix=t(locale, "natal_qa_custom_too_long"),
-        )
-        return
-
-    chart = build_chart_from_profile(profile)
-    if chart is None:
-        await state.clear()
-        await show_panel_from_message(
-            message,
-            t(locale, "natal_qa_unavailable"),
-            reply_markup=natal_part_keyboard(
-                locale,
-                part=part,
-                premium_active=is_premium_active(profile.premium_until),
-                current_style=profile.natal_style or "terms",
-            ),
-        )
-        return
-
-    answer = build_custom_answer(
-        chart,
-        locale,
-        question,
-        style=profile.natal_style or "terms",
-    )
-    await state.clear()
-    text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
-    await show_panel_from_message(
-        message,
-        text,
-        reply_markup=natal_qa_custom_answer_keyboard(locale, part=part),
-    )
 
 
 @router.callback_query(F.data.startswith("natal:part:"))

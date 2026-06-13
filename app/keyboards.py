@@ -177,12 +177,6 @@ def natal_qa_pick_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
                     callback_data=f"natal:qa:upaya:{part}",
                 )
             ],
-            [
-                InlineKeyboardButton(
-                    text=t(locale, "btn_natal_qa_custom"),
-                    callback_data=f"natal:qa:custom:{part}",
-                )
-            ],
             [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:part:{part}")],
         ]
     )
@@ -446,40 +440,6 @@ def natal_qa_travel_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def natal_qa_custom_prompt_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")],
-            [
-                InlineKeyboardButton(
-                    text=t(locale, "natal_qa_back_to_chart"),
-                    callback_data=f"natal:part:{part}",
-                )
-            ],
-        ]
-    )
-
-
-def natal_qa_custom_answer_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=t(locale, "natal_qa_custom_ask_again"),
-                    callback_data=f"natal:qa:custom:{part}",
-                )
-            ],
-            [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")],
-            [
-                InlineKeyboardButton(
-                    text=t(locale, "natal_qa_back_to_chart"),
-                    callback_data=f"natal:part:{part}",
-                )
-            ],
-        ]
-    )
 
 
 def natal_qa_travel_answer_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:

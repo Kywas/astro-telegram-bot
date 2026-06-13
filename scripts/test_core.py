@@ -876,13 +876,6 @@ def test_natal_qa_synthesis() -> None:
     assert "Кратко" in sphere
     assert sphere.count(".") >= 3
 
-    from app.natal_sphere_qa import build_custom_answer
-
-    custom = build_custom_answer(chart, "ru", "Что мешает отношениям?", style="plain")
-    assert "Кратко" in custom
-    assert "мешает" in custom.lower() or "отношен" in custom.lower()
-    assert "•" in custom
-
     theme = build_popular_answer(chart, "ru", "theme", style="plain")
     assert "Ответ:" not in theme
 

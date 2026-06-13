@@ -1021,8 +1021,7 @@ def qa_picker_intro(locale: str) -> str:
                 "✈️ Эмиграция / Путешествия — переезд, дорога и жизнь за границей."
             ),
             h(
-                "🪬 Гармонизация / Упайи — практики баланса, мантры и благотворительность.\n"
-                "✍️ Свой вопрос — задай формулировку, ответ построится по карте (Premium)."
+                "🪬 Гармонизация / Упайи — практики баланса, мантры и благотворительность."
             ),
         )
     return p(
@@ -1043,8 +1042,7 @@ def qa_picker_intro(locale: str) -> str:
             "✈️ Emigration / Travel — relocation, the road, and life abroad."
         ),
         h(
-            "🪬 Harmonization / Upayas — balance practices, mantras, and charity.\n"
-            "✍️ Your question — ask in your words, the answer comes from your chart (Premium)."
+            "🪬 Harmonization / Upayas — balance practices, mantras, and charity."
         ),
     )
 
@@ -2762,128 +2760,6 @@ def build_upaya_answer(
     else:
         header = "🪬 Harmonization / Upayas"
     return qa_response(header, question, body)
-
-
-_CUSTOM_TOPIC_RULES: tuple[tuple[tuple[str, ...], tuple[int, ...], tuple[str, ...]], ...] = (
-    (
-        ("любов", "отношен", "брак", "партн", "муж", "жен", "love", "relationship", "marriage", "partner"),
-        (7, 5),
-        ("VENUS", "MOON"),
-    ),
-    (
-        ("деньг", "финанс", "доход", "инвест", "money", "finance", "income", "wealth"),
-        (2, 11),
-        ("VENUS", "JUPITER"),
-    ),
-    (
-        ("карьер", "работ", "дело", "професс", "career", "job", "work", "business"),
-        (10, 6),
-        ("SUN", "SATURN"),
-    ),
-    (
-        ("здоров", "тел", "болезн", "health", "body", "illness", "energy"),
-        (6, 1),
-        ("SUN", "MARS"),
-    ),
-    (
-        ("карм", "прошл", "духов", "дхарм", "karma", "past", "spiritual", "dharma", "meditat"),
-        (9, 12),
-        ("KETU", "JUPITER"),
-    ),
-    (
-        ("род", "мать", "отец", "семь", "mother", "father", "family", "parent", "parents"),
-        (4, 9),
-        ("MOON", "SUN"),
-    ),
-    (
-        ("переезд", "эмигра", "путеш", "travel", "move", "abroad", "relocat"),
-        (9, 12),
-        ("RAHU", "JUPITER"),
-    ),
-    (
-        ("талант", "предназнач", "purpose", "talent", "calling", "realiz"),
-        (5, 10),
-        ("SUN", "JUPITER"),
-    ),
-    (
-        ("когда", "срок", "пора", "скоро", "when", "timing", "deadline"),
-        (10, 9),
-        ("SATURN", "JUPITER"),
-    ),
-    (
-        ("мешает", "блок", "препят", "почему не", "block", "obstacle", "holds me back"),
-        (6, 12),
-        ("SATURN", "RAHU"),
-    ),
-    (
-        ("упай", "гармон", "remed", "mantra", "upaya", "harmon"),
-        (9, 12),
-        ("JUPITER", "SATURN"),
-    ),
-)
-
-
-def _match_custom_topics(question: str) -> tuple[list[int], list[str]]:
-    q = question.lower()
-    best_score = 0
-    best_houses: list[int] = [1]
-    best_planets: list[str] = ["SUN", "MOON"]
-    for keywords, houses, planets in _CUSTOM_TOPIC_RULES:
-        score = sum(1 for kw in keywords if kw in q)
-        if score > best_score:
-            best_score = score
-            best_houses = list(houses)
-            best_planets = list(planets)
-    if best_score == 0 and q.strip():
-        best_houses = [1, 10]
-        best_planets = ["SUN", "MOON"]
-    return best_houses, best_planets
-
-
-def _custom_focus(question: str) -> str:
-    q = question.lower()
-    if any(w in q for w in ("мешает", "меша", "блок", "препят", "почему не", "holds me back", "obstacle", "block")):
-        return "challenge"
-    if any(w in q for w in ("талант", "сильн", "удач", "strong", "talent", "gift")):
-        return "strength"
-    return "default"
-
-
-def custom_picker_intro(locale: str) -> str:
-    if _lang(locale) == "ru":
-        return (
-            "✍️ Свой вопрос\n\n"
-            "Напиши вопрос одним сообщением — ответ будет в трёх блоках:\n"
-            "кратко · по карте · на практике.\n\n"
-            "Например: «Что мешает отношениям?» или «Когда менять работу?»\n\n"
-            "⭐ Доступно в Premium."
-        )
-    return (
-        "✍️ Your question\n\n"
-        "Send one message — the answer comes in three blocks:\n"
-        "short answer · chart markers · in practice.\n\n"
-        "For example: «What blocks relationships?» or «When to change jobs?»\n\n"
-        "⭐ Premium only."
-    )
-
-
-def build_custom_answer(
-    chart: JyotishChart,
-    locale: str,
-    question: str,
-    *,
-    style: str = "terms",
-) -> str:
-    lang = _lang(locale)
-    houses, planet_keys = _match_custom_topics(question)
-    focus = _custom_focus(question)
-    houses_tuple = tuple(houses[:2])
-    planets_tuple = tuple(planet_keys[:4])
-    cfg = QaSynthFocus(houses_tuple, planets_tuple, focus)
-    body = _qa_synth(locale, question, chart, "", cfg, style=style)
-    header = "✍️ Свой вопрос" if lang == "ru" else "✍️ Your question"
-    shown_q = question if len(question) <= 220 else question[:219].rstrip() + "…"
-    return qa_response(header, shown_q, body)
 
 
 def build_popular_answer(
