@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import LAGNA_ESSENCE, _house_theme, _lang, _pl, _sign_line, _use_terms
+from app.natal_qa_voice import humanize_natal_plain, plain_area as voice_plain_area, plain_practice, plain_role, plain_topic_hook
 from app.text_format import b, h, labeled_block, p
 
 _DIGNITY_RANK = {"exalted": 4, "own": 3, "neutral": 2, "debilitated": 1}
@@ -331,79 +332,49 @@ def _plain_primary_sentence(locale: str, pl: PlanetPlacement, intent: str) -> st
 
     if lang == "ru":
         if intent == "challenge":
-            return (
-                f"Главный узел — {trait_b}; особенно в теме {h(area)}."
-            )
+            return f"Главный затык — {trait_b}; особенно там, где {h(area)}."
         if intent == "why":
-            return (
-                f"Причина в линии «{_plain_planet_role(locale, pl.key)}»: {trait_b} "
-                f"— это слышно в {h(area)}."
-            )
+            return f"Короче: {trait_b} — и это слышно в {h(area)}."
         if intent == "when":
             return (
-                f"Момент наступает, когда тема «{_plain_life_area(locale, pl.house)}» "
-                f"ощущается ярче; маркер — {trait_b}."
+                f"Не «вторник в 15:00», а когда тема {h(area)} станет ощущаться ярче. "
+                f"Маркер — {trait_b}."
             )
         if intent in {"how", "how_relationship"}:
-            return (
-                f"Твой способ — {trait_b}; это проявляется в {h(area)}."
-            )
+            return f"Твой способ — {trait_b}. Это видно в {h(area)}."
         if intent == "what" or intent == "who_partner":
-            return (
-                f"Суть — {trait_b}; ключ в теме {h(area)}."
-            )
+            return f"Суть — {trait_b}; ключ в {h(area)}."
         if pl.key == "VENUS" and intent == "money":
             return (
-                f"К деньгам и ценностям у тебя такой подход: {trait_b}. "
-                f"Ты тратишь и копишь не «просто так», а когда чувствуешь смысл и качество. "
-                f"Это проявляется в сфере {h(area)}."
+                f"С деньгами ты не «просто тратишь» — {trait_b}. "
+                f"Когда чувствуешь смысл и качество, кошелёк открывается в {h(area)}."
             )
         if pl.key == "JUPITER" and intent == "money":
             return (
-                f"С деньгами у тебя связана тема роста: {trait_b}. "
-                f"Важно не только сохранять, но и видеть, куда можно расшириться. "
-                f"На практике это часто проявляется через {h(area)}."
+                f"Деньги у тебя связаны с ростом: {trait_b}. "
+                f"Не только копить — ещё и видеть, куда расшириться ({h(area)})."
             )
         if pl.key == "VENUS":
             return (
-                f"В любви и симпатии у тебя работает такой принцип: {trait_b}. "
-                f"Это сильнее всего проявляется в сфере {h(area)}."
+                f"В любви работает так: {trait_b}. "
+                f"Сильнее всего — в {h(area)}."
             )
         if pl.key == "MOON":
             return (
-                f"На эмоциональном уровне для тебя важно, что {trait_b}. "
-                f"Это особенно заметно там, где звучит тема {h(area)}."
+                f"На эмоциях важно, что {trait_b}. "
+                f"Заметнее всего — {h(area)}."
             )
         if pl.key == "SUN":
-            return (
-                f"В основе ответа — твоё ощущение себя и своего курса: {trait_b}. "
-                f"Это проявляется в сфере {h(area)}."
-            )
+            return f"В основе — {trait_b}. Проявляется в {h(area)}."
         if pl.key == "MARS":
-            return (
-                f"В действии ты обычно опираешься на такой стиль: {trait_b}. "
-                f"Это чувствуется в теме {h(area)}."
-            )
+            return f"В действии — {trait_b}. Чувствуется в {h(area)}."
         if pl.key == "MERCURY":
-            return (
-                f"В мышлении и словах у тебя складывается такая линия: {trait_b}. "
-                f"На практике это часто связано с {h(area)}."
-            )
+            return f"В голове и словах — {trait_b}. На практике — {h(area)}."
         if pl.key == "JUPITER":
-            return (
-                f"Для тебя важны рост и ощущение перспективы: {trait_b}. "
-                f"Это особенно связано с {h(area)}."
-            )
+            return f"Тянет к росту: {trait_b}. Связано с {h(area)}."
         if pl.key == "SATURN":
-            return (
-                f"Здесь включаются терпение, границы и ответственность: {trait_b}. "
-                f"Это проявляется в сфере {h(area)}."
-            )
-        role = _plain_planet_role(locale, pl.key)
-        return (
-            f"Главный акцент связан с темой «{h(role)}»: {trait_b}. "
-            f"Это проявляется в сфере {h(area)}."
-        )
+            return f"Тут терпение и рамки: {trait_b}. Сфера — {h(area)}."
+        return f"Главное — {trait_b}. Это про {h(area)}."
 
     trait_b = _emph(trait)
     if pl.key == "VENUS":
@@ -449,21 +420,12 @@ def _plain_secondary_sentence(
     area = _plain_life_area_prep(locale, secondary.house)
     if lang == "ru":
         if intent == "challenge":
-            return f"Второй узел — {trait_b}; он усиливает тему {h(area)}."
+            return f"Ещё один затык — {trait_b}; усиливает {h(area)}."
         if secondary.key == "MOON":
-            return (
-                f"Параллельно важны эмоции и привычные реакции: {trait_b}. "
-                f"Это усиливает тему {h(area)}."
-            )
+            return f"Плюс эмоции: {trait_b} — это про {h(area)}."
         if secondary.key == "SATURN":
-            return (
-                f"При этом включаются границы и реализм: {trait_b}. "
-                f"Это добавляет серьёзности в тему {h(area)}."
-            )
-        return (
-            f"Рядом с этим работает ещё одна линия: {trait_b}. "
-            f"Она добавляет глубины в тему {h(area)}."
-        )
+            return f"И границы: {trait_b} — добавляет серьёзности в {h(area)}."
+        return f"Рядом работает ещё: {trait_b} — глубина в {h(area)}."
     return (
         f"Alongside this, another line runs: {trait_b}. "
         f"It adds depth in {h(area)}."
@@ -532,9 +494,40 @@ def _question_already_asks(intent: str, question: str) -> bool:
     return False
 
 
-def _question_frame(locale: str, question: str, intent: str) -> str:
+def _question_frame(locale: str, question: str, intent: str, *, style: str = "terms") -> str:
     """Anchor the answer to the user's exact wording."""
     lang = _lang(locale)
+    if not _use_terms(style):
+        hooks = {
+            "ru": {
+                "challenge": "Где застревает — без мистики, по делу.",
+                "why": "Почему так — коротко.",
+                "when": "Когда — не дата в календаре, а «когда созреешь».",
+                "what": "Суть вопроса — вот так.",
+                "how": "Как у тебя это работает — простыми словами.",
+                "how_relationship": "Про отношения — без астрологического словаря.",
+                "who_partner": "Кого тянет — типаж, не загадка.",
+                "money": "Про деньги — как ты реально тратишь и копишь.",
+                "career": "Про работу — куда тянет и где тормозит.",
+                "health": "Про тело и энергию — без занудства.",
+                "general": plain_topic_hook(locale, question),
+            },
+            "en": {
+                "challenge": "Where it sticks — no mysticism, just the point.",
+                "why": "Why — short version.",
+                "when": "When — not a calendar date, but readiness.",
+                "what": "The gist — like this.",
+                "how": "How it works for you — plain words.",
+                "how_relationship": "On relationships — no astro dictionary.",
+                "who_partner": "Who you're drawn to — a type, not a riddle.",
+                "money": "On money — how you actually spend and save.",
+                "career": "On work — pull and friction.",
+                "health": "On body and energy — no lecture.",
+                "general": plain_topic_hook(locale, question),
+            },
+        }
+        return hooks[lang].get(intent, hooks[lang]["general"])
+
     topic = _short_question(question)
     if _question_already_asks(intent, question):
         if lang == "ru":
@@ -607,7 +600,7 @@ def _build_plain_narrative(
 ) -> str:
     lang = _lang(locale)
     intent = _classify_question(question, lang)
-    opening = _question_frame(locale, question, intent)
+    opening = _question_frame(locale, question, intent, style="plain")
 
     parts = [b(opening), _plain_primary_sentence(locale, primary, intent)]
     if secondary and secondary.key != primary.key:
@@ -622,8 +615,8 @@ def _build_plain_narrative(
     elif intent == "when":
         if lang == "ru":
             parts.append(
-                "Точную дату карта не называет — смотри на внутреннюю готовность "
-                "и периоды, когда тема дома активнее."
+                "Точную дату не назову — смотри, когда внутри «да, готов» "
+                "и тема перестаёт быть фоном."
             )
         else:
             parts.append(
@@ -665,12 +658,9 @@ def _build_chart_markers(
         seen.add(pl.key)
         tag = _dignity_tag(locale, pl)
         if not _use_terms(style):
-            role = _plain_planet_role(locale, pl.key)
-            area = _plain_life_area(locale, pl.house)
-            trait = _humanize_core(locale, pl)
-            if "—" in trait:
-                trait = trait.split("—", 1)[-1].strip()
-            line = f"{role.capitalize()} · {trait} · {area}"
+            from app.natal_qa_voice import plain_placement_line
+
+            line = plain_placement_line(locale, pl)
         else:
             pname = _pl(locale, pl.key)
             sign = sign_label(locale, pl.sign)
@@ -690,8 +680,11 @@ def _practical_takeaway(
     *,
     focus: str,
     primary: PlanetPlacement,
+    style: str = "terms",
 ) -> str:
     lang = _lang(locale)
+    if not _use_terms(style):
+        return plain_practice(locale, intent)
     area = _plain_life_area_prep(locale, primary.house)
     if lang == "ru":
         mapping = {
@@ -781,7 +774,7 @@ def synthesize_structured_answer(
         planet_keys=planet_keys,
         style=style,
     )
-    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary)
+    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary, style=style)
     return StructuredQaAnswer(brief, markers, practice)
 
 
@@ -986,10 +979,11 @@ def format_qa_body(
         labels = ("Кратко", "По карте", "На практике") if lang == "ru" else ("Short answer", "From your chart", "In practice")
         blocks: list[str] = [p(b(labels[0]), answer)]
         if marker_lines:
-            bullets = p(*[f"• {h(line)}" for line in marker_lines])
+            cleaned = [humanize_natal_plain(line, locale) for line in marker_lines]
+            bullets = p(*[f"• {h(line)}" for line in cleaned])
             blocks.append(p(b(labels[1]), bullets))
         if practice.strip():
-            blocks.append(labeled_block(labels[2], practice))
+            blocks.append(labeled_block(labels[2], humanize_natal_plain(practice.strip(), locale)))
         return p(*blocks)
 
     blocks = [labeled_block("💬 Ответ" if lang == "ru" else "💬 Answer", answer)]
@@ -1054,7 +1048,7 @@ def finish_qa_body(
         focus=focus,
         intent=intent,
     )
-    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary)
+    practice = _practical_takeaway(locale, intent, focus=focus, primary=primary, style=style)
     return format_qa_body(
         locale,
         direct_answer,

@@ -876,13 +876,15 @@ def test_natal_qa_synthesis() -> None:
         for i in range(5)
     ]
     assert len(set(family_briefs)) == 5
-    assert "романтику" in family_briefs[0].lower() or "romance" in family_briefs[0].lower()
+    assert "любви" in family_briefs[0].lower() or "романт" in family.lower()
     assert "тип" in family_briefs[1].lower() or "type" in family_briefs[1].lower()
     assert "союз" in family_briefs[2].lower() or "union" in family_briefs[2].lower()
     assert "дом" in family_briefs[3].lower() or "home" in family_briefs[3].lower()
-    assert "трен" in family_briefs[4].lower() or "friction" in family_briefs[4].lower()
-    assert "управитель" in family_briefs[1].lower() or "7th lord" in family_briefs[1].lower()
-    assert "4-й" in family_briefs[3].lower() or "4th" in family_briefs[3].lower()
+    assert "трен" in family_briefs[4].lower() or "friction" in family_briefs[4].lower() or "злость" in family_briefs[4].lower()
+    assert "управитель" not in family_briefs[1].lower()
+    assert "7th lord" not in family_briefs[1].lower()
+    assert "4-й" not in family_briefs[3].lower()
+    assert "4th" not in family_briefs[3].lower()
     assert "важно, чтобы рядом было приятно" not in family.lower()
 
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
@@ -898,7 +900,7 @@ def test_natal_qa_synthesis() -> None:
     assert love.count(".") >= 3
 
     finance = build_finance_answer(chart, "ru", 0, style="plain")
-    assert "С деньгами и ценностями" not in finance or "2-й" in finance or "Венера" in finance
+    assert "Венера" not in finance or "2-й" not in finance
     assert "В отношениях у тебя" not in finance
     assert "важно, чтобы рядом было приятно" not in finance.lower()
 
@@ -909,12 +911,13 @@ def test_natal_qa_synthesis() -> None:
     assert len(set(finance_briefs)) == 5
 
     sphere7 = build_sphere_answer(chart, "ru", 7, 0, style="plain")
-    assert "управитель" in sphere7.lower() or "7-" in sphere7
+    assert "управитель" not in sphere7.lower()
+    assert "7-" not in sphere7
     assert "важно, чтобы рядом было приятно" not in sphere7.lower()
 
     family_terms = build_family_answer(chart, "ru", 0, style="terms")
-    assert "Ответ:" in family_terms
-    assert "Подробнее по карте:" in family_terms
+    assert "💬 Ответ" in family_terms or "💬 Answer" in family_terms
+    assert "📊" in family_terms
 
 
 def main() -> None:

@@ -14,6 +14,7 @@ from app.jyotish_text import (
 )
 from app.family_qa_detail import build_family_structured
 from app.natal_qa_synthesis import format_qa_body
+from app.natal_qa_voice import plain_role
 from app.natal_sphere_qa_detail import build_natal_sphere_structured
 from app.text_format import b, h, p, qa_response
 
@@ -1062,13 +1063,21 @@ def _empty_house_answer(
         else:
             lead = (
                 f"В сфере «{_house_theme(locale, house)}» нет ярких планет — "
-                f"тема проявляется через {lord_name} в «{lord_theme}»."
+                f"тема идёт через {plain_role(locale, lord.key)} ({lord_sign})."
             )
-        focus_bits = {
-            "strength": f"{lord_name} в {lord_sign} даёт опору: здесь проявляется сила этой темы.",
-            "challenge": f"Следи за перекосом через {lord_name} в {lord_sign} — там же и типичное напряжение.",
-            "default": f"Ключ — {lord_name} в {lord_sign}: через него эта сфера «оживает» в карте.",
-        }
+        if _use_terms(style):
+            focus_bits = {
+                "strength": f"{lord_name} в {lord_sign} даёт опору: здесь проявляется сила этой темы.",
+                "challenge": f"Следи за перекосом через {lord_name} в {lord_sign} — там же и типичное напряжение.",
+                "default": f"Ключ — {lord_name} в {lord_sign}: через него эта сфера «оживает» в карте.",
+            }
+        else:
+            role = plain_role(locale, lord.key)
+            focus_bits = {
+                "strength": f"{role.capitalize()} ({lord_sign}) — тут твоя опора в этой теме.",
+                "challenge": f"Следи, где {role} ({lord_sign}) перегибает — там обычно и ссора с собой.",
+                "default": f"Ключ — {role} ({lord_sign}): через это сфера «оживает».",
+            }
     else:
         if _use_terms(style):
             lead = (
@@ -1174,13 +1183,13 @@ def build_family_answer(
             intro = (
                 "Романтика и притяжение — 7-й дом, Венера и Луна. "
                 if _use_terms(style)
-                else "Романтика и притяжение — сфера партнёрства, Венера и Луна. "
+                else "Романтика и притяжение — про пару, нежность и эмоции. "
             )
         else:
             intro = (
                 "Romance and attraction — house 7, Venus, and Moon. "
                 if _use_terms(style)
-                else "Romance and attraction — partnership, Venus, and Moon. "
+                else "Romance and attraction — partnership, feelings, and warmth. "
             )
         body = (
             f"{intro}{_render_planet(locale, venus, style=style)} "

@@ -273,6 +273,25 @@ def _planet_prose(
     nak = _nakshatra_clause(locale, pl.nakshatra, style=style)
     pname = _pl(locale, pl.key)
 
+    if not _use_terms(style):
+        from app.natal_qa_voice import plain_placement_line
+
+        core = _sign_line(locale, pl.key, pl.sign).rstrip(".")
+        if lang == "ru" and "—" in core:
+            core = core.split("—", 1)[-1].strip()
+        elif lang == "en" and "—" in core:
+            core = core.split("—", 1)[-1].strip()
+        base = plain_placement_line(locale, pl)
+        if omit_house:
+            sign_name = sign_label(locale, pl.sign)
+            role = plain_placement_line(locale, pl).split("(")[0].strip()
+            if lang == "ru":
+                return f"{role} ({sign_name}) — {core}."
+            return f"{role} ({sign_name}) — {core}."
+        if lang == "ru":
+            return f"{base}: {core[0].lower() + core[1:] if core else core}."
+        return f"{base}: {core}."
+
     if lang == "ru":
         if omit_house:
             lead = f"{pname} в {sign_name} — {core}."

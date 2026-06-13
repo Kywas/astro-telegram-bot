@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import _house_theme, _lang, _pl, _use_terms
+from app.natal_qa_voice import humanize_natal_plain, plain_area as voice_plain_area, plain_lord_line, plain_placement_line, plain_role
 from app.text_format import b, h, p
 
 _DIGNITY = {
@@ -103,12 +104,31 @@ def lord_of(chart: JyotishChart, house: int) -> PlanetPlacement:
     return chart.planets[chart.house_lords[house]]
 
 
-def dignity_note(locale: str, pl: PlanetPlacement) -> str:
-    return _DIGNITY[_lang(locale)].get(pl.dignity, "")
+_DIGNITY_PLAIN = {
+    "ru": {
+        "exalted": "очень сильно",
+        "own": "устойчиво",
+        "debilitated": "нужна бережность",
+        "neutral": "",
+    },
+    "en": {
+        "exalted": "very strong",
+        "own": "steady",
+        "debilitated": "needs care",
+        "neutral": "",
+    },
+}
+
+
+def dignity_note(locale: str, pl: PlanetPlacement, *, style: str = "terms") -> str:
+    lang = _lang(locale)
+    if not _use_terms(style):
+        return _DIGNITY_PLAIN[lang].get(pl.dignity, "")
+    return _DIGNITY[lang].get(pl.dignity, "")
 
 
 def plain_area(locale: str, house: int) -> str:
-    return _PLAIN_AREA[_lang(locale)].get(house, _house_theme(locale, house))
+    return voice_plain_area(locale, house)
 
 
 def placement_label(
@@ -119,20 +139,24 @@ def placement_label(
     role: str = "",
 ) -> str:
     lang = _lang(locale)
-    pname = _pl(locale, pl.key)
     sign = sign_label(locale, pl.sign)
-    dig = dignity_note(locale, pl)
+    dig = dignity_note(locale, pl, style=style)
     if _use_terms(style):
         theme = _house_theme(locale, pl.house)
+        pname = _pl(locale, pl.key)
         base = f"{pname} в {sign}, {pl.house}-й дом («{theme}»)"
         return f"{base} · {dig}" if dig else base
-    prefix = f"{role}: " if role else ""
-    area = plain_area(locale, pl.house)
-    line = f"{prefix}{pname} в {sign} — {area}"
-    return f"{line} ({dig})" if dig else line
+    line = plain_placement_line(locale, pl, hint=role if role else "")
+    if dig and lang == "ru":
+        return f"{line} ({dig})"
+    if dig:
+        return f"{line} ({dig})"
+    return line
 
 
-def lord_of_house_note(locale: str, chart: JyotishChart, from_house: int) -> str:
+def lord_of_house_note(locale: str, chart: JyotishChart, from_house: int, *, style: str = "terms") -> str:
+    if not _use_terms(style):
+        return plain_lord_line(locale, chart, from_house)
     lang = _lang(locale)
     lord_pl = lord_of(chart, from_house)
     h_sign = sign_label(locale, chart.house_signs[from_house])
@@ -153,7 +177,11 @@ def lord_of_house_note(locale: str, chart: JyotishChart, from_house: int) -> str
     return f"Lord of house {from_house} ({h_sign}, {pname}) in house {lord_pl.house} — {effect}"
 
 
-def topic_frame(locale: str, question: str, *, ru: str, en: str) -> str:
+def topic_frame(locale: str, question: str, *, ru: str, en: str, style: str = "terms") -> str:
+    from app.natal_qa_voice import plain_topic_hook
+
+    if not _use_terms(style):
+        return plain_topic_hook(locale, question)
     topic = question.strip().rstrip("?.!")
     lang = _lang(locale)
     return ru.format(topic=topic) if lang == "ru" else en.format(topic=topic)

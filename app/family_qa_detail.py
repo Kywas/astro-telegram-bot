@@ -12,6 +12,7 @@ from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import _house_theme, _lang, _pl, _use_terms
 from app.natal_qa_synthesis import _classify_question, _question_frame
+from app.natal_qa_voice import humanize_natal_plain, plain_area, plain_placement_line, plain_role
 from app.text_format import b, h, p
 
 # Partner flavour by sign on the 7th cusp (classical 7th-house spouse typing).
@@ -55,7 +56,7 @@ _LORD7_IN_HOUSE: dict[str, dict[int, str]] = {
         4: "союз завязан на дом и семью — партнёр даёт чувство «своих» или из твоей среды",
         5: "романтика, творчество, досуг — встреча через увлечения, праздники, детей",
         6: "через работу/службу — возможны задержки, бытовые споры, тема здоровья в паре",
-        7: "сильный фокус на браке — партнёр ярко несёт знак 7-го дома; союз центральная тема",
+        7: "брак — одна из главных тем, не «фоновая» история",
         8: "глубокая трансформация — совместные кризисы, тайны, наследство или общие ресурсы",
         9: "иностранец, другая культура, наставник — брак расширяет мировоззрение",
         10: "партнёр виден публично — карьера, статус, встреча на работе или через репутацию",
@@ -155,39 +156,7 @@ def _placement_label(
         theme = _house_theme(locale, pl.house)
         base = f"{pname} в {sign}, {pl.house}-й дом («{theme}»)"
         return f"{base} · {dig}" if dig else base
-    area = {
-        "ru": {
-            1: "образ и самопроявление",
-            2: "деньги и ценности",
-            3: "общение и повседневность",
-            4: "дом и семья",
-            5: "радость и романтика",
-            6: "работа и быт",
-            7: "партнёрство и брак",
-            8: "кризисы и общие ресурсы",
-            9: "смысл и расширение",
-            10: "карьера и статус",
-            11: "друзья и цели",
-            12: "уединение и отпускание",
-        },
-        "en": {
-            1: "identity and self-expression",
-            2: "money and values",
-            3: "communication and daily life",
-            4: "home and family",
-            5: "joy and romance",
-            6: "work and routine",
-            7: "partnership and marriage",
-            8: "crisis and shared resources",
-            9: "meaning and expansion",
-            10: "career and status",
-            11: "friends and goals",
-            12: "solitude and release",
-        },
-    }[lang].get(pl.house, _house_theme(locale, pl.house))
-    prefix = f"{role}: " if role else ""
-    line = f"{prefix}{pname} в {sign} — сфера {area}"
-    return f"{line} ({dig})" if dig else line
+    return plain_placement_line(locale, pl)
 
 
 # Where home/family themes go when the 4th lord sits in each house.
@@ -231,8 +200,13 @@ def _h7_partner_type(locale: str, sign: str) -> str:
     return _H7_PARTNER[_lang(locale)].get(sign, _H7_PARTNER[_lang(locale)]["Libra"])
 
 
-def _lord7_circumstance(locale: str, house: int) -> str:
-    return _LORD7_IN_HOUSE[_lang(locale)].get(house, _LORD7_IN_HOUSE[_lang(locale)][7])
+def _lord7_circumstance(locale: str, house: int, *, style: str = "terms") -> str:
+    lang = _lang(locale)
+    if not _use_terms(style) and lang == "ru" and house == 7:
+        return "партнёрство — центральная тема, не фон"
+    if not _use_terms(style) and lang == "en" and house == 7:
+        return "partnership is central, not background"
+    return _LORD7_IN_HOUSE[lang].get(house, _LORD7_IN_HOUSE[lang][7])
 
 
 def _planet_in_7_note(locale: str, key: str) -> str:
@@ -242,6 +216,15 @@ def _planet_in_7_note(locale: str, key: str) -> str:
 def _moon_relationship_mode(locale: str, moon: PlanetPlacement, *, style: str) -> str:
     lang = _lang(locale)
     sign = sign_label(locale, moon.sign)
+    if not _use_terms(style):
+        area = plain_area(locale, moon.house)
+        if moon.house == 7:
+            if lang == "ru":
+                return "эмоции сразу в паре — чувствуешь партнёра настроением, не только словами"
+            return "feelings live in the pair — you read your partner through mood"
+        if lang == "ru":
+            return f"чувства идут через {area} ({sign}) — сначала настроение, потом слова"
+        return f"feelings run through {area} ({sign}) — mood before words"
     if moon.house == 7:
         if lang == "ru":
             return "эмоции сразу в паре — чувствуешь партнёра телом и настроением"
@@ -262,8 +245,13 @@ def _moon_relationship_mode(locale: str, moon: PlanetPlacement, *, style: str) -
 def _venus_love_filter(locale: str, venus: PlanetPlacement, *, style: str) -> str:
     lang = _lang(locale)
     sign = sign_label(locale, venus.sign)
-    dig = _dignity_note(locale, venus)
     in7 = venus.house == 7
+    if not _use_terms(style):
+        where = "прямо в паре" if in7 else f"через {plain_area(locale, venus.house)}"
+        if lang == "ru":
+            return f"В любви выбираешь, где {where} — приятно и по-настоящему ({sign})"
+        return f"In love you pick where {where} feels real and warm ({sign})"
+    dig = _dignity_note(locale, venus)
     if lang == "ru":
         where = "прямо в теме партнёрства" if in7 else f"через {_house_theme(locale, venus.house).lower()}"
         tail = f" ({dig})" if dig else ""
@@ -273,11 +261,20 @@ def _venus_love_filter(locale: str, venus: PlanetPlacement, *, style: str) -> st
     return f"Venus in {sign}{tail}: you choose where {where} feels pleasant and real"
 
 
-def _jupiter_union_maturity(locale: str, jupiter: PlanetPlacement) -> str:
+def _jupiter_union_maturity(locale: str, jupiter: PlanetPlacement, *, style: str = "terms") -> str:
     lang = _lang(locale)
     sign = sign_label(locale, jupiter.sign)
     house = jupiter.house
     theme = _house_theme(locale, house)
+    if not _use_terms(style):
+        area = plain_area(locale, house)
+        if lang == "ru":
+            if house == 7:
+                return "Союз даёт рост, если оба не сливаются в «я одна/один тащу»"
+            return f"Пара крепнет через {area} ({sign}) — не только романтика на старте"
+        if house == 7:
+            return "Union grows when neither of you carries everything alone"
+        return f"Pair strengthens through {area} ({sign}) — not just honeymoon vibes"
     if lang == "ru":
         if house == 7:
             return "Юпитер в 7-м — союз приносит рост и благословение, если оба берут ответственность"
@@ -308,6 +305,17 @@ def _home_family_core(locale: str, chart: JyotishChart, *, style: str) -> str:
             else "4th lord in its own house — family and roots are loud"
         )
     )
+    if not _use_terms(style):
+        if lang == "ru":
+            base = f"Дом и «свои» — про {plain_area(locale, 4)}. "
+            moon_bit = _moon_relationship_mode(locale, moon, style=style)
+            lord_bit = _lord4_circumstance(locale, lord4.house)
+            extra = ""
+            if in4:
+                extra = " Дома много энергии — семейная атмосфера яркая."
+            return base + f"Эмоции: {moon_bit}. {lord_bit.capitalize()}.{extra}"
+        base = f"Home and «your people» — about {plain_area(locale, 4)}. "
+        return base + _moon_relationship_mode(locale, moon, style=style) + f" {_lord4_circumstance(locale, lord4.house)}."
     if lang == "ru":
         base = f"4-й дом в {h4_sign}: дом — про {_house_theme(locale, 4).lower()}. "
         moon_bit = _moon_relationship_mode(locale, moon, style=style)
@@ -332,7 +340,14 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
 
     if mars.house in (4, 7) or mars.dignity == "debilitated":
         if lang == "ru":
-            if mars.house == 12:
+            if not _use_terms(style):
+                if mars.house == 12:
+                    points.append("Злость уходит внутрь — молчишь, уходишь, копишь обиду вместо разговора")
+                elif mars.house == 7:
+                    points.append("В паре бывают вспышки — кто главный, кто уступает; нужны правила ссоры")
+                else:
+                    points.append(f"Напряжение в {plain_area(locale, mars.house)} — не всегда про «не люблю»")
+            elif mars.house == 12:
                 points.append(
                     "Марс в 12-м (ослаблен) — злость уходит внутрь: молчание, уход, пассивная обида вместо разговора"
                 )
@@ -350,13 +365,24 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
     if saturn.house in (4, 7) or saturn.dignity in {"debilitated", "own", "exalted"}:
         if saturn.house == 7:
             if lang == "ru":
-                dig = _dignity_note(locale, saturn)
-                if saturn.dignity == "own":
+                if not _use_terms(style):
+                    if saturn.dignity == "own":
+                        points.append(
+                            "Союз серьёзный, но без тепла легко превратиться в «мы соседи по договору»"
+                        )
+                    else:
+                        points.append("Дистанция и проверки на прочность — страшно обещать, пока не уверен")
+                elif saturn.dignity == "own":
                     points.append(
                         "Сатурн-управитель 7-го в 7-м (свой знак) — союз серьёзный, но холод или дистанция возможны без тепла"
                     )
                 else:
                     points.append("Сатурн в 7-м — дистанция, проверки на прочность, страх обязательств")
+            elif not _use_terms(style):
+                if saturn.dignity == "own":
+                    points.append("Serious union — without warmth it can feel like «roommates by contract»")
+                else:
+                    points.append("Distance and durability tests — hard to promise until sure")
             elif saturn.dignity == "own":
                 points.append("Saturn as 7th lord in the 7th (own sign) — serious union, risk of cold distance")
             else:
@@ -364,19 +390,31 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
 
     if rahu.house in (3, 4, 7):
         if lang == "ru":
-            points.append(
-                f"Раху в {rahu.house}-м — идеализация и ревность в {_house_theme(locale, rahu.house).lower()}; "
-                "ожидания могут быть выше реальности"
-            )
+            if not _use_terms(style):
+                points.append(
+                    f"Идеализация и ревность в {plain_area(locale, rahu.house)} — "
+                    "ожидания иногда выше реальности (классика «я думал, будет иначе»)"
+                )
+            else:
+                points.append(
+                    f"Раху в {rahu.house}-м — идеализация и ревность в {_house_theme(locale, rahu.house).lower()}; "
+                    "ожидания могут быть выше реальности"
+                )
         else:
             points.append(
                 f"Rahu in house {rahu.house} — idealization/jealousy in {_house_theme(locale, rahu.house)}"
             )
 
-    if venus.house == 7 and lord7.key == "SATURN" and lang == "ru":
-        points.append("Венера и Сатурн вместе в 7-м — любовь vs долг: «хочу близости» и «надо держать рамки»")
-    elif venus.house == 7 and lord7.key == "SATURN":
-        points.append("Venus and Saturn together in the 7th — love vs duty tension")
+    if venus.house == 7 and lord7.key == "SATURN":
+        if not _use_terms(style):
+            if lang == "ru":
+                points.append("Любовь vs долг: «хочу близости» и «надо держать рамки» — оба голоса громкие")
+            else:
+                points.append("Love vs duty — both voices are loud")
+        elif lang == "ru":
+            points.append("Венера и Сатурн вместе в 7-м — любовь vs долг: «хочу близости» и «надо держать рамки»")
+        else:
+            points.append("Venus and Saturn together in the 7th — love vs duty tension")
 
     if not points:
         if lang == "ru":
@@ -388,7 +426,8 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
 
 def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
-    frame = _question_frame(locale, question, "how_relationship")
+    intent = _classify_question(question, lang)
+    frame = _question_frame(locale, question, intent if intent == "how_relationship" else "how_relationship", style=style)
     venus = chart.planets["VENUS"]
     moon = chart.planets["MOON"]
     h7 = _planets_in_house(chart, 7)
@@ -403,12 +442,21 @@ def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) ->
             for pl in h7[:2]:
                 note = _planet_in_7_note(locale, pl.key)
                 if note:
-                    steps.append(f"{_pl(locale, pl.key)} в 7-м: {note}.")
+                    if _use_terms(style):
+                        steps.append(f"{_pl(locale, pl.key)} в 7-м: {note}.")
+                    else:
+                        steps.append(f"В паре усиливает: {note}.")
         elif lord7.house != 7:
-            steps.append(
-                f"7-й пуст — стиль пары задаёт управитель ({_pl(locale, lord7.key)} в {lord7.house}-м): "
-                f"{_lord7_circumstance(locale, lord7.house)}."
-            )
+            if _use_terms(style):
+                steps.append(
+                    f"7-й пуст — стиль пары задаёт управитель ({_pl(locale, lord7.key)} в {lord7.house}-м): "
+                    f"{_lord7_circumstance(locale, lord7.house, style=style)}."
+                )
+            else:
+                steps.append(
+                    f"Пара складывается через {plain_area(locale, lord7.house)}: "
+                    f"{_lord7_circumstance(locale, lord7.house, style=style)}."
+                )
         body = " ".join(steps)
         return p(b(frame), h(body))
 
@@ -425,7 +473,7 @@ def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) ->
 
 def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
-    frame = _question_frame(locale, question, "who_partner")
+    frame = _question_frame(locale, question, "who_partner", style=style)
     h7_sign_key = chart.house_signs[7]
     h7_sign = sign_label(locale, h7_sign_key)
     partner = _h7_partner_type(locale, h7_sign_key)
@@ -434,22 +482,34 @@ def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) ->
     in7 = _planets_in_house(chart, 7)
 
     if lang == "ru":
-        lines = [
-            f"Знак 7-го ({h7_sign}) тянет к типу: {b(partner)}.",
-            f"Обстоятельства и «как встречаешь» — управитель 7-го "
-            f"({_pl(locale, lord7.key)} в {lord7.house}-м доме): {_lord7_circumstance(locale, lord7.house)}.",
-            _venus_love_filter(locale, venus, style=style) + ".",
-        ]
-        for pl in in7:
-            note = _planet_in_7_note(locale, pl.key)
-            if note and pl.key not in {lord7.key}:
-                lines.append(f"В 7-м {_pl(locale, pl.key)} усиливает: {note}")
+        if _use_terms(style):
+            lines = [
+                f"Знак 7-го ({h7_sign}) тянет к типу: {b(partner)}.",
+                f"Обстоятельства и «как встречаешь» — управитель 7-го "
+                f"({_pl(locale, lord7.key)} в {lord7.house}-м доме): {_lord7_circumstance(locale, lord7.house, style=style)}.",
+                _venus_love_filter(locale, venus, style=style) + ".",
+            ]
+            for pl in in7:
+                note = _planet_in_7_note(locale, pl.key)
+                if note and pl.key not in {lord7.key}:
+                    lines.append(f"В 7-м {_pl(locale, pl.key)} усиливает: {note}")
+        else:
+            lines = [
+                f"Тебя тянет к типу: {b(partner)} (оттенок {h7_sign}).",
+                f"Встречаешь людей через {plain_area(locale, lord7.house)}: "
+                f"{_lord7_circumstance(locale, lord7.house, style=style)}.",
+                _venus_love_filter(locale, venus, style=style) + ".",
+            ]
+            for pl in in7:
+                note = _planet_in_7_note(locale, pl.key)
+                if note and pl.key not in {lord7.key}:
+                    lines.append(f"В паре добавляет: {note}")
         return p(b(frame), h(" ".join(lines)))
 
     lines = [
         f"7th sign ({h7_sign}) pulls toward: {b(partner)}.",
         f"How you meet — 7th lord {_pl(locale, lord7.key)} in house {lord7.house}: "
-        f"{_lord7_circumstance(locale, lord7.house)}.",
+        f"{_lord7_circumstance(locale, lord7.house, style=style)}.",
         _venus_love_filter(locale, venus, style=style) + ".",
     ]
     return p(b(frame), h(" ".join(lines)))
@@ -457,56 +517,68 @@ def _brief_q1(locale: str, chart: JyotishChart, question: str, *, style: str) ->
 
 def _brief_q2(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
-    frame = _question_frame(locale, question, "what")
+    frame = _question_frame(locale, question, "what", style=style)
     lord7 = _lord(chart, 7)
     jupiter = chart.planets["JUPITER"]
     in7 = _planets_in_house(chart, 7)
     dig = _dignity_note(locale, lord7)
 
     if lang == "ru":
+        if _use_terms(style):
+            marriage = (
+                f"Управитель брака — {_pl(locale, lord7.key)} в {sign_label(locale, lord7.sign)}, "
+                f"{lord7.house}-й дом: {_lord7_circumstance(locale, lord7.house, style=style)}."
+            )
+            if dig:
+                marriage += f" {dig.capitalize()}."
+            jup = _jupiter_union_maturity(locale, jupiter, style=style)
+            extra = ""
+            if lord7.house == 7:
+                extra = " Союз — одна из центральных тем жизни, не «фоновая» история."
+            elif lord7.house in (6, 8, 12):
+                extra = " Возможны задержки или испытания — качество зависит от осознанности, не от «запрета»."
+            if in7:
+                names = ", ".join(_pl(locale, p.key) for p in in7)
+                extra += f" В 7-м: {names} — они окрашивают повседневность брака."
+            return p(b(frame), h(f"{marriage} {jup}.{extra}"))
         marriage = (
-            f"Управитель брака — {_pl(locale, lord7.key)} в {sign_label(locale, lord7.sign)}, "
-            f"{lord7.house}-й дом: {_lord7_circumstance(locale, lord7.house)}."
+            f"Серьёзный союз у тебя через {plain_area(locale, lord7.house)} "
+            f"({sign_label(locale, lord7.sign)}): {_lord7_circumstance(locale, lord7.house, style=style)}."
         )
-        if dig:
-            marriage += f" {dig.capitalize()}."
-        jup = _jupiter_union_maturity(locale, jupiter)
+        jup = _jupiter_union_maturity(locale, jupiter, style=style)
         extra = ""
         if lord7.house == 7:
-            extra = " Союз — одна из центральных тем жизни, не «фоновая» история."
+            extra = " Пара — не «фон», а одна из главных тем."
         elif lord7.house in (6, 8, 12):
-            extra = " Возможны задержки или испытания — качество зависит от осознанности, не от «запрета»."
-        if in7:
-            names = ", ".join(_pl(locale, p.key) for p in in7)
-            extra += f" В 7-м: {names} — они окрашивают повседневность брака."
+            extra = " Может тянуть время — не приговор, а «не спеши с подписью»."
         return p(b(frame), h(f"{marriage} {jup}.{extra}"))
 
     marriage = (
         f"Marriage lord — {_pl(locale, lord7.key)} in {sign_label(locale, lord7.sign)}, "
-        f"house {lord7.house}: {_lord7_circumstance(locale, lord7.house)}."
+        f"house {lord7.house}: {_lord7_circumstance(locale, lord7.house, style=style)}."
     )
-    return p(b(frame), h(f"{marriage} {_jupiter_union_maturity(locale, jupiter)}."))
+    return p(b(frame), h(f"{marriage} {_jupiter_union_maturity(locale, jupiter, style=style)}."))
 
 
 def _brief_q3(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
-    topic = question.strip().rstrip("?.!")
-    if lang == "ru":
-        frame = f"На «{topic}» — по 4-му дому, Луне и управителю 4-го:"
+    if _use_terms(style):
+        topic = question.strip().rstrip("?.!")
+        frame = f"На «{topic}» — по 4-му дому, Луне и управителю 4-го:" if lang == "ru" else f"On «{topic}» — from house 4, the Moon, and the 4th lord:"
     else:
-        frame = f"On «{topic}» — from house 4, the Moon, and the 4th lord:"
+        frame = _question_frame(locale, question, "general", style=style)
     core = _home_family_core(locale, chart, style=style)
     return p(b(frame), h(core))
 
 
 def _brief_q4(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
     lang = _lang(locale)
-    frame = _question_frame(locale, question, "challenge")
+    frame = _question_frame(locale, question, "challenge", style=style)
     frictions = _friction_points(locale, chart, style=style)
     if lang == "ru":
-        body = " ".join(frictions) + " Это не приговор — точки, где лучше называть чувство до взрыва."
+        body = " ".join(frictions) + " Это не приговор — лучше сказать «мне обидно», чем молчать до взрыва."
     else:
-        body = " ".join(frictions) + " Not a verdict — name the feeling before it explodes."
+        body = " ".join(frictions) + " Not a verdict — say «I'm hurt» before it blows up."
     return p(b(frame), h(body))
 
 
@@ -531,14 +603,20 @@ def _markers_q0(locale: str, chart: JyotishChart, *, style: str) -> tuple[str, .
             lines.append(f"{line} — {note}" if note else line)
     else:
         if _lang(locale) == "ru":
-            lines.append(
-                f"7-й дом ({h7_sign}) без планет — стиль пары через {_pl(locale, lord7.key)} "
-                f"в {lord7.house}-м: {_lord7_circumstance(locale, lord7.house)}"
-            )
+            if _use_terms(style):
+                lines.append(
+                    f"7-й дом ({h7_sign}) без планет — стиль пары через {_pl(locale, lord7.key)} "
+                    f"в {lord7.house}-м: {_lord7_circumstance(locale, lord7.house, style=style)}"
+                )
+            else:
+                lines.append(
+                    f"В паре мало «громких» маркеров — стиль через {plain_area(locale, lord7.house)}: "
+                    f"{_lord7_circumstance(locale, lord7.house, style=style)}"
+                )
         else:
             lines.append(
                 f"Empty 7th ({h7_sign}) — pair style via {_pl(locale, lord7.key)} "
-                f"in house {lord7.house}: {_lord7_circumstance(locale, lord7.house)}"
+                f"in house {lord7.house}: {_lord7_circumstance(locale, lord7.house, style=style)}"
             )
     return tuple(lines[:3])
 
@@ -550,17 +628,24 @@ def _markers_q1(locale: str, chart: JyotishChart, *, style: str) -> tuple[str, .
     venus = chart.planets["VENUS"]
     lang = _lang(locale)
     if lang == "ru":
-        lines = [
-            f"Знак 7-го · {h7_sign} · тип: {partner}",
-            _placement_label(locale, lord7, style=style, role="Управитель 7-го")
-            + f" — {_lord7_circumstance(locale, lord7.house)}",
-            _placement_label(locale, venus, style=style, role="Фильтр Венеры"),
-        ]
+        if _use_terms(style):
+            lines = [
+                f"Знак 7-го · {h7_sign} · тип: {partner}",
+                _placement_label(locale, lord7, style=style, role="Управитель 7-го")
+                + f" — {_lord7_circumstance(locale, lord7.house, style=style)}",
+                _placement_label(locale, venus, style=style, role="Фильтр Венеры"),
+            ]
+        else:
+            lines = [
+                f"Тип притяжения · {h7_sign} · {partner}",
+                plain_placement_line(locale, lord7) + f" — {_lord7_circumstance(locale, lord7.house, style=style)}",
+                plain_placement_line(locale, venus),
+            ]
     else:
         lines = [
             f"7th sign · {h7_sign} · type: {partner}",
             _placement_label(locale, lord7, style=style, role="7th lord")
-            + f" — {_lord7_circumstance(locale, lord7.house)}",
+            + f" — {_lord7_circumstance(locale, lord7.house, style=style)}",
             _placement_label(locale, venus, style=style, role="Venus filter"),
         ]
     return tuple(lines)
