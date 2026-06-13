@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from aiogram import Bot, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -120,6 +121,7 @@ async def stats_handler(message: Message) -> None:
     await message.answer(
         await build_admin_stats_text(locale),
         reply_markup=admin_panel_keyboard(locale),
+        parse_mode=ParseMode.HTML,
     )
 
 

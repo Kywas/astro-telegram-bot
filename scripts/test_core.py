@@ -745,6 +745,14 @@ def test_synastry_overlay() -> None:
     assert "Меркурий ↔ Меркурий" in result.details
 
 
+def test_format_screen_body() -> None:
+    from app.text_format import format_screen_body
+
+    text = format_screen_body("🌙 Заголовок\n\nПервое предложение. Второе предложение.")
+    assert "<b>" in text
+    assert "\n\n" in text
+
+
 def test_split_telegram_text() -> None:
     from app.text_format import TELEGRAM_SAFE_LIMIT, split_telegram_text
 
@@ -828,6 +836,7 @@ def main() -> None:
     test_synastry_seals()
     test_synastry_overlay()
     test_split_telegram_text()
+    test_format_screen_body()
     test_natal_qa_synthesis()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 

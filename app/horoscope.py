@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from app.astro_engine import AstroForecast, build_astro_forecast
 from app.forecast_text import format_forecast_opening, format_score_word
-from app.text_format import b, h, labeled_block, p, section_block
+from app.text_format import b, format_screen_body, h, labeled_block, p, section_block
 
 SECTION_TEMPLATES = {
     "ru": {
@@ -388,16 +388,16 @@ def generate_home_teaser(
     prefix = f"{sign_emoji} " if sign_emoji else ""
     if forecast is None:
         if current_locale == "ru":
-            return f"{prefix}{sign_label} · прогноз временно недоступен"
-        return f"{prefix}{sign_label} · forecast temporarily unavailable"
+            return format_screen_body(f"{prefix}{sign_label} · прогноз временно недоступен")
+        return format_screen_body(f"{prefix}{sign_label} · forecast temporarily unavailable")
 
     energy_tone = format_score_word(forecast.energy.score, current_locale)
     if current_locale == "ru":
-        return (
+        return format_screen_body(
             f"{prefix}{sign_label} · {energy_tone} энергия · "
             f"удачное время: {forecast.lucky_time}"
         )
-    return (
+    return format_screen_body(
         f"{prefix}{sign_label} · {energy_tone} energy · "
         f"lucky time: {forecast.lucky_time}"
     )

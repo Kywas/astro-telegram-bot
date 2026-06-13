@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, time
 
 from app.jyotish_text import build_jyotish_reading
+from app.text_format import format_screen_body
 
 
 def _lang(locale: str) -> str:
@@ -11,14 +12,14 @@ def _lang(locale: str) -> str:
 
 def _missing_time_message(locale: str) -> str:
     if _lang(locale) == "ru":
-        return (
-            "Для ведического разбора нужны **точное время** и **город** рождения.\n\n"
+        return format_screen_body(
+            "Для ведического разбора нужны точное время и город рождения.\n\n"
             "Укажи время в профиле через /start — без него нельзя рассчитать Лагну и дома."
-        ).replace("**", "")
-    return (
-        "Vedic reading requires **exact birth time** and **city**.\n\n"
+        )
+    return format_screen_body(
+        "Vedic reading requires exact birth time and city.\n\n"
         "Add time in your profile via /start — without it Lagna and houses cannot be calculated."
-    ).replace("**", "")
+    )
 
 
 def build_natal_summary(
@@ -47,8 +48,8 @@ def build_natal_summary(
         return _missing_time_message(locale)
     if not city or city.strip() in {"-", ""}:
         if lang == "ru":
-            return "Укажи город рождения в профиле — он нужен для расчёта Лагны."
-        return "Add your birth city in profile — it is required for Lagna."
+            return format_screen_body("Укажи город рождения в профиле — он нужен для расчёта Лагны.")
+        return format_screen_body("Add your birth city in profile — it is required for Lagna.")
 
     normalized_part = max(1, min(3, part))
     if mode == "short":
@@ -67,7 +68,7 @@ def build_natal_summary(
         style=style,
     )
     if text is None:
-        return (
+        return format_screen_body(
             "Не удалось рассчитать карту. Проверь дату, время, город и координаты в профиле."
             if lang == "ru"
             else "Could not compute the chart. Check date, time, city, and profile coordinates."

@@ -14,6 +14,7 @@ from app.timezones import (
     normalize_timezone,
     timezone_label_with_offset,
 )
+from app.text_format import format_screen_body, p, screen_page
 from app.ui import edit_or_send, show_panel_from_message
 
 
@@ -55,12 +56,12 @@ async def render_daily_panel(user_id: int, locale: str) -> tuple[str, InlineKeyb
         extra_lines.append(
             t(locale, "evening_streak_line", streak=str(profile.mood_streak))
         )
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{t(locale, 'daily_menu_intro')}\n\n"
-        f"{status}\n\n"
-        f"{t(locale, 'daily_choose_time')}\n"
-        f"{chr(10).join(extra_lines)}"
+    extra_block = "\n".join(extra_lines).strip()
+    text = screen_page(
+        breadcrumb(locale, t(locale, "crumb_settings"), t(locale, "crumb_daily")),
+        t(locale, "daily_menu_intro"),
+        status,
+        p(t(locale, "daily_choose_time"), format_screen_body(extra_block)) if extra_block else t(locale, "daily_choose_time"),
     )
     return text, daily_menu_keyboard(
         locale,
@@ -84,10 +85,10 @@ async def render_evening_panel(user_id: int, locale: str) -> tuple[str, InlineKe
     streak_line = ""
     if profile and profile.mood_streak > 0:
         streak_line = f"\n{t(locale, 'evening_streak_line', streak=str(profile.mood_streak))}\n"
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{status}{streak_line}\n"
-        f"{t(locale, 'evening_choose_time')}"
+    text = screen_page(
+        breadcrumb(locale, t(locale, "crumb_settings"), t(locale, "crumb_daily")),
+        p(status, streak_line.strip()) if streak_line else status,
+        t(locale, "evening_choose_time"),
     )
     return text, evening_menu_keyboard(locale, enabled=enabled, current_time=current_time)
 
@@ -96,10 +97,10 @@ async def render_daily_timezone_panel(user_id: int, locale: str) -> tuple[str, I
     profile = await db.get_user(user_id)
     current_tz = resolve_user_timezone(profile, locale)
     tz_label = timezone_label_with_offset(locale, current_tz)
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_daily'))}\n\n"
-        f"{t(locale, 'daily_choose_timezone')}\n\n"
-        f"{tz_label}"
+    text = screen_page(
+        breadcrumb(locale, t(locale, "crumb_settings"), t(locale, "crumb_daily")),
+        t(locale, "daily_choose_timezone"),
+        tz_label,
     )
     return text, daily_timezone_keyboard(locale, current_tz)
 

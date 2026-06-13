@@ -27,6 +27,7 @@ from app.premium_lifecycle import (
     premium_until_date_key,
 )
 from app.timezones import user_local_date_key, user_local_hhmm
+from app.ui import send_formatted_message
 
 LUNAR_NOTIFY_TIME = "10:00"
 PREMIUM_REMINDER_TIME = "11:00"
@@ -79,7 +80,7 @@ async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> Non
             profile=user,
         )
         try:
-            await bot.send_message(chat_id=user.user_id, text=text)
+            await send_formatted_message(bot, user.user_id, text)
             await db.mark_daily_sent(user.user_id, period, date_key)
             await db.log_event(user.user_id, "daily_sent")
         except Exception:
@@ -99,9 +100,10 @@ async def _send_evening_checkins(db: Database, bot: Bot, now_utc: datetime) -> N
         for_date = date.fromisoformat(date_key)
         text = build_evening_checkin_prompt(user.language, profile=user, for_date=for_date)
         try:
-            await bot.send_message(
-                chat_id=user.user_id,
-                text=text,
+            await send_formatted_message(
+                bot,
+                user.user_id,
+                text,
                 reply_markup=mood_checkin_keyboard(),
             )
             await db.mark_daily_sent(user.user_id, "evening", date_key)
@@ -136,9 +138,10 @@ async def _send_lunar_preview(
         timezone_name=user.timezone,
     )
     try:
-        await bot.send_message(
-            chat_id=user.user_id,
-            text=text,
+        await send_formatted_message(
+            bot,
+            user.user_id,
+            text,
             reply_markup=lunar_notify_keyboard(locale),
         )
         await db.mark_daily_sent(user.user_id, period, date_key)
@@ -214,9 +217,10 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
             )
 
         try:
-            await bot.send_message(
-                chat_id=user.user_id,
-                text=text,
+            await send_formatted_message(
+                bot,
+                user.user_id,
+                text,
                 reply_markup=lunar_notify_keyboard(locale),
             )
             await db.mark_daily_sent(user.user_id, period, date_key)
@@ -254,9 +258,10 @@ async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: dateti
             until_iso=user.premium_until,
         )
         try:
-            await bot.send_message(
-                chat_id=user.user_id,
-                text=text,
+            await send_formatted_message(
+                bot,
+                user.user_id,
+                text,
                 reply_markup=premium_renew_keyboard(locale),
             )
             await db.mark_daily_sent(user.user_id, period, until_key)

@@ -22,6 +22,7 @@ from app.moon_calendar_plain_data import (
     PLAIN_SHORT_PHASE,
     TERMS_FOCUS_SECTION,
 )
+from app.text_format import format_screen_body
 
 PHASE_NAMES = {
     "ru": {
@@ -717,8 +718,8 @@ def _snap_extra_lines(snap: dict, *, locale: str, focus: str, style: str = "term
 
 def _fallback_text(locale: str) -> str:
     if _locale(locale) == "ru":
-        return "Не удалось рассчитать лунные данные. Попробуй позже."
-    return "Could not compute lunar data. Please try again later."
+        return format_screen_body("Не удалось рассчитать лунные данные. Попробуй позже.")
+    return format_screen_body("Could not compute lunar data. Please try again later.")
 
 
 def generate_moon_calendar_text(
@@ -800,7 +801,7 @@ def generate_moon_calendar_text(
         if next_lunar_day_line:
             header_lines.append(f"\n{next_lunar_day_line}")
         header = "".join(header_lines)
-        return header + "\n\n" + "\n".join(planning)
+        return format_screen_body(header + "\n\n" + "\n".join(planning))
 
     phase_label = "• Moon phase" if _use_terms(style) else "• Phase"
     illum_label = "• Illumination" if _use_terms(style) else "• Lit"
@@ -816,7 +817,7 @@ def generate_moon_calendar_text(
     if next_lunar_day_line:
         header_lines.append(f"\n{next_lunar_day_line}")
     header = "".join(header_lines)
-    return header + "\n\n" + "\n".join(planning)
+    return format_screen_body(header + "\n\n" + "\n".join(planning))
 
 
 def generate_moon_table_text(
@@ -1045,7 +1046,7 @@ def format_lunar_daily_reminder(
         next_lunar = snap.get("next_lunar_day_start_moment")
         if isinstance(next_lunar, datetime):
             lines.extend(["", _next_lunar_day_label(locale, for_date, next_lunar, style=style)])
-        return "\n".join(lines)
+        return format_screen_body("\n".join(lines))
 
     header_en = (
         f"🌙 Lunar focus · {for_date.isoformat()}"
@@ -1067,7 +1068,7 @@ def format_lunar_daily_reminder(
     next_lunar = snap.get("next_lunar_day_start_moment")
     if isinstance(next_lunar, datetime):
         lines.extend(["", _next_lunar_day_label(locale, for_date, next_lunar, style=style)])
-    return "\n".join(lines)
+    return format_screen_body("\n".join(lines))
 
 
 def lunar_event_title(phase_key: str, locale: str, *, style: str = "terms") -> str:
@@ -1103,7 +1104,7 @@ def format_lunar_day_notification(
     extras = _snap_extra_lines(snap, locale=locale, focus=focus, style=style)
     extra_block = f"\n{chr(10).join(extras)}" if extras else ""
     if current_locale == "ru":
-        return (
+        return format_screen_body(
             f"🌑 Сегодня {title.lower()} · {for_date.strftime('%d.%m.%Y')}\n\n"
             f"• {moon_line} · {illumination}% · {day_label}\n"
             f"• {section}\n"
@@ -1111,7 +1112,7 @@ def format_lunar_day_notification(
             f"• Чего избегать: {rec_avoid}"
             f"{extra_block}"
         )
-    return (
+    return format_screen_body(
         f"🌑 Today is {title} · {for_date.isoformat()}\n\n"
         f"• {moon_line} · {illumination}% · {day_label}\n"
         f"• {section}\n"
@@ -1157,7 +1158,7 @@ def format_lunar_preview_notification(
             else ("Завтра" if days_left == 1 else "Сегодня")
         )
         prefix = "Premium-напоминание" if early else "Напоминание"
-        return (
+        return format_screen_body(
             f"🌙 {when} — {title.lower()} ({event_date.strftime('%d.%m.%Y')})\n\n"
             f"• {moon_line}\n"
             f"• {section}\n"
@@ -1171,7 +1172,7 @@ def format_lunar_preview_notification(
         else ("Tomorrow" if days_left == 1 else "Today")
     )
     prefix = "Premium reminder" if early else "Reminder"
-    return (
+    return format_screen_body(
         f"🌙 {when} — {title} ({event_date.isoformat()})\n\n"
         f"• {moon_line}\n"
         f"• {section}\n"

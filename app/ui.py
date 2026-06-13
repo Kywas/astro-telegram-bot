@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from app.bot_context import db, settings
 from app.error_reporting import report_error
-from app.text_format import split_telegram_text
+from app.text_format import prepare_panel_text, split_telegram_text
 
 _USER_PANELS: dict[int, list[tuple[int, int]]] = {}
 
@@ -122,6 +122,7 @@ async def show_ui_panel(
     edit_message: Message | None = None,
     fallback_message: Message | None = None,
 ) -> None:
+    text = prepare_panel_text(text)
     chunks = split_telegram_text(text)
     if len(chunks) > 1:
         await _show_ui_panel_chunks(
@@ -276,4 +277,23 @@ async def edit_or_send(
         reply_markup=inline_keyboard,
         edit_message=callback.message,
     )
+
+
+async def send_formatted_message(
+    bot: Bot,
+    chat_id: int,
+    text: str,
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    text = prepare_panel_text(text)
+    chunks = split_telegram_text(text)
+    for index, chunk in enumerate(chunks):
+        markup = reply_markup if index == len(chunks) - 1 else None
+        await bot.send_message(
+            chat_id,
+            chunk,
+            reply_markup=markup,
+            parse_mode=ParseMode.HTML,
+        )
 

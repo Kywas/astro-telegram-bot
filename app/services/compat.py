@@ -11,7 +11,7 @@ from app.keyboards import breadcrumb, compat_style_picker_keyboard, glossary_hel
 from app.premium import is_premium_active
 from app.synastry import build_synastry, build_synastry_for_partner_profile
 from app.synastry_style import resolve_compat_style
-from app.timezones import user_local_date_key
+from app.text_format import b, format_report, h, p, screen_page
 from app.ui import edit_or_send, render_inline_panel, show_panel_from_message, show_ui_panel
 from app.zodiac import resolve_sun_sign
 
@@ -121,8 +121,11 @@ def compat_manage_keyboard(locale: str, partners) -> InlineKeyboardMarkup:
 
 
 async def compat_menu_text(locale: str, user_id: int) -> str:
-    partners = await db.list_partners(user_id)
-    return f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{t(locale, 'compat_choose_partner')}"
+    del user_id
+    return screen_page(
+        breadcrumb(locale, t(locale, "crumb_root")),
+        t(locale, "compat_choose_partner"),
+    )
 
 
 async def show_compat_menu(*, user_id: int, locale: str, message: Message | None = None, callback: CallbackQuery | None = None) -> None:
@@ -150,10 +153,10 @@ async def render_compat_style_picker(
     profile = await db.get_user(user_id)
     style = resolve_compat_style(profile)
     style_label = compat_style_label(locale, style)
-    text = (
-        f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n"
-        f"{t(locale, 'choose_compat_style')}\n\n"
-        f"{t(locale, 'natal_style_current', style=style_label)}"
+    text = screen_page(
+        breadcrumb(locale, t(locale, "crumb_root")),
+        t(locale, "choose_compat_style"),
+        t(locale, "natal_style_current", style=style_label),
     )
     return text, compat_style_picker_keyboard(locale, current_style=style, return_to=return_to)
 
@@ -167,7 +170,11 @@ async def show_compat_mode_panel(
     back_data: str = "nav:compat",
 ) -> None:
     keyboard = compat_mode_keyboard(locale, back_data=back_data)
-    text = f"{breadcrumb(locale, t(locale, 'crumb_root'))}\n\n{intro}\n\n{t(locale, 'choose_compat_mode')}"
+    text = screen_page(
+        breadcrumb(locale, t(locale, "crumb_root")),
+        intro,
+        t(locale, "choose_compat_mode"),
+    )
     if callback is not None:
         await render_inline_panel(callback, text, keyboard)
     elif message is not None:
@@ -185,16 +192,22 @@ async def deliver_compat_result(
     callback: CallbackQuery | None = None,
 ) -> None:
     partner_name = syn.partner_name or get_sign_name(syn.partner_sign, locale)
-    result_text = t(
-        locale,
-        "compat_result",
-        sign_a=get_sign_name(profile.sign, locale),
-        partner_name=partner_name,
-        sign_b=get_sign_name(syn.partner_sign, locale),
-        mode=compat_mode_label(locale, mode),
-        score=str(syn.score),
-        details=syn.details,
-    )
+    sign_a = get_sign_name(profile.sign, locale)
+    sign_b = get_sign_name(syn.partner_sign, locale)
+    mode_label = compat_mode_label(locale, mode)
+    if locale == "ru":
+        header = p(
+            b(f"💞 Совместимость · {mode_label}"),
+            h(f"{sign_a} + {partner_name} ({sign_b})"),
+            b(f"Оценка: {syn.score}/100"),
+        )
+    else:
+        header = p(
+            b(f"💞 Compatibility · {mode_label}"),
+            h(f"{sign_a} + {partner_name} ({sign_b})"),
+            b(f"Score: {syn.score}/100"),
+        )
+    result_text = p(header, format_report(syn.details))
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=t(locale, "btn_compat_style"), callback_data="compat:style:picker:menu")],

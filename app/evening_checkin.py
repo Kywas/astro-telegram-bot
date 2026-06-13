@@ -6,6 +6,7 @@ from app.astro_engine import EveningSnapshot, build_evening_snapshot
 from app.astro_glossary import format_moon_in_sign_short
 from app.forecast_text import format_summary_aspect
 from app.moon_calendar import PHASE_GUIDANCE, PHASE_NAMES
+from app.text_format import b, format_screen_body, p
 
 GOAL_FOCUS = {
     "ru": {
@@ -226,12 +227,12 @@ def build_evening_checkin_prompt(
     snapshot = _snapshot_from_profile(profile, locale, for_date)
     if snapshot is None:
         if lang == "ru":
-            return (
+            return format_screen_body(
                 "🌆 Вечерний чек-ин\n\n"
                 "Как прошёл день? Оцени настроение от 1 до 10 — "
                 "это поможет точнее настроить прогнозы."
             )
-        return (
+        return format_screen_body(
             "🌆 Evening check-in\n\n"
             "How was your day? Rate your mood from 1 to 10 — "
             "it helps personalize your forecasts."
@@ -249,7 +250,7 @@ def build_evening_checkin_prompt(
         if aspect_line:
             lines.append(f"Главный транзит дня: {aspect_line}.")
         lines.append("Как прошёл день? Оцени настроение от 1 до 10.")
-        return "\n".join(lines)
+        return format_screen_body("\n".join(lines))
 
     lines = [
         "🌆 Evening check-in",
@@ -259,7 +260,7 @@ def build_evening_checkin_prompt(
     if aspect_line:
         lines.append(f"Main transit today: {aspect_line}.")
     lines.append("How was your day? Rate your mood from 1 to 10.")
-    return "\n".join(lines)
+    return format_screen_body("\n".join(lines))
 
 
 def build_evening_response(
@@ -275,8 +276,12 @@ def build_evening_response(
 
     if snapshot is None:
         if lang == "ru":
-            return f"🌙 Спасибо! Настроение: {score}/10\n\n{format_streak_message(locale, streak)}"
-        return f"🌙 Thanks! Mood: {score}/10\n\n{format_streak_message(locale, streak)}"
+            return format_screen_body(
+                f"🌙 Спасибо! Настроение: {score}/10\n\n{format_streak_message(locale, streak)}"
+            )
+        return format_screen_body(
+            f"🌙 Thanks! Mood: {score}/10\n\n{format_streak_message(locale, streak)}"
+        )
 
     reflection = _build_mood_reflection(locale, score, snapshot)
     tip = _build_evening_tip(locale, score, snapshot, profile.goal if profile else None)
@@ -287,4 +292,4 @@ def build_evening_response(
     else:
         header = f"🌙 Thanks! Mood: {score}/10 · day energy {snapshot.energy_score}/10"
 
-    return "\n\n".join((header, reflection, tip, streak_line))
+    return p(b(header), format_screen_body(reflection), format_screen_body(tip), format_screen_body(streak_line))

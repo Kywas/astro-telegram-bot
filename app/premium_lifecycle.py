@@ -8,6 +8,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.payments import PayCurrency
 from app.premium import format_premium_until
+from app.text_format import format_screen_body
 from app.timezones import normalize_timezone
 
 
@@ -60,30 +61,30 @@ def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str)
     until = format_premium_until(until_iso, locale)
     if locale == "ru":
         if days_left == 0:
-            return (
+            return format_screen_body(
                 f"⏳ Premium заканчивается сегодня ({until}).\n\n"
                 "Продли сейчас — неделя/месяц, полная карта и лунный календарь."
             )
         if days_left == 1:
-            return (
+            return format_screen_body(
                 f"⏳ Premium заканчивается завтра ({until}).\n\n"
                 "Продли сейчас — неделя/месяц, полная карта и лунный календарь."
             )
-        return (
+        return format_screen_body(
             f"⏳ Premium заканчивается через {days_left} дня ({until}).\n\n"
             "Продли заранее, чтобы не потерять доступ."
         )
     if days_left == 1:
-        return (
+        return format_screen_body(
             f"⏳ Premium expires tomorrow ({until}).\n\n"
             "Renew now to keep week/month horoscopes, full chart, and moon calendar."
         )
     if days_left == 0:
-        return (
+        return format_screen_body(
             f"⏳ Premium expires today ({until}).\n\n"
             "Renew now to keep week/month horoscopes, full chart, and moon calendar."
         )
-    return (
+    return format_screen_body(
         f"⏳ Premium expires in {days_left} days ({until}).\n\n"
         "Renew early so you don't lose access."
     )

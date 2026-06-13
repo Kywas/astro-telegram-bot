@@ -44,6 +44,7 @@ from app.horoscope import (
 from app.http_proxy_session import HttpProxyAiohttpSession
 from app.i18n import TEXTS, get_locale, goal_display, relationship_display, sign_display, t
 from app.keyboards import breadcrumb
+from app.text_format import b, format_screen_body, p
 from app.keyboards import (
     about_commands_keyboard,
     admin_panel_keyboard,
@@ -928,10 +929,14 @@ async def render_natal_for_user_mode(
         birth_timezone=profile.birth_timezone,
     )
     if notice:
-        text = f"{notice}\n\n{text}"
+        text = p(format_screen_body(notice), text)
 
     part_line = t(locale, "natal_part_label", part=str(normalized_part))
-    header = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n{part_line}\n\n{text}"
+    header = p(
+        breadcrumb(locale, t(locale, "natal_header")),
+        b(part_line),
+        text,
+    )
     return (
         header,
         natal_part_keyboard(

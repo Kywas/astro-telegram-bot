@@ -14,6 +14,7 @@ from app.payments import (
 )
 from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_active
 from app.premium_lifecycle import notify_admins_purchase
+from app.text_format import format_screen_body, p, screen_page
 
 async def _premium_panel_text(user_id: int, locale: str) -> str:
     profile = await db.get_user(user_id)
@@ -28,11 +29,11 @@ async def _premium_panel_text(user_id: int, locale: str) -> str:
         status_text = t(locale, "premium_inactive")
     prices_text = _premium_prices_text(locale)
     if prices_text:
-        status_text = f"{status_text}\n\n{prices_text}"
-    return (
-        f"{breadcrumb(locale, t(locale, 'premium_menu_title'))}\n\n"
-        f"{status_text}\n\n"
-        f"{t(locale, 'premium_features')}"
+        status_text = p(status_text, format_screen_body(prices_text))
+    return screen_page(
+        breadcrumb(locale, t(locale, "premium_menu_title")),
+        status_text,
+        t(locale, "premium_features"),
     )
 
 

@@ -1,6 +1,8 @@
 """Plain-language glosses for astrological phrases shown to beginners."""
 from __future__ import annotations
 
+from app.text_format import format_screen_body, b
+
 SIGN_LABELS = {
     "ru": {
         "Aries": "Овен",
@@ -344,7 +346,7 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
         if moon_sign_key:
             blocks.extend(["", format_moon_in_sign(locale, moon_sign_key)])
         blocks.extend(["", _sign_hints_block(locale)])
-        return "\n".join(blocks)
+        return format_screen_body("\n".join(blocks))
 
     if topic == "horo":
         if lang == "ru":
@@ -372,7 +374,7 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
         blocks.extend(["", _aspects_block(locale)])
         if moon_sign_key:
             blocks.extend(["", format_moon_in_sign(locale, moon_sign_key)])
-        return "\n".join(blocks)
+        return format_screen_body("\n".join(blocks))
 
     if topic == "natal":
         if lang == "ru":
@@ -387,7 +389,7 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
                 "Lagna is the rising sign; houses are life areas; nakshatras refine planetary expression."
             )
             blocks.extend(["", _planets_block(locale), "", _aspects_block(locale)])
-        return "\n".join(blocks)
+        return format_screen_body("\n".join(blocks))
 
     if topic == "compat":
         if lang == "ru":
@@ -597,6 +599,6 @@ def build_glossary_help(locale: str, topic: str, *, moon_sign_key: str | None = 
                 ]
             )
         blocks.extend(["", _aspects_block(locale)])
-        return "\n".join(blocks)
+        return format_screen_body("\n".join(blocks))
 
-    return title
+    return b(title)

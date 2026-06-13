@@ -9,6 +9,7 @@ from app.jyotish_engine import (
     PlanetPlacement,
     build_jyotish_chart,
 )
+from app.text_format import format_report
 
 PLANET_LABEL = {
     "ru": {
@@ -398,10 +399,10 @@ def _render_planet(
 
 def build_jyotish_part(chart: JyotishChart, locale: str, part: int, *, style: str = "terms") -> str:
     if part == 1:
-        return _truncate(_part1(chart, locale, style=style))
+        return format_report(_truncate(_part1(chart, locale, style=style)))
     if part == 2:
-        return _truncate(_part2(chart, locale, style=style))
-    return _truncate(_part3(chart, locale, style=style))
+        return format_report(_truncate(_part2(chart, locale, style=style)))
+    return format_report(_truncate(_part3(chart, locale, style=style)))
 
 
 def _part1(chart: JyotishChart, locale: str, *, style: str = "terms") -> str:
