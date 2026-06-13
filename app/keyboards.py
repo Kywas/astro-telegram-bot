@@ -1003,6 +1003,20 @@ def moon_content_keyboard(
     )
 
 
+def prefs_birth_skip_keyboard(locale: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "prefs_birth_keep"),
+                    callback_data="prefbirth:keep",
+                )
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:settings")],
+        ]
+    )
+
+
 def prefs_gender_keyboard(locale: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

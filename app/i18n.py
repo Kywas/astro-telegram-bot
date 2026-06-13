@@ -346,9 +346,28 @@ TEXTS = {
         "ask_gender": "Выбери пол: m/f/other",
         "ask_relationship": "Выбери статус: single/relationship",
         "ask_goal": "Фокус прогноза: love/career/money/balance",
-        "choose_gender": "Шаг 1/3: выбери пол",
-        "choose_relationship": "Шаг 2/3: выбери статус отношений",
-        "choose_goal": "Шаг 3/3: выбери фокус прогноза",
+        "choose_gender": "Шаг 1/4: выбери пол",
+        "choose_relationship": "Шаг 2/4: выбери статус отношений",
+        "choose_goal": "Шаг 3/4: выбери фокус прогноза",
+        "choose_birth_date": (
+            "Шаг 4/4: дата рождения\n\n"
+            "Введи дату в формате ДД.ММ.ГГГГ — например, 14.02.2001.\n"
+            "Или нажми «Оставить как есть», если менять не нужно."
+        ),
+        "choose_birth_time": (
+            "Шаг 4/4: время рождения\n\n"
+            "Введи время в формате ЧЧ:ММ — например, 09:30.\n"
+            "Не знаешь? Отправь «-» — карта всё равно будет работать, просто без Луны по минутам."
+        ),
+        "prefs_birth_keep": "Оставить как есть",
+        "profile_setup_done": (
+            "Готово — профиль обновлён.\n\n"
+            "• Пол: {gender}\n"
+            "• Статус: {relationship}\n"
+            "• Фокус: {goal}\n"
+            "• Дата рождения: {birth_date}\n"
+            "• Время рождения: {birth_time}"
+        ),
         "gender_m": "Мужчина",
         "gender_f": "Женщина",
         "gender_other": "Другое",
@@ -752,9 +771,28 @@ TEXTS = {
         "ask_gender": "Choose gender: m/f/other",
         "ask_relationship": "Choose status: single/relationship",
         "ask_goal": "Forecast focus: love/career/money/balance",
-        "choose_gender": "Step 1/3: choose gender",
-        "choose_relationship": "Step 2/3: choose relationship status",
-        "choose_goal": "Step 3/3: choose forecast focus",
+        "choose_gender": "Step 1/4: choose gender",
+        "choose_relationship": "Step 2/4: choose relationship status",
+        "choose_goal": "Step 3/4: choose forecast focus",
+        "choose_birth_date": (
+            "Step 4/4: birth date\n\n"
+            "Enter DD.MM.YYYY — e.g. 14.02.2001.\n"
+            "Or tap «Keep current» if you don't want to change it."
+        ),
+        "choose_birth_time": (
+            "Step 4/4: birth time\n\n"
+            "Enter HH:MM — e.g. 09:30.\n"
+            "Not sure? Send «-» — the chart still works, just without minute-precise Moon."
+        ),
+        "prefs_birth_keep": "Keep current",
+        "profile_setup_done": (
+            "Done — profile updated.\n\n"
+            "• Gender: {gender}\n"
+            "• Status: {relationship}\n"
+            "• Focus: {goal}\n"
+            "• Birth date: {birth_date}\n"
+            "• Birth time: {birth_time}"
+        ),
         "gender_m": "Male",
         "gender_f": "Female",
         "gender_other": "Other",
@@ -829,6 +867,16 @@ GOAL_TEXT_KEYS = {
     "money": "goal_money",
     "balance": "goal_balance",
 }
+
+
+def gender_display(locale: str, gender: str | None) -> str:
+    if gender == "m":
+        return t(locale, "gender_m")
+    if gender == "f":
+        return t(locale, "gender_f")
+    if gender == "other":
+        return t(locale, "gender_other")
+    return "-"
 
 
 def relationship_display(locale: str, status: str | None) -> str:

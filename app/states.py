@@ -30,6 +30,8 @@ class PreferencesSetup(StatesGroup):
     waiting_gender = State()
     waiting_relationship = State()
     waiting_goal = State()
+    waiting_birth_date = State()
+    waiting_birth_time = State()
 
 
 class AdminPanel(StatesGroup):

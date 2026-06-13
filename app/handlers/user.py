@@ -42,7 +42,7 @@ from app.horoscope import (
     resolve_horoscope_style,
 )
 from app.http_proxy_session import HttpProxyAiohttpSession
-from app.i18n import TEXTS, get_locale, goal_display, relationship_display, sign_display, t
+from app.i18n import TEXTS, gender_display, get_locale, goal_display, relationship_display, sign_display, t
 from app.keyboards import breadcrumb
 from app.text_format import b, format_screen_body, p
 from app.keyboards import (
@@ -88,6 +88,7 @@ from app.keyboards import (
     natal_qa_spheres_keyboard,
     natal_style_picker_keyboard,
     onboarding_relationship_keyboard,
+    prefs_birth_skip_keyboard,
     prefs_gender_keyboard,
     prefs_goal_keyboard,
     prefs_relationship_keyboard,
@@ -477,8 +478,7 @@ async def settings_callback_handler(callback: CallbackQuery, state: FSMContext) 
         await state.set_state(PreferencesSetup.waiting_gender)
         await render_inline_panel(
             callback,
-            f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_profile_setup'))}\n\n"
-            f"{t(locale, 'choose_gender')}",
+            f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_gender')}",
             prefs_gender_keyboard(locale),
         )
         return
@@ -2615,7 +2615,98 @@ async def prefs_setup_handler(message: Message, state: FSMContext) -> None:
     locale = await get_user_locale(user.id)
     await state.clear()
     await state.set_state(PreferencesSetup.waiting_gender)
-    await message.answer(t(locale, "choose_gender"), reply_markup=prefs_gender_keyboard(locale))
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_profile_setup'))}\n\n"
+        f"{t(locale, 'choose_gender')}",
+        reply_markup=prefs_gender_keyboard(locale),
+    )
+
+
+def _profile_setup_breadcrumb(locale: str) -> str:
+    return breadcrumb(locale, t(locale, "crumb_settings"), t(locale, "crumb_profile_setup"))
+
+
+def _format_profile_birth_fields(locale: str, profile) -> tuple[str, str]:
+    if profile and profile.birth_date:
+        birth_date = profile.birth_date.strftime("%d.%m.%Y")
+    else:
+        birth_date = "-"
+    if profile and profile.birth_time:
+        birth_time = profile.birth_time.strftime("%H:%M")
+    elif profile and profile.birth_date:
+        birth_time = t(locale, "unknown_time")
+    else:
+        birth_time = "-"
+    return birth_date, birth_time
+
+
+async def _finalize_prefs_wizard(
+    user_id: int,
+    locale: str,
+    state: FSMContext,
+    bot: Bot | None,
+    *,
+    birth_date: date | None = None,
+    birth_time: time | None = None,
+    update_birth: bool = False,
+    reply: Message | CallbackQuery,
+) -> None:
+    data = await state.get_data()
+    gender = data.get("pref_gender")
+    relationship = data.get("pref_relationship")
+    goal = data.get("pref_goal")
+    await state.clear()
+    await db.update_preferences(
+        user_id,
+        gender=gender,
+        relationship_status=relationship,
+        goal=goal,
+    )
+    profile = await db.get_user(user_id)
+    if update_birth and birth_date is not None and profile:
+        city = profile.city or ""
+        timezone_name = profile.birth_timezone or profile.timezone or "UTC"
+        sign = resolve_sun_sign(
+            birth_date,
+            birth_time,
+            city=city or None,
+            timezone_name=timezone_name,
+            lat=profile.birth_lat,
+            lon=profile.birth_lon,
+            birth_timezone=profile.birth_timezone,
+        )
+        await db.update_profile(
+            user_id,
+            birth_date=birth_date,
+            birth_time=birth_time,
+            city=city,
+            sign=sign,
+            birth_lat=profile.birth_lat,
+            birth_lon=profile.birth_lon,
+            birth_timezone=profile.birth_timezone,
+        )
+        profile = await db.get_user(user_id)
+
+    await db.log_event(user_id, "prefs_wizard_done")
+    finished = await _try_finish_profile_if_ready(user_id, locale, bot)
+    if not finished:
+        await try_notify_referral_reward(user_id, bot)
+
+    birth_date_label, birth_time_label = _format_profile_birth_fields(locale, profile)
+    text = t(
+        locale,
+        "profile_setup_done",
+        gender=gender_display(locale, gender),
+        relationship=relationship_display(locale, relationship),
+        goal=goal_display(locale, goal),
+        birth_date=birth_date_label,
+        birth_time=birth_time_label,
+    )
+    keyboard = settings_keyboard(locale)
+    if isinstance(reply, CallbackQuery):
+        await edit_or_send(reply, text, inline_keyboard=keyboard)
+    else:
+        await show_panel_from_message(reply, text, reply_markup=keyboard)
 
 
 @router.callback_query(F.data.startswith("prefgender:"))
@@ -2632,8 +2723,7 @@ async def prefs_gender_callback(callback: CallbackQuery, state: FSMContext) -> N
     await callback.answer()
     await render_inline_panel(
         callback,
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_profile_setup'))}\n\n"
-        f"{t(locale, 'choose_relationship')}",
+        f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_relationship')}",
         prefs_relationship_keyboard(locale),
     )
 
@@ -2652,8 +2742,7 @@ async def prefs_relationship_callback(callback: CallbackQuery, state: FSMContext
     await callback.answer()
     await render_inline_panel(
         callback,
-        f"{breadcrumb(locale, t(locale, 'crumb_settings'), t(locale, 'crumb_profile_setup'))}\n\n"
-        f"{t(locale, 'choose_goal')}",
+        f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_goal')}",
         prefs_goal_keyboard(locale),
     )
 
@@ -2790,31 +2879,103 @@ async def prefs_goal_callback(callback: CallbackQuery, state: FSMContext) -> Non
     goal = (callback.data or "").split(":")[-1]
     if goal not in {"love", "career", "money", "balance"}:
         goal = "balance"
-    data = await state.get_data()
-    gender = data.get("pref_gender")
-    relationship = data.get("pref_relationship")
+    await state.update_data(pref_goal=goal)
+    await state.set_state(PreferencesSetup.waiting_birth_date)
     await callback.answer()
-    await state.clear()
-    await db.update_preferences(
-        user.id,
-        gender=gender,
-        relationship_status=relationship,
-        goal=goal,
-    )
-    await db.log_event(user.id, "prefs_wizard_done")
-    finished = await _try_finish_profile_if_ready(user.id, locale, callback.bot)
-    if not finished:
-        await try_notify_referral_reward(user.id, callback.bot)
-    await edit_or_send(
+    await render_inline_panel(
         callback,
-        t(
-            locale,
-            "profile_upgrade_done",
-            gender=str(gender),
-            relationship=str(relationship),
-            goal=goal,
-        ),
-        inline_keyboard=settings_keyboard(locale),
+        f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_birth_date')}",
+        prefs_birth_skip_keyboard(locale),
+    )
+
+
+@router.callback_query(F.data == "prefbirth:keep")
+async def prefs_birth_keep_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    if await state.get_state() != PreferencesSetup.waiting_birth_date.state:
+        await callback.answer()
+        return
+    locale = await get_user_locale(user.id)
+    await callback.answer()
+    await _finalize_prefs_wizard(
+        user.id,
+        locale,
+        state,
+        callback.bot,
+        update_birth=False,
+        reply=callback,
+    )
+
+
+@router.message(PreferencesSetup.waiting_birth_date)
+async def prefs_birth_date_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    try:
+        birth_date = datetime.strptime(raw_text, "%d.%m.%Y").date()
+    except ValueError:
+        await show_panel_from_message(
+            message,
+            f"{t(locale, 'invalid_date')}\n\n{t(locale, 'choose_birth_date')}",
+            reply_markup=prefs_birth_skip_keyboard(locale),
+        )
+        return
+
+    await state.update_data(pref_birth_date=birth_date.isoformat())
+    await state.set_state(PreferencesSetup.waiting_birth_time)
+    await show_panel_from_message(
+        message,
+        f"{_profile_setup_breadcrumb(locale)}\n\n{t(locale, 'choose_birth_time')}",
+        reply_markup=settings_keyboard(locale),
+    )
+
+
+@router.message(PreferencesSetup.waiting_birth_time)
+async def prefs_birth_time_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    data = await state.get_data()
+    birth_date_iso = data.get("pref_birth_date")
+    if not birth_date_iso:
+        await state.clear()
+        await show_panel_from_message(
+            message,
+            t(locale, "session_expired"),
+            reply_markup=settings_keyboard(locale),
+        )
+        return
+
+    if raw_text == "-":
+        birth_time = None
+    else:
+        try:
+            birth_time = datetime.strptime(raw_text, "%H:%M").time()
+        except ValueError:
+            await show_panel_from_message(
+                message,
+                f"{t(locale, 'invalid_time')}\n\n{t(locale, 'choose_birth_time')}",
+                reply_markup=settings_keyboard(locale),
+            )
+            return
+
+    birth_date = datetime.fromisoformat(birth_date_iso).date()
+    await _finalize_prefs_wizard(
+        user.id,
+        locale,
+        state,
+        message.bot,
+        birth_date=birth_date,
+        birth_time=birth_time,
+        update_birth=True,
+        reply=message,
     )
 
 
