@@ -871,6 +871,17 @@ def test_natal_qa_synthesis() -> None:
     assert family.count(".") >= 3
     assert "❓" in family
 
+    family_briefs = [
+        build_family_answer(chart, "ru", i, style="plain").split("По карте")[0]
+        for i in range(5)
+    ]
+    assert len(set(family_briefs)) == 5
+    assert "романтику" in family_briefs[0].lower() or "romance" in family_briefs[0].lower()
+    assert "тип" in family_briefs[1].lower() or "type" in family_briefs[1].lower()
+    assert "союз" in family_briefs[2].lower() or "union" in family_briefs[2].lower()
+    assert "дом" in family_briefs[3].lower() or "home" in family_briefs[3].lower()
+    assert "трен" in family_briefs[4].lower() or "friction" in family_briefs[4].lower()
+
     sphere = build_sphere_answer(chart, "ru", 7, 0, style="plain")
     assert "Ответ:" not in sphere
     assert "Кратко" in sphere

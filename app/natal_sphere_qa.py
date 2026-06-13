@@ -12,7 +12,7 @@ from app.jyotish_text import (
     _render_planet,
     _use_terms,
 )
-from app.natal_qa_synthesis import QaSynthFocus, finish_qa_body
+from app.natal_qa_synthesis import QaSynthFocus, _humanize_core, finish_qa_body
 from app.text_format import b, h, p, qa_response
 
 HOUSE_BUTTON = {
@@ -285,9 +285,9 @@ UPAYA_QUESTIONS: dict[str, tuple[str, str, str, str, str]] = {
 }
 
 FAMILY_QA_SYNTH: tuple[QaSynthFocus, ...] = (
-    QaSynthFocus((7,), ("VENUS", "MOON")),
+    QaSynthFocus((7, 5), ("MOON", "VENUS")),
     QaSynthFocus((7,), ("VENUS",)),
-    QaSynthFocus((7,), ("JUPITER",)),
+    QaSynthFocus((7, 9), ("JUPITER",)),
     QaSynthFocus((4,), ("MOON",)),
     QaSynthFocus((4, 7), ("MARS", "SATURN", "RAHU"), "challenge"),
 )
@@ -1236,6 +1236,177 @@ def build_sphere_answer(
     return qa_response(header, question, body)
 
 
+def _family_synth_cfg(chart: JyotishChart, question_index: int) -> QaSynthFocus:
+    idx = max(0, min(4, question_index))
+    base = FAMILY_QA_SYNTH[idx]
+    lord7 = chart.house_lords[7]
+    lord4 = chart.house_lords[4]
+    if idx == 1:
+        partner_key = lord7 if lord7 != "VENUS" else "MARS"
+        return QaSynthFocus(base.houses, ("VENUS", partner_key), base.focus)
+    if idx == 2:
+        union_key = lord7 if lord7 != "JUPITER" else "SATURN"
+        return QaSynthFocus(base.houses, ("JUPITER", union_key), base.focus)
+    if idx == 3:
+        roots_key = lord4 if lord4 != "MOON" else "SUN"
+        return QaSynthFocus(base.houses, ("MOON", roots_key), base.focus)
+    return base
+
+
+def _family_trait(locale: str, pl: PlanetPlacement) -> str:
+    trait = _humanize_core(locale, pl)
+    if "—" in trait:
+        return trait.split("—", 1)[-1].strip()
+    return trait
+
+
+def _family_question_brief(
+    locale: str,
+    question_index: int,
+    chart: JyotishChart,
+    *,
+    style: str,
+) -> str:
+    lang = _lang(locale)
+    venus = chart.planets["VENUS"]
+    moon = chart.planets["MOON"]
+    jupiter = chart.planets["JUPITER"]
+    mars = chart.planets["MARS"]
+    saturn = chart.planets["SATURN"]
+    rahu = chart.planets["RAHU"]
+    lord7 = _lord_placement(chart, 7)
+    lord4 = _lord_placement(chart, 4)
+    h7_sign = sign_label(locale, chart.house_signs[7])
+    h4_sign = sign_label(locale, chart.house_signs[4])
+    terms = _use_terms(style)
+
+    if question_index == 0:
+        v, m = _family_trait(locale, venus), _family_trait(locale, moon)
+        if lang == "ru":
+            if terms:
+                return (
+                    f"В романтике ты опираешься на Венеру ({v}) и Луну ({m}). "
+                    f"Близость строится там, где оба показателя могут проявиться — "
+                    f"особенно в 7-м доме ({h7_sign})."
+                )
+            return (
+                f"Ты строишь романтику через {b(v.lower())}. "
+                f"Эмоционально в паре нужно, чтобы {b(m.lower())} — иначе интерес быстро гаснет."
+            )
+        if terms:
+            return (
+                f"In romance you lean on Venus ({v}) and the Moon ({m}) — "
+                f"especially in house 7 ({h7_sign})."
+            )
+        return (
+            f"You build romance through {b(v.lower())}. "
+            f"Emotionally in a pair you need {b(m.lower())} — or interest fades fast."
+        )
+
+    if question_index == 1:
+        v, p = _family_trait(locale, venus), _family_trait(locale, lord7)
+        lord_name = _pl(locale, lord7.key)
+        if lang == "ru":
+            if terms:
+                return (
+                    f"Тип партнёра читается по 7-му дому ({h7_sign}), Венере и управителю 7-го "
+                    f"({lord_name}): {p}. Венера добавляет фильтр — {v}."
+                )
+            return (
+                f"Тебя тянет к типу «{h7_sign}»: {b(p.lower())}. "
+                f"Венера уточняет вкус — {b(v.lower())}."
+            )
+        if terms:
+            return (
+                f"Partner type — 7th house ({h7_sign}), Venus, and lord {lord_name}: {p}. "
+                f"Venus adds the filter — {v}."
+            )
+        return (
+            f"You're drawn to the «{h7_sign}» type: {b(p.lower())}. "
+            f"Venus sharpens the taste — {b(v.lower())}."
+        )
+
+    if question_index == 2:
+        j, u = _family_trait(locale, jupiter), _family_trait(locale, lord7)
+        lord_name = _pl(locale, lord7.key)
+        if lang == "ru":
+            if terms:
+                return (
+                    f"Брак и союз — Юпитер как зрелость пары ({j}) плюс управитель 7-го "
+                    f"({lord_name} в {sign_label(locale, lord7.sign)}): {u}."
+                )
+            return (
+                f"Союз для тебя — когда {b(j.lower())}. "
+                f"Линия партнёрства ({lord_name}): {b(u.lower())} — так карта описывает «брак»."
+            )
+        if terms:
+            return (
+                f"Marriage — Jupiter ({j}) and 7th lord {lord_name} "
+                f"({sign_label(locale, lord7.sign)}): {u}."
+            )
+        return (
+            f"Union for you works when {b(j.lower())}. "
+            f"The partnership line ({lord_name}): {b(u.lower())} — that's your «marriage» marker."
+        )
+
+    if question_index == 3:
+        m, r = _family_trait(locale, moon), _family_trait(locale, lord4)
+        lord_name = _pl(locale, lord4.key)
+        h4_planets = _planets_in_house(chart, 4)
+        extra = ""
+        if h4_planets and not terms:
+            extra = _family_trait(locale, h4_planets[0])
+        elif h4_planets and terms:
+            extra = _render_planet(locale, h4_planets[0], style=style)
+        if lang == "ru":
+            if terms:
+                lead = (
+                    f"Семья и дом — 4-й дом ({h4_sign}), Луна ({m}) и управитель 4-го "
+                    f"({lord_name}): {r}."
+                )
+                return f"{lead} {extra}".strip() if extra else lead
+            tail = f" В 4-м доме также звучит: {b(extra.lower())}." if extra else ""
+            return (
+                f"Дом для тебя — это {b(m.lower())}. "
+                f"Корни и семья ({h4_sign}, {lord_name}): {b(r.lower())}.{tail}"
+            )
+        if terms:
+            lead = f"Family and home — house 4 ({h4_sign}), Moon ({m}), lord {lord_name}: {r}."
+            return f"{lead} {extra}".strip() if extra else lead
+        tail = f" House 4 also shows: {b(extra.lower())}." if extra else ""
+        return (
+            f"Home for you means {b(m.lower())}. "
+            f"Roots and family ({h4_sign}, {lord_name}): {b(r.lower())}.{tail}"
+        )
+
+    friction_parts: list[str] = []
+    for pl in (mars, saturn, rahu):
+        if pl.house in (4, 7) or pl.dignity == "debilitated":
+            friction_parts.append(_family_trait(locale, pl))
+    if not friction_parts:
+        friction_parts = [_family_trait(locale, mars), _family_trait(locale, saturn)]
+    f1, f2 = friction_parts[0], friction_parts[1] if len(friction_parts) > 1 else friction_parts[0]
+    if lang == "ru":
+        if terms:
+            return (
+                f"Трения в паре и семье — напряжённые Марс/Сатурн/Раху в 4-м и 7-м: "
+                f"{f1}; {f2}. Замечай реакцию, не копи молча."
+            )
+        return (
+            f"Трения чаще там, где {b(f1.lower())}. "
+            f"Плюс {b(f2.lower())} — точки, где лучше говорить заранее, а не копить."
+        )
+    if terms:
+        return (
+            f"Couple/family friction — tense Mars/Saturn/Rahu in houses 4 and 7: "
+            f"{f1}; {f2}. Name it early."
+        )
+    return (
+        f"Friction often shows up where {b(f1.lower())}. "
+        f"Plus {b(f2.lower())} — talk early instead of storing it up."
+    )
+
+
 def build_family_answer(
     chart: JyotishChart,
     locale: str,
@@ -1374,8 +1545,17 @@ def build_family_answer(
             tail = " Notice where you react sharply or shut down — growth points, not a verdict."
         body = f"{intro}{' '.join(bits[:3])}{tail}".strip()
 
-    cfg = FAMILY_QA_SYNTH[max(0, min(4, question_index))]
-    body = _qa_synth(locale, question, chart, body, cfg, style=style)
+    cfg = _family_synth_cfg(chart, question_index)
+    brief = _family_question_brief(locale, question_index, chart, style=style)
+    body = _qa_synth(
+        locale,
+        question,
+        chart,
+        body,
+        cfg,
+        style=style,
+        direct_answer=brief,
+    )
 
     if lang == "ru":
         header = "💍 Отношение / Брак / Семья"
