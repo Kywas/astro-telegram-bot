@@ -36,6 +36,7 @@ class UserProfile:
     premium_until: Optional[str]
     trial_used: bool
     natal_mode: str
+    natal_style: str
     ref_code: Optional[str]
     referrer_id: Optional[int]
     ref_bonus_count: int
@@ -165,6 +166,7 @@ class Database:
                 "premium_until": "TEXT",
                 "trial_used": "INTEGER DEFAULT 0",
                 "natal_mode": "TEXT DEFAULT 'full'",
+                "natal_style": "TEXT DEFAULT 'terms'",
                 "ref_code": "TEXT",
                 "referrer_id": "INTEGER",
                 "ref_bonus_count": "INTEGER DEFAULT 0",
@@ -409,6 +411,7 @@ class Database:
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
+                    natal_style=row["natal_style"] if row["natal_style"] else "terms",
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
@@ -612,6 +615,7 @@ class Database:
                     premium_until=row["premium_until"],
                     trial_used=bool(row["trial_used"] if row["trial_used"] is not None else 0),
                     natal_mode=row["natal_mode"] or "full",
+                    natal_style=row["natal_style"] if row["natal_style"] else "terms",
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
@@ -694,6 +698,15 @@ class Database:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 "UPDATE users SET natal_mode = ? WHERE user_id = ?",
+                (normalized, user_id),
+            )
+            await db.commit()
+
+    async def set_natal_style(self, user_id: int, style: str) -> None:
+        normalized = "plain" if style == "plain" else "terms"
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET natal_style = ? WHERE user_id = ?",
                 (normalized, user_id),
             )
             await db.commit()

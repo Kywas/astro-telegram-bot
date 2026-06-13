@@ -34,6 +34,7 @@ def build_natal_summary(
     mood_score: int | None = None,
     mode: str = "full",
     part: int = 1,
+    style: str = "terms",
     timezone: str = "UTC",
     lat: float | None = None,
     lon: float | None = None,
@@ -63,6 +64,7 @@ def build_natal_summary(
         lon=lon,
         birth_timezone=birth_timezone,
         part=normalized_part,
+        style=style,
     )
     if text is None:
         return (

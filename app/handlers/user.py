@@ -55,6 +55,14 @@ from app.keyboards import (
     moon_content_keyboard,
     moon_period_keyboard,
     natal_part_keyboard,
+    natal_qa_answer_keyboard,
+    natal_qa_popular_answer_keyboard,
+    natal_qa_questions_keyboard,
+    natal_qa_family_answer_keyboard,
+    natal_qa_family_keyboard,
+    natal_qa_popular_keyboard,
+    natal_qa_spheres_keyboard,
+    natal_style_picker_keyboard,
     onboarding_relationship_keyboard,
     prefs_gender_keyboard,
     prefs_goal_keyboard,
@@ -72,6 +80,16 @@ from app.moon_calendar import (
     generate_moon_table_text,
 )
 from app.natal import build_natal_summary
+from app.natal_sphere_qa import (
+    build_chart_from_profile,
+    build_family_answer,
+    build_popular_answer,
+    build_sphere_answer,
+    family_picker_intro,
+    popular_picker_intro,
+    questions_intro,
+    spheres_picker_intro,
+)
 from app.payments import PayCurrency, available_payment_options, get_payment_option, parse_premium_payload
 from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_active
 from app.premium_lifecycle import notify_admins_purchase
@@ -545,7 +563,7 @@ async def universal_nav_callback(callback: CallbackQuery, state: FSMContext) -> 
         )
         return
     if action == "natal":
-        text, keyboard = await render_natal_for_user(user.id, locale)
+        text, keyboard = await render_natal_style_picker(user.id, locale)
         await edit_or_send(callback, text, inline_keyboard=keyboard)
         return
 
@@ -760,6 +778,33 @@ async def open_horoscope_for_user(
     )
 
 
+async def render_natal_style_picker(
+    user_id: int,
+    locale: str,
+    *,
+    part: int = 1,
+) -> tuple[str, InlineKeyboardMarkup]:
+    profile = await db.get_user(user_id)
+    if profile is None or profile.birth_date is None or not profile.sign:
+        return t(locale, "natal_profile_missing"), home_panel_keyboard(locale)
+
+    if profile.birth_time is None:
+        return t(locale, "natal_time_required"), home_panel_keyboard(locale)
+
+    style = profile.natal_style or "terms"
+    style_label = (
+        t(locale, "natal_style_label_terms")
+        if style == "terms"
+        else t(locale, "natal_style_label_plain")
+    )
+    text = (
+        f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+        f"{t(locale, 'choose_natal_style')}\n\n"
+        f"{t(locale, 'natal_style_current', style=style_label)}"
+    )
+    return text, natal_style_picker_keyboard(locale, current_style=style, part=part)
+
+
 async def render_natal_for_user(user_id: int, locale: str, *, part: int = 1) -> tuple[str, InlineKeyboardMarkup]:
     return await render_natal_for_user_mode(user_id, locale, mode="full", part=part)
 
@@ -800,6 +845,7 @@ async def render_natal_for_user_mode(
         mood_score=profile.mood_score,
         mode=normalized_mode if normalized_part == 1 else "full",
         part=normalized_part,
+        style=profile.natal_style or "terms",
         timezone=profile.timezone,
         lat=profile.birth_lat,
         lon=profile.birth_lon,
@@ -812,7 +858,12 @@ async def render_natal_for_user_mode(
     header = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n{part_line}\n\n{text}"
     return (
         header,
-        natal_part_keyboard(locale, part=normalized_part, premium_active=premium_active),
+        natal_part_keyboard(
+            locale,
+            part=normalized_part,
+            premium_active=premium_active,
+            current_style=profile.natal_style or "terms",
+        ),
     )
 
 
@@ -1073,8 +1124,239 @@ async def natal_handler(message: Message) -> None:
     if user is None:
         return
     locale = await get_user_locale(user.id)
-    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="auto")
+    text, keyboard = await render_natal_style_picker(user.id, locale)
     await show_panel_from_message(message, text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("natal:style:"))
+async def natal_style_callback_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3:
+        await callback.answer()
+        return
+
+    action = parts[2]
+    part = 1
+    if len(parts) >= 4 and parts[3].isdigit():
+        part = int(parts[3])
+
+    if action == "picker":
+        await callback.answer()
+        text, keyboard = await render_natal_style_picker(user.id, locale, part=part)
+        await edit_or_send(callback, text, inline_keyboard=keyboard)
+        return
+
+    if action not in {"plain", "terms"}:
+        await callback.answer()
+        return
+
+    await db.set_natal_style(user.id, action)
+    await callback.answer()
+    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="full", part=part)
+    await edit_or_send(callback, text, inline_keyboard=keyboard)
+
+
+@router.callback_query(F.data.startswith("natal:qa:"))
+async def natal_qa_callback_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or profile.birth_date is None or not profile.sign:
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            t(locale, "natal_profile_missing"),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+    if profile.birth_time is None:
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            t(locale, "natal_time_required"),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) < 4:
+        await callback.answer()
+        return
+
+    action = parts[2]
+    await callback.answer()
+
+    if action == "pick":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{popular_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_popular_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "family":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{family_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_family_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "fam" and len(parts) >= 5:
+        q_index = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        q_index = max(0, min(4, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_family_answer(
+            chart,
+            locale,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_family_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "spheres":
+        part = int(parts[3]) if parts[3].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{spheres_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_spheres_keyboard(locale, part=part, page=0),
+        )
+        return
+
+    if action == "page" and len(parts) >= 5:
+        page = int(parts[3]) if parts[3].isdigit() else 0
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{spheres_picker_intro(locale)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_spheres_keyboard(locale, part=part, page=page),
+        )
+        return
+
+    if action == "h" and len(parts) >= 5:
+        house = int(parts[3]) if parts[3].isdigit() else 1
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        house = max(1, min(12, house))
+        style = profile.natal_style or "terms"
+        text = (
+            f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n"
+            f"{questions_intro(locale, house, style=style)}"
+        )
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_questions_keyboard(locale, house=house, part=part),
+        )
+        return
+
+    if action == "pop" and len(parts) >= 5:
+        qid = parts[3]
+        part = int(parts[4]) if parts[4].isdigit() else 1
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_popular_answer(
+            chart,
+            locale,
+            qid,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_popular_answer_keyboard(locale, part=part),
+        )
+        return
+
+    if action == "q" and len(parts) >= 6:
+        house = int(parts[3]) if parts[3].isdigit() else 1
+        q_index = int(parts[4]) if parts[4].isdigit() else 0
+        part = int(parts[5]) if parts[5].isdigit() else 1
+        house = max(1, min(12, house))
+        q_index = max(0, min(2, q_index))
+        chart = build_chart_from_profile(profile)
+        if chart is None:
+            await edit_or_send(
+                callback,
+                t(locale, "natal_qa_unavailable"),
+                inline_keyboard=natal_part_keyboard(
+                    locale,
+                    part=part,
+                    premium_active=is_premium_active(profile.premium_until),
+                    current_style=profile.natal_style or "terms",
+                ),
+            )
+            return
+        answer = build_sphere_answer(
+            chart,
+            locale,
+            house,
+            q_index,
+            style=profile.natal_style or "terms",
+        )
+        text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+        await edit_or_send(
+            callback,
+            text,
+            inline_keyboard=natal_qa_answer_keyboard(locale, house=house, part=part),
+        )
+        return
 
 
 @router.callback_query(F.data.startswith("natal:part:"))
@@ -1102,13 +1384,13 @@ async def natal_part_callback_handler(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("natal:mode:"))
 async def natal_mode_callback_handler(callback: CallbackQuery) -> None:
-    """Legacy alias — redirect to part 1."""
+    """Legacy alias — open style picker."""
     user = callback.from_user
     if user is None:
         return
     locale = await get_user_locale(user.id)
     await callback.answer()
-    text, keyboard = await render_natal_for_user_mode(user.id, locale, mode="auto", part=1)
+    text, keyboard = await render_natal_style_picker(user.id, locale)
     await edit_or_send(callback, text, inline_keyboard=keyboard)
 
 

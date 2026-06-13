@@ -28,7 +28,40 @@ def glossary_help_button(locale: str, topic: str, back_data: str) -> InlineKeybo
     )
 
 
-def natal_part_keyboard(locale: str, *, part: int, premium_active: bool) -> InlineKeyboardMarkup:
+def natal_style_picker_keyboard(
+    locale: str,
+    *,
+    current_style: str,
+    part: int = 1,
+) -> InlineKeyboardMarkup:
+    style = "plain" if current_style == "plain" else "terms"
+    plain_mark = "✓ " if style == "plain" else ""
+    terms_mark = "✓ " if style == "terms" else ""
+    back_data = f"natal:part:{part}" if part else "nav:home"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{plain_mark}{t(locale, 'natal_style_plain')}",
+                    callback_data=f"natal:style:plain:{part}",
+                ),
+                InlineKeyboardButton(
+                    text=f"{terms_mark}{t(locale, 'natal_style_terms')}",
+                    callback_data=f"natal:style:terms:{part}",
+                ),
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=back_data)],
+        ]
+    )
+
+
+def natal_part_keyboard(
+    locale: str,
+    *,
+    part: int,
+    premium_active: bool,
+    current_style: str = "plain",
+) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     if premium_active:
         part_labels = {
@@ -53,9 +86,222 @@ def natal_part_keyboard(locale: str, *, part: int, premium_active: bool) -> Inli
                 ),
             ]
         )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "btn_natal_sphere_qa"),
+                callback_data=f"natal:qa:pick:{part}",
+            )
+        ]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "btn_natal_style"),
+                callback_data=f"natal:style:picker:{part}",
+            )
+        ]
+    )
     rows.append([glossary_help_button(locale, "natal", f"natal:part:{part}")])
     rows.append([InlineKeyboardButton(text=t(locale, "back"), callback_data="nav:home")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def natal_qa_popular_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
+    from app.natal_sphere_qa import popular_blocks, popular_button_label
+
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(
+                text=popular_button_label(locale, block.id),
+                callback_data=f"natal:qa:pop:{block.id}:{part}",
+            )
+        ]
+        for block in popular_blocks(locale)
+    ]
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "btn_natal_qa_family"),
+                callback_data=f"natal:qa:family:{part}",
+            )
+        ]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "btn_natal_qa_spheres"),
+                callback_data=f"natal:qa:spheres:{part}",
+            )
+        ]
+    )
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:part:{part}")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def natal_qa_family_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
+    from app.natal_sphere_qa import family_questions, question_button_label
+
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=question_button_label(q, max_len=48),
+                callback_data=f"natal:qa:fam:{idx}:{part}",
+            )
+        ]
+        for idx, q in enumerate(family_questions(locale))
+    ]
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "natal_qa_back_to_chart"),
+                callback_data=f"natal:part:{part}",
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def natal_qa_family_answer_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "natal_qa_other_questions"),
+                    callback_data=f"natal:qa:family:{part}",
+                )
+            ],
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "natal_qa_back_to_chart"),
+                    callback_data=f"natal:part:{part}",
+                )
+            ],
+        ]
+    )
+
+
+def natal_qa_spheres_keyboard(locale: str, *, part: int, page: int = 0) -> InlineKeyboardMarkup:
+    from app.natal_sphere_qa import house_button_label
+
+    rows: list[list[InlineKeyboardButton]] = []
+    start_house = page * 6 + 1
+    end_house = min(start_house + 5, 12)
+    row: list[InlineKeyboardButton] = []
+    for house in range(start_house, end_house + 1):
+        row.append(
+            InlineKeyboardButton(
+                text=house_button_label(locale, house),
+                callback_data=f"natal:qa:h:{house}:{part}",
+            )
+        )
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+
+    nav: list[InlineKeyboardButton] = []
+    if page > 0:
+        nav.append(
+            InlineKeyboardButton(text="◀", callback_data=f"natal:qa:page:{page - 1}:{part}")
+        )
+    if end_house < 12:
+        nav.append(
+            InlineKeyboardButton(text="▶", callback_data=f"natal:qa:page:{page + 1}:{part}")
+        )
+    if nav:
+        rows.append(nav)
+
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "natal_qa_back_to_chart"),
+                callback_data=f"natal:part:{part}",
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def natal_qa_questions_keyboard(
+    locale: str,
+    *,
+    house: int,
+    part: int,
+) -> InlineKeyboardMarkup:
+    from app.natal_sphere_qa import question_button_label, sphere_questions
+
+    questions = sphere_questions(locale, house)
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=question_button_label(q),
+                callback_data=f"natal:qa:q:{house}:{idx}:{part}",
+            )
+        ]
+        for idx, q in enumerate(questions)
+    ]
+    rows.append(
+        [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:spheres:{part}")]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(locale, "natal_qa_back_to_chart"),
+                callback_data=f"natal:part:{part}",
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def natal_qa_popular_answer_keyboard(locale: str, *, part: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t(locale, "back"), callback_data=f"natal:qa:pick:{part}")],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "natal_qa_back_to_chart"),
+                    callback_data=f"natal:part:{part}",
+                )
+            ],
+        ]
+    )
+
+
+def natal_qa_answer_keyboard(locale: str, *, house: int, part: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "back"),
+                    callback_data=f"natal:qa:h:{house}:{part}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "natal_qa_other_spheres"),
+                    callback_data=f"natal:qa:spheres:{part}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "natal_qa_back_to_chart"),
+                    callback_data=f"natal:part:{part}",
+                )
+            ],
+        ]
+    )
 
 
 def horoscope_period_keyboard(

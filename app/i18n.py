@@ -79,6 +79,29 @@ TEXTS = {
         "natal_part_label": "Часть {part}/3",
         "natal_profile_missing": "Для натальной карты сначала заполни профиль через /start.",
         "natal_time_required": "Для ведического разбора укажи точное время рождения в профиле.",
+        "choose_natal_style": (
+            "Как описывать карту?\n\n"
+            "📖 С терминами — Лагна, дома, накшатры, стеллиум, кендры и другие понятия Джйотиш.\n"
+            "Пример: «В 10-м доме, где звучит тема «реализация и статус», Солнце в Овне — "
+            "ядро личности тянет к реализации. Тон задаёт накшатра Ашвини.»\n\n"
+            "💬 Простым языком — те же смыслы, но без астрологического жаргона.\n"
+            "Пример: «В сфере «реализация и статус» Солнце в Овне — "
+            "ядро личности тянет к реализации и собственному курсу.»"
+        ),
+        "natal_style_terms": "📖 С терминами",
+        "natal_style_plain": "💬 Простым языком",
+        "natal_style_current": "Сейчас: {style}",
+        "natal_style_label_terms": "с терминами",
+        "natal_style_label_plain": "простым языком",
+        "btn_natal_style": "📝 Стиль описания",
+        "btn_natal_sphere_qa": "❓ Вопросы по карте",
+        "natal_qa_other_popular": "↩ Другие популярные",
+        "natal_qa_other_questions": "↩ Другие вопросы",
+        "btn_natal_qa_spheres": "📂 По сферам",
+        "btn_natal_qa_family": "💍 Отношение / Брак / Семья",
+        "natal_qa_other_spheres": "↩ Другие сферы",
+        "natal_qa_back_to_chart": "⬅ К разбору",
+        "natal_qa_unavailable": "Не удалось построить ответ — проверь дату, время и город в профиле.",
         "btn_natal": "🪐 Натальная карта",
         "choose_horoscope_period": "Выбери период гороскопа:",
         "choose_horoscope_period_free": "Бесплатно — только прогноз на сегодня. Неделя и месяц — в Premium.",
@@ -404,6 +427,29 @@ TEXTS = {
         "natal_part_label": "Part {part}/3",
         "natal_profile_missing": "Please complete your profile via /start before natal chart.",
         "natal_time_required": "Add exact birth time in profile for the Vedic reading.",
+        "choose_natal_style": (
+            "How should we describe your chart?\n\n"
+            "📖 With terms — Lagna, houses, nakshatras, stellium, kendras, and other Jyotish concepts.\n"
+            "Example: \"In house 10, the arena of realization and status, the Sun in Aries pulls "
+            "toward achievement. The tone is shaped by nakshatra Ashwini.\"\n\n"
+            "💬 Plain language — the same meanings without astrological jargon.\n"
+            "Example: \"In the arena of realization and status, the Sun in Aries pulls "
+            "toward achievement and your own course.\""
+        ),
+        "natal_style_terms": "📖 With terms",
+        "natal_style_plain": "💬 Plain language",
+        "natal_style_current": "Current: {style}",
+        "natal_style_label_terms": "with terms",
+        "natal_style_label_plain": "plain language",
+        "btn_natal_style": "📝 Description style",
+        "btn_natal_sphere_qa": "❓ Chart questions",
+        "natal_qa_other_popular": "↩ Other popular",
+        "natal_qa_other_questions": "↩ Other questions",
+        "btn_natal_qa_spheres": "📂 By life area",
+        "btn_natal_qa_family": "💍 Relationship / Marriage / Family",
+        "natal_qa_other_spheres": "↩ Other areas",
+        "natal_qa_back_to_chart": "⬅ Back to reading",
+        "natal_qa_unavailable": "Could not build an answer — check date, time, and city in profile.",
         "btn_natal": "🪐 Natal chart",
         "choose_horoscope_period": "Choose horoscope period:",
         "choose_horoscope_period_free": "Free — daily forecast only. Week and month are Premium.",
