@@ -2394,7 +2394,7 @@ async def checkin_mood_callback_handler(callback: CallbackQuery) -> None:
     )
     await callback.answer()
     if callback.message:
-        await callback.message.edit_text(response_text)
+        await edit_or_send(callback, response_text)
 
 
 @router.callback_query(F.data.startswith("evening:"))
