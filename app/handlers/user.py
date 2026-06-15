@@ -144,6 +144,7 @@ from app.services.compat import (
     compat_daily_limit_reached,
     compat_menu_text,
     compat_mode_keyboard,
+    compat_mode_label,
     compat_wizard_keyboard,
     deliver_compat_result,
     geocode_city_input,
