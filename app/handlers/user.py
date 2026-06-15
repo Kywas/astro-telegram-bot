@@ -142,6 +142,8 @@ from app.premium import PREMIUM_PERIOD_DAYS, format_premium_until, is_premium_ac
 from app.premium_lifecycle import notify_admins_purchase
 from app.services.compat import (
     compat_daily_limit_reached,
+    compat_manage_keyboard,
+    compat_menu_keyboard,
     compat_menu_text,
     compat_mode_keyboard,
     compat_mode_label,
