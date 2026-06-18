@@ -362,6 +362,97 @@ TRANSIT_DOMAIN_VERB = {
     },
 }
 
+TRANSIT_DOMAIN_VERB_PLAIN = {
+    "ru": {
+        ("SUN", "energy"): "Солнце сегодня хочет, чтобы вы засияли — хотя бы на одном созвоне",
+        ("SUN", "work"): "Солнце кивает на карьеру: «кто тут главный?» — намёк понятен",
+        ("SUN", "finance"): "Солнце смотрит на кошелёк через самооценку — не только цифры важны",
+        ("SUN", "love"): "Солнце напоминает: в паре тоже хочется быть замеченным",
+        ("SUN", "social"): "Солнце включает режим «меня должны видеть» — stories в счёт",
+        ("SUN", "health"): "Солнце честно спрашивает: хватит ли сил на всё задуманное",
+        ("MOON", "energy"): "Луна крутит настроение — как плейлист на shuffle",
+        ("MOON", "work"): "Работа чувствительна к настроению — жёсткие дедлайны без кофе опасны",
+        ("MOON", "finance"): "Луна окрашивает траты эмоциями — «мне грустно» ≠ повод для корзины",
+        ("MOON", "love"): "Луна хочет тепла — или хотя бы нормальный ответ в чате",
+        ("MOON", "social"): "Переписки сегодня личнее обычного — лишнее сорвётся легче",
+        ("MOON", "health"): "Луна связывает сон, еду и настроение — тройной удар, если что-то пропустить",
+        ("MERCURY", "energy"): "Меркурий разгоняет мысли — вкладок в голове больше, чем в браузере",
+        ("MERCURY", "work"): "Меркурий шуршит бумагами и дедлайнами — классика жанра",
+        ("MERCURY", "finance"): "Меркурий включает режим «давайте посчитаем» — калькулятор пригодится",
+        ("MERCURY", "love"): "Слова и переписка в центре — «прочитал и не ответил» обиднее обычного",
+        ("MERCURY", "social"): "Звонки, чаты, новости — мозг устанет быстрее тела",
+        ("MERCURY", "health"): "Меркурий гонит нервную систему — не пытайтесь быть везде сразу",
+        ("VENUS", "energy"): "Венера смягчает день — хочется приятного, и это нормально",
+        ("VENUS", "work"): "Венера связывает работу с красотой результата — скучное тоже можно сделать изящно",
+        ("VENUS", "finance"): "Венера нашептывает «ну купи» — дважды посчитайте, один раз радуйтесь",
+        ("VENUS", "love"): "Венера усиливает притяжение — флирт идёт легче, чем в понедельник",
+        ("VENUS", "social"): "Приятные контакты и комплименты идут на пользу — не стесняйтесь",
+        ("VENUS", "health"): "Венера про телесный комфорт — ванна, массаж или нормальный обед в зачёт",
+        ("MARS", "energy"): "Марс добавляет газу — осторожно, не сгореть к вечеру",
+        ("MARS", "work"): "Марс толкает к действию и дедлайнам — или к спору о дедлайнах",
+        ("MARS", "finance"): "Марс провоцирует быстрые траты — «успею до зарплаты» не план",
+        ("MARS", "love"): "Страсть и прямота на максимуме — трения тоже в комплекте",
+        ("MARS", "social"): "Речь резче — лёгкий спор может вырасти в марафон",
+        ("MARS", "health"): "Движение нужно, но перебор — тело напомнит завтра",
+        ("JUPITER", "energy"): "Юпитер раздувает уверенность — не путать с «я точно всё успею»",
+        ("JUPITER", "work"): "Юпитер видит возможности роста — хотя бы одну стоит выбрать",
+        ("JUPITER", "finance"): "Юпитер оптимистичен про деньги — цифры проверить не повредит",
+        ("JUPITER", "love"): "Щедрость и желание делиться — пицца на двоих, не на весь офис",
+        ("JUPITER", "social"): "Круг общения расширяется — не каждое знакомство станет лучшим другом",
+        ("JUPITER", "health"): "Склонность к избытку — «ещё один кусочек» сегодня коварен",
+        ("SATURN", "energy"): "Сатурн тормозит — не повод лежать, но и не время геройствовать",
+        ("SATURN", "work"): "Сатурн проверяет ответственность — скучные задачи никуда не делись",
+        ("SATURN", "finance"): "Сатурн про бюджет и ограничения — импульсивные покупки под подозрением",
+        ("SATURN", "love"): "Границы и серьёзность намерений — «потом поговорим» не прокатит",
+        ("SATURN", "social"): "Общение сдержаннее — формальности сегодня в моде",
+        ("SATURN", "health"): "Режим и последствия перегруза — тело ведёт учёт",
+    },
+    "en": {
+        ("SUN", "energy"): "The Sun wants you to shine today — at least on one call",
+        ("SUN", "work"): "The Sun nods at career status — subtle hint who should lead",
+        ("SUN", "finance"): "The Sun views the wallet through self-worth — not just numbers",
+        ("SUN", "love"): "The Sun reminds you: being seen in love still matters",
+        ("SUN", "social"): "The Sun turns on visibility mode — stories count",
+        ("SUN", "health"): "The Sun asks honestly: enough fuel for everything planned?",
+        ("MOON", "energy"): "The Moon shuffles mood like a playlist on random",
+        ("MOON", "work"): "Work feels mood-sensitive — hard deadlines without coffee are risky",
+        ("MOON", "finance"): "The Moon colors spending with feelings — sad is not a budget plan",
+        ("MOON", "love"): "The Moon wants warmth — or at least a proper text back",
+        ("MOON", "social"): "Chats run more personal today — oversharing comes easier",
+        ("MOON", "health"): "The Moon links sleep, food, and mood — skip one, feel all three",
+        ("MERCURY", "energy"): "Mercury speeds thoughts — more tabs in your head than in the browser",
+        ("MERCURY", "work"): "Mercury rustles papers and deadlines — genre classic",
+        ("MERCURY", "finance"): "Mercury flips on spreadsheet mode — calculator welcome",
+        ("MERCURY", "love"): "Words and messages center stage — left on read hurts more today",
+        ("MERCURY", "social"): "Calls, chats, news — the brain tires before the body",
+        ("MERCURY", "health"): "Mercury revs the nervous system — don't try to be everywhere",
+        ("VENUS", "energy"): "Venus softens the day — wanting nice things is allowed",
+        ("VENUS", "work"): "Venus links work with a pretty result — boring can still look good",
+        ("VENUS", "finance"): "Venus whispers \"just buy it\" — count twice, enjoy once",
+        ("VENUS", "love"): "Venus boosts attraction — flirting flows easier than Monday",
+        ("VENUS", "social"): "Pleasant contact and compliments help — use them",
+        ("VENUS", "health"): "Venus is about bodily comfort — bath, massage, or real lunch counts",
+        ("MARS", "energy"): "Mars adds gas — careful not to burn out by evening",
+        ("MARS", "work"): "Mars pushes action and deadlines — or arguments about them",
+        ("MARS", "finance"): "Mars provokes quick spending — \"I'll manage until payday\" is not a plan",
+        ("MARS", "love"): "Passion and bluntness peak — friction may come bundled",
+        ("MARS", "social"): "Speech runs sharper — a small debate can become a marathon",
+        ("MARS", "health"): "Movement helps, but excess — your body will invoice you tomorrow",
+        ("JUPITER", "energy"): "Jupiter inflates confidence — don't confuse with \"I'll definitely finish everything\"",
+        ("JUPITER", "work"): "Jupiter spots growth chances — pick at least one",
+        ("JUPITER", "finance"): "Jupiter is money-optimistic — checking numbers still helps",
+        ("JUPITER", "love"): "Generosity rises — pizza for two, not for the whole office",
+        ("JUPITER", "social"): "The social circle widens — not every hello becomes a best friend",
+        ("JUPITER", "health"): "Excess tempts — \"just one more bite\" is sneaky today",
+        ("SATURN", "energy"): "Saturn slows the pace — not an excuse to nap, not a hero day either",
+        ("SATURN", "work"): "Saturn tests responsibility — dull tasks didn't vanish",
+        ("SATURN", "finance"): "Saturn means budget and limits — impulse buys under review",
+        ("SATURN", "love"): "Boundaries and serious intent — \"we'll talk later\" won't fly",
+        ("SATURN", "social"): "Contact turns more formal — politeness is in fashion",
+        ("SATURN", "health"): "Routine and overload costs — the body keeps score",
+    },
+}
+
 NATAL_POINT = {
     "ru": {
         "SUN": ("Солнцу", "Солнцем", "ядро личности"),
@@ -471,14 +562,14 @@ SUN_MOON_RELATION = {
 
 SUN_MOON_RELATION_PLAIN = {
     "ru": {
-        "harmony": "Настроение дня и ваш характер в одном ключе — день звучит цельно.",
-        "support": "Эмоциональный фон помогает действовать последовательно.",
-        "tension": "Внутренний ритм и внешние задачи тянут в разные стороны — держи баланс.",
+        "harmony": "Настроение дня и ваш характер в одном ключе — редкая удача, ловите момент.",
+        "support": "Эмоциональный фон подталкивает действовать последовательно — не мешайте себе.",
+        "tension": "Внутренний ритм и внешние задачи тянут в разные стороны — баланс как йога, только без коврика.",
     },
     "en": {
-        "harmony": "Today's mood and your temperament share the same tone — the day feels coherent.",
-        "support": "The emotional backdrop helps you act consistently.",
-        "tension": "Inner rhythm and outer tasks pull in different directions — keep balance.",
+        "harmony": "Today's mood and your temperament match — rare luck, use it.",
+        "support": "The emotional backdrop nudges you to act consistently — don't get in your own way.",
+        "tension": "Inner rhythm and outer tasks pull apart — balance like yoga, minus the mat.",
     },
 }
 
@@ -557,11 +648,12 @@ def _domain_focus(locale: str, domain: str, natal: str) -> str:
     return DOMAIN_FOCUS[lang].get(domain, {}).get(natal, _natal_role_short(locale, natal))
 
 
-def _transit_domain_intro(locale: str, transit: str, domain: str) -> str:
+def _transit_domain_intro(locale: str, transit: str, domain: str, *, style: str = "terms") -> str:
     lang = _lang(locale)
-    text = TRANSIT_DOMAIN_VERB[lang].get(
+    table = TRANSIT_DOMAIN_VERB if _use_terms(style) else TRANSIT_DOMAIN_VERB_PLAIN
+    text = table[lang].get(
         (transit, domain),
-        TRANSIT_DOMAIN_VERB[lang].get((transit, "energy"), _planet_label(locale, transit)),
+        table[lang].get((transit, "energy"), _planet_label(locale, transit)),
     )
     return f"{text}."
 
@@ -690,6 +782,15 @@ def format_plain_accent(
     role = _natal_role_short(locale, natal)
     if lang == "ru":
         scope = {"day": "день", "week": "неделя", "month": "месяц"}.get(period, "день")
+        if period == "day":
+            mapping = {
+                "conjunction": f"Главный акцент дня — {role}: тема на максимуме, не распыляйтесь.",
+                "sextile": f"Мягкая поддержка в теме «{role}» — как подсказка от вселенной, только бесплатно.",
+                "trine": f"День облегчает {role} — можно опереться и не геройствовать.",
+                "square": f"На {role} давление — как понедельник, только в любой день. Снижайте темп.",
+                "opposition": f"{role.capitalize()} тянут в разные стороны — ищите середину, не крайности.",
+            }
+            return mapping.get(aspect, f"Акцент дня — {role}.")
         mapping = {
             "conjunction": f"Главный акцент {scope} — {role}: усилит эту тему.",
             "sextile": f"Мягкая поддержка на {scope} в теме «{role}».",
@@ -699,6 +800,15 @@ def format_plain_accent(
         }
         return mapping.get(aspect, f"Акцент {scope} — {role}.")
     scope = {"day": "today", "week": "this week", "month": "this month"}.get(period, "today")
+    if period == "day":
+        mapping = {
+            "conjunction": f"Main focus today — {role}: theme on max volume, don't scatter.",
+            "sextile": f"Gentle support around {role} — like a free hint from the universe.",
+            "trine": f"Today eases {role} — lean in without playing hero.",
+            "square": f"Pressure on {role} — like Monday on any weekday. Slow down.",
+            "opposition": f"{role.capitalize()} pull opposite ways — find the middle, not the extremes.",
+        }
+        return mapping.get(aspect, f"Today's accent — {role}.")
     mapping = {
         "conjunction": f"Main focus {scope} — {role}: amplifies this theme.",
         "sextile": f"Gentle support {scope} around {role}.",
@@ -816,7 +926,9 @@ def format_forecast_opening(
         elif period == "month":
             parts.append("Ярких акцентов мало — держи ровный месячный ритм.")
         else:
-            parts.append("Ярких акцентов нет — держи свой обычный ритм.")
+            parts.append(
+                "Небо сегодня не кричит — живи по своему расписанию, а не по панике."
+            )
     elif _use_terms(style):
         if period == "week":
             parts.append("Few strong transits — pace the week without forcing.")
@@ -829,7 +941,7 @@ def format_forecast_opening(
     elif period == "month":
         parts.append("Few strong themes — keep a steady monthly rhythm.")
     else:
-        parts.append("No strong themes — keep your usual rhythm.")
+        parts.append("The sky isn't shouting today — live on your schedule, not on panic.")
     return " ".join(parts)
 
 
@@ -908,7 +1020,7 @@ def format_domain_section(
         return line + _love_suffix(locale, domain, transit, relationship_status)
 
     lang = _lang(locale)
-    intro = _transit_domain_intro(locale, transit, domain).rstrip(".")
+    intro = _transit_domain_intro(locale, transit, domain, style=style).rstrip(".")
     verb = ASPECT_VERB_SHORT[lang][aspect]
     focus = _domain_focus(locale, domain, natal)
     if lang == "ru":
@@ -954,7 +1066,7 @@ def format_avoid(
                 return "Острых напряжений на неделе мало — обычная осмотрительность."
             if period == "month":
                 return "Острых напряжений в месяце мало — обычная осмотрительность."
-            return "Острых напряжений в прогнозе нет — придерживайся обычной осмотрительности."
+            return "Острых напряжений нет — но кофе на голодный желудок всё ещё не друг."
         if _use_terms(style):
             if period == "week":
                 return "Few sharp aspects this week — keep your usual caution."
@@ -965,21 +1077,26 @@ def format_avoid(
             return "Few sharp tensions this week — keep your usual caution."
         if period == "month":
             return "Few sharp tensions this month — keep your usual caution."
-        return "No sharp tensions in the forecast — keep your usual caution."
+        return "No sharp tensions — but coffee on an empty stomach is still not your friend."
 
     orb, transit, natal, aspect = challenging[0]
     role = _natal_role_short(locale, natal)
+    plain_day = not _use_terms(style) and period == "day"
     if lang == "ru":
         if aspect == "square":
             if period == "week":
                 return f"На неделе не форсируй — {role} под давлением."
             if period == "month":
                 return f"В месяце не форсируй — {role} под давлением."
+            if plain_day:
+                return f"Не форсируй и не спеши — {role} под давлением. Геройство оставь на потом."
             return f"Не форсируй и не спеши — {role} под давлением."
         if period == "week":
             return f"На неделе не уходи в крайности — {role} требуют баланса."
         if period == "month":
             return f"В месяце не уходи в крайности — {role} требуют баланса."
+        if plain_day:
+            return f"Не уходи в крайности — {role} требуют баланса. Компромисс — не поражение."
         return f"Не уходи в крайности — {role} требуют баланса."
     if aspect == "square":
         if period == "week":
@@ -1026,38 +1143,50 @@ def format_advice(
                 return f"Ярких подсказок мало — выстраивай неделю по настроению: {mood}."
             if period == "month":
                 return f"Ярких подсказок мало — планируй месяц с учётом настроения: {mood}."
-            return f"Ярких подсказок мало — ориентируйся на настроение ({mood}) и не разгоняй день."
+            return (
+                f"Космос сегодня лаконичен — настроение ({mood}), "
+                "и не разгоняй день с кофе впрок."
+            )
         if period == "week":
             return f"Few clear cues — pace the week with this mood: {mood}."
         if period == "month":
             return f"Few clear cues — plan the month around this mood: {mood}."
-        return f"Few clear cues — follow the mood ({mood}) and don't force the pace."
+        return f"The cosmos is brief today — mood ({mood}), and don't turbo-charge the day with coffee."
 
     orb, transit, natal, aspect = hits[0]
     role = _natal_role_short(locale, natal)
+    plain_day = not _use_terms(style) and period == "day"
     if lang == "ru":
         if aspect in {"trine", "sextile"}:
             if period == "week":
                 return f"На неделе опирайся на поддержку — особенно в теме «{role}»."
             if period == "month":
                 return f"В месяце опирайся на поддержку — особенно в теме «{role}»."
+            if plain_day:
+                return f"Опирайся на поддержку дня — особенно в теме «{role}». Вселенная сегодня на вашей стороне."
             return f"Опирайся на поддержку дня — особенно в теме «{role}»."
         if aspect == "conjunction":
             if period == "week":
                 return f"На неделе выбери один шаг в теме «{role}», не распыляйся."
             if period == "month":
                 return f"В месяце выбери один главный фокус в теме «{role}»."
+            if plain_day:
+                return f"Выбери один конкретный шаг в теме «{role}» — мультизадачность сегодня переоценена."
             return f"Выбери один конкретный шаг в теме «{role}», не распыляйся."
         if aspect == "square":
             if period == "week":
                 return f"На неделе сначала снизь напряжение — это про {role}."
             if period == "month":
                 return f"В месяце не форсируй {role} — снижай темп."
+            if plain_day:
+                return f"Сначала снизь напряжение, потом действуй — это про {role}. Спешка не ускорит."
             return f"Сначала снизь напряжение, потом действуй — это про {role}."
         if period == "week":
             return f"На неделе ищи середину — {role} тянут в разные стороны."
         if period == "month":
             return f"В месяце ищи баланс — {role} требуют терпения."
+        if plain_day:
+            return f"Ищи середину — {role} тянут в разные стороны. Качели, но без головокружения."
         return f"Ищи середину — {role} тянут в разные стороны."
 
     if aspect in {"trine", "sextile"}:

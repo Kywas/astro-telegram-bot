@@ -65,9 +65,6 @@ async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> Non
             continue
 
         period = "day"
-        if is_premium_active(user.premium_until):
-            period = "week"
-
         date_key = user_local_date_key(now_utc, user.timezone)
         if await db.was_daily_sent(user.user_id, period, date_key):
             continue
@@ -76,6 +73,7 @@ async def _send_due_deliveries(db: Database, bot: Bot, now_utc: datetime) -> Non
             sign=sign,
             locale=locale,
             period=period,
+            for_date=date.fromisoformat(date_key),
             personalization=personalization_from_profile(user),
             profile=user,
         )

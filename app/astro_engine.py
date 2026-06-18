@@ -906,7 +906,7 @@ def _build_summary_lines(
             else:
                 summary.append("ℹ️ For today: Moon transits and your current local time are included.")
         elif lang == "ru":
-            summary.append("ℹ️ Прогноз на сегодня учитывает смену настроения и ваше местное время.")
+            summary.append("ℹ️ Сегодняшний прогноз: настроение меняется, как погода — и ваше местное время мы не забыли.")
         else:
             summary.append("ℹ️ Today's forecast includes mood shifts and your local time.")
     elif period == "week" and lang == "ru":
