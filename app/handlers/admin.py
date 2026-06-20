@@ -5,11 +5,17 @@ from aiogram import Bot, F
 from aiogram.enums import MessageOriginType, ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, FSInputFile, Message
 
 from app.admin_alerts import notify_admins
 from app.bot_context import admin_router, db, settings
-from app.channel_posting import channel_configured, channel_env_value, send_channel_text
+from app.channel_posting import (
+    channel_bot_keyboard,
+    channel_configured,
+    channel_env_value,
+    send_channel_animation,
+    send_channel_text,
+)
 from app.error_reporting import report_error
 from app.i18n import t
 from app.keyboards import (
@@ -22,6 +28,7 @@ from app.keyboards import (
 )
 from app.premium import format_premium_until
 from app.services.admin_users import build_admin_users_page
+from app.services.channel_content import load_post_bundle, list_post_slugs
 from app.services.home import build_admin_activity_text, build_admin_stats_text, build_home_panel_text
 from app.services.locale_users import get_user_locale
 from app.states import AdminPanel
@@ -134,6 +141,57 @@ async def _publish_channel_post(bot: Bot, locale: str, payload: str) -> str:
         return t(locale, "channel_post_fail", error=str(exc))
 
 
+async def _publish_channel_bundle(bot: Bot, locale: str, slug: str) -> str:
+    if not channel_configured():
+        return t(locale, "channel_not_configured")
+    try:
+        bundle = load_post_bundle(slug)
+        await send_channel_animation(
+            bot,
+            bundle.gif_path,
+            bundle.caption,
+            with_bot_button=True,
+        )
+        return t(locale, "channel_publish_ok", slug=bundle.slug)
+    except Exception as exc:
+        return t(locale, "channel_publish_fail", slug=slug, error=str(exc))
+
+
+async def _preview_channel_bundle_for_admins(bot: Bot, locale: str, slug: str) -> str:
+    try:
+        bundle = load_post_bundle(slug)
+    except Exception as exc:
+        return t(locale, "channel_preview_fail", slug=slug, error=str(exc))
+
+    if not settings.admin_ids:
+        return t(locale, "ping_alerts_missing_env")
+
+    sent = 0
+    errors: list[str] = []
+    for admin_id in settings.admin_ids:
+        try:
+            await bot.send_animation(
+                admin_id,
+                FSInputFile(bundle.gif_path),
+                caption=f"👀 Превью поста «{bundle.slug}»\n\n{bundle.caption}",
+                reply_markup=channel_bot_keyboard(),
+            )
+            sent += 1
+        except Exception as exc:
+            errors.append(f"{admin_id}: {exc}")
+
+    if sent == 0:
+        detail = errors[0] if errors else "unknown"
+        return t(locale, "channel_preview_fail", slug=slug, error=detail)
+    return t(
+        locale,
+        "channel_preview_ok",
+        slug=bundle.slug,
+        sent=str(sent),
+        total=str(len(settings.admin_ids)),
+    )
+
+
 async def _send_admin_users(
     *,
     message: Message | None = None,
@@ -147,6 +205,47 @@ async def _send_admin_users(
         await render_inline_panel(callback, text, keyboard)
     elif message is not None:
         await message.answer(text, reply_markup=keyboard)
+
+
+@admin_router.message(Command("channelpreview"))
+async def channelpreview_handler(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    slug = raw_text[len("/channelpreview") :].strip() if raw_text.startswith("/channelpreview") else ""
+    if not slug:
+        known = ", ".join(list_post_slugs()) or "energy-day"
+        await message.answer(
+            t(locale, "channel_publish_usage") + f"\n\nДоступно: {known}",
+            reply_markup=admin_panel_keyboard(locale),
+        )
+        return
+    result = await _preview_channel_bundle_for_admins(bot, locale, slug)
+    await db.log_event(user.id, f"channel_preview:{slug}")
+    await message.answer(result, reply_markup=admin_panel_keyboard(locale))
+
+
+@admin_router.message(Command("channelpublish"))
+async def channelpublish_handler(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    raw_text = (message.text or "").strip()
+    slug = raw_text[len("/channelpublish") :].strip() if raw_text.startswith("/channelpublish") else ""
+    if not slug:
+        known = ", ".join(list_post_slugs()) or "energy-day"
+        await message.answer(
+            t(locale, "channel_publish_usage") + f"\n\nДоступно: {known}",
+            reply_markup=admin_panel_keyboard(locale),
+        )
+        return
+    result = await _publish_channel_bundle(bot, locale, slug)
+    if result.startswith("✅") or "published" in result.lower() or "опубликован" in result.lower():
+        await db.log_event(user.id, f"channel_publish:{slug}")
+    await message.answer(result, reply_markup=admin_panel_keyboard(locale))
 
 
 @admin_router.message(Command("channeltest"))

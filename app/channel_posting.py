@@ -104,3 +104,32 @@ async def send_channel_photo(
         parse_mode=parse_mode,
         reply_markup=markup,
     )
+
+
+async def send_channel_animation(
+    bot: Bot,
+    animation_path: Path,
+    caption: str,
+    *,
+    channel_id: str | None = None,
+    parse_mode: ParseMode | None = None,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    with_bot_button: bool = False,
+    button_label: str = "🚀 Открыть AstroPulse",
+) -> Message:
+    raw_id = (channel_id or settings.channel_id or "").strip()
+    if not raw_id:
+        raise RuntimeError("CHANNEL_ID is not set in .env")
+    if not animation_path.is_file():
+        raise FileNotFoundError(str(animation_path))
+    chat_id = normalize_channel_chat_id(raw_id)
+    markup = reply_markup
+    if with_bot_button and markup is None:
+        markup = channel_bot_keyboard(label=button_label)
+    return await bot.send_animation(
+        chat_id,
+        FSInputFile(animation_path),
+        caption=caption,
+        parse_mode=parse_mode,
+        reply_markup=markup,
+    )
