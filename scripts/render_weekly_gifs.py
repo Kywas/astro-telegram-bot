@@ -29,9 +29,10 @@ class WeeklyGifTheme:
 THEMES: tuple[WeeklyGifTheme, ...] = (
     WeeklyGifTheme(
         "health-madness",
-        (120, 255, 220),
-        (255, 255, 255),
-        (160, 120, 255),
+        (130, 240, 220),
+        (255, 250, 255),
+        (190, 150, 255),
+        breath=0.04,
     ),
     WeeklyGifTheme(
         "love-week",
@@ -165,6 +166,33 @@ def _shooting_star(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -
     return layer.filter(ImageFilter.GaussianBlur(radius=0.6))
 
 
+def _floating_sparkles(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
+    """Extra gentle sparkles near the figure — health theme only."""
+    if theme.slug != "health-madness":
+        return Image.new("RGBA", size, (0, 0, 0, 0))
+    w, h = size
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    cx, cy = w // 2, int(h * theme.center_y)
+    sr, sg, sb = theme.sparkle_rgb
+    spots = (
+        (cx + 38, cy - 14),
+        (cx + 52, cy - 24),
+        (cx - 58, cy - 38),
+        (cx + 48, cy + 18),
+        (cx - 42, cy - 58),
+    )
+    for idx, (x, y) in enumerate(spots):
+        bob = int(4 * math.sin(phase * 2.2 + idx))
+        tw = 0.35 + 0.65 * abs(math.sin(phase * 3 + idx * 0.9))
+        rad = 2 if tw < 0.6 else 3
+        draw.ellipse(
+            (x - rad, y + bob - rad, x + rad, y + bob + rad),
+            fill=(sr, sg, sb, int(170 * tw)),
+        )
+    return layer
+
+
 def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
     frames: list[Image.Image] = []
     for i in range(FRAME_COUNT):
@@ -174,6 +202,7 @@ def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
         frame = Image.alpha_composite(frame, _glow_overlay(frame.size, phase, theme))
         frame = Image.alpha_composite(frame, _magic_ring_spin(frame.size, phase, theme))
         frame = Image.alpha_composite(frame, _sparkles(frame.size, phase, theme))
+        frame = Image.alpha_composite(frame, _floating_sparkles(frame.size, phase, theme))
         frame = Image.alpha_composite(frame, _shooting_star(frame.size, phase, theme))
         breath = 1.0 + theme.breath * math.sin(phase)
         frame = ImageEnhance.Brightness(frame).enhance(breath)

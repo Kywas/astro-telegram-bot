@@ -29,11 +29,11 @@ class BaseTheme:
 THEMES: tuple[BaseTheme, ...] = (
     BaseTheme(
         "health-madness",
-        (8, 18, 42),
-        (12, 48, 72),
-        (4, 28, 38),
-        (120, 255, 220),
-        (180, 140, 255),
+        (12, 16, 48),
+        (24, 42, 78),
+        (8, 32, 52),
+        (130, 240, 220),
+        (200, 160, 255),
         11,
     ),
     BaseTheme(
@@ -158,31 +158,102 @@ def _magic_ring(
         draw.line((x1, y1, x2, y2), fill=(*color, 200), width=2)
 
 
-def _draw_health_glyph(draw: ImageDraw.ImageDraw, cx: int, cy: int, theme: BaseTheme) -> None:
-    ac = theme.accent_rgb
-    for wave in range(3):
-        pts = []
-        for i in range(40):
-            t = i / 39
-            x = cx - 90 + int(180 * t)
-            y = cy + int(22 * math.sin(t * math.pi * 3 + wave * 0.8))
-            pts.append((x, y))
-        draw.line(pts, fill=(*ac, 180 - wave * 30), width=3)
+def _draw_moon_crescent(
+    draw: ImageDraw.ImageDraw,
+    cx: int,
+    cy: int,
+    radius: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    draw.arc((cx - radius, cy - radius, cx + radius, cy + radius), 35, 325, fill=color, width=2)
+    draw.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill=color)
+
+
+def _draw_sparkle(
+    draw: ImageDraw.ImageDraw,
+    cx: int,
+    cy: int,
+    size: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    draw.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=color)
+    for angle in (0, 45, 90, 135):
+        rad = math.radians(angle)
+        x2 = cx + int(size * math.cos(rad))
+        y2 = cy + int(size * math.sin(rad))
+        draw.line((cx, cy, x2, y2), fill=color, width=1)
+
+
+def _draw_cute_mystic_girl(
+    draw: ImageDraw.ImageDraw,
+    cx: int,
+    cy: int,
+    theme: BaseTheme,
+) -> None:
+    """Soft stylized girl + gentle magic — wellness / cosmic calm, not overload."""
+    ac = (*theme.accent_rgb, 230)
+    ac2 = (*theme.accent2_rgb, 210)
+    skin = (255, 228, 218, 235)
+    hair = (190, 155, 230, 240)
+    dress = (70, 175, 165, 225)
+    dress_shadow = (45, 120, 115, 200)
+
+    head_y = cy - 52
+
+    # Long hair (behind)
+    draw.ellipse((cx - 30, head_y - 30, cx + 30, head_y + 10), fill=hair)
+    draw.rounded_rectangle((cx - 28, head_y - 6, cx + 28, head_y + 42), radius=14, fill=hair)
+
+    # Simple dress
     draw.polygon(
-        [
-            (cx, cy - 58),
-            (cx + 18, cy - 28),
-            (cx + 52, cy - 24),
-            (cx + 26, cy - 4),
-            (cx + 34, cy + 30),
-            (cx, cy + 14),
-            (cx - 34, cy + 30),
-            (cx - 26, cy - 4),
-            (cx - 52, cy - 24),
-            (cx - 18, cy - 28),
-        ],
-        outline=(*theme.accent2_rgb, 220),
+        [(cx - 38, cy + 48), (cx + 38, cy + 48), (cx + 22, head_y + 24), (cx - 22, head_y + 24)],
+        fill=dress_shadow,
     )
+    draw.polygon(
+        [(cx - 34, cy + 46), (cx + 34, cy + 46), (cx + 18, head_y + 26), (cx - 18, head_y + 26)],
+        fill=dress,
+    )
+
+    # Neck + face
+    draw.rounded_rectangle((cx - 7, head_y + 16, cx + 7, head_y + 30), radius=3, fill=skin)
+    draw.ellipse((cx - 21, head_y - 19, cx + 21, head_y + 19), fill=skin)
+
+    # Hair bangs
+    draw.pieslice((cx - 24, head_y - 26, cx + 24, head_y + 6), 180, 360, fill=hair)
+    draw.ellipse((cx - 19, head_y - 17, cx + 19, head_y + 15), fill=skin)
+
+    # Closed calm eyes + tiny smile
+    draw.arc((cx - 11, head_y - 2, cx - 3, head_y + 4), 200, 340, fill=(130, 100, 120, 170), width=2)
+    draw.arc((cx + 3, head_y - 2, cx + 11, head_y + 4), 200, 340, fill=(130, 100, 120, 170), width=2)
+    draw.arc((cx - 5, head_y + 6, cx + 5, head_y + 12), 10, 170, fill=(220, 150, 160, 150), width=1)
+
+    # Blush
+    draw.ellipse((cx - 16, head_y + 4, cx - 8, head_y + 10), fill=(255, 170, 190, 55))
+    draw.ellipse((cx + 8, head_y + 4, cx + 16, head_y + 10), fill=(255, 170, 190, 55))
+
+    # Arms — relaxed pose, one hand open to magic
+    draw.rounded_rectangle((cx - 46, cy + 4, cx - 34, cy + 28), radius=4, fill=skin)
+    draw.rounded_rectangle((cx + 30, cy - 18, cx + 42, cy + 8), radius=4, fill=skin)
+
+    # Small tea / wellness cup (health theme hint)
+    cup_y = cy + 10
+    draw.rounded_rectangle((cx - 52, cup_y, cx - 36, cup_y + 16), radius=4, fill=(*theme.accent2_rgb, 180))
+    draw.arc((cx - 54, cup_y + 2, cx - 48, cup_y + 12), 270, 90, fill=(*theme.accent_rgb, 160), width=2)
+
+    # Magic in raised hand
+    palm_x, palm_y = cx + 38, cy - 14
+    _draw_sparkle(draw, palm_x, palm_y, 9, ac)
+    _draw_sparkle(draw, palm_x + 14, palm_y - 10, 6, ac2)
+    _draw_sparkle(draw, palm_x - 10, palm_y + 8, 5, ac2)
+
+    # Floating moon + tiny stars around her
+    _draw_moon_crescent(draw, cx - 58, cy - 38, 11, ac2)
+    for sx, sy in ((cx + 58, cy - 42), (cx - 42, cy - 58), (cx + 48, cy + 18)):
+        _draw_sparkle(draw, sx, sy, 4, (*theme.accent_rgb, 160))
+
+
+def _draw_health_glyph(draw: ImageDraw.ImageDraw, cx: int, cy: int, theme: BaseTheme) -> None:
+    _draw_cute_mystic_girl(draw, cx, cy, theme)
 
 
 def _draw_love_glyph(draw: ImageDraw.ImageDraw, cx: int, cy: int, theme: BaseTheme) -> None:
