@@ -5,12 +5,34 @@
   "slot": "morning",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 205, 165],
-    "sparkle_rgb": [255, 248, 238],
-    "aurora_rgb": [255, 175, 130],
+    "glow_rgb": [
+      255,
+      205,
+      165
+    ],
+    "sparkle_rgb": [
+      255,
+      248,
+      238
+    ],
+    "aurora_rgb": [
+      255,
+      175,
+      130
+    ],
     "center_y": 0.39,
     "breath": 0.021,
-    "sparkle_anchor": [0.52, 0.41]
+    "sparkle_anchor": [
+      0.52,
+      0.41
+    ]
   },
-  "tags": ["planning", "week", "gentle"]
+  "tags": [
+    "planning",
+    "week",
+    "gentle"
+  ],
+  "base_source": "marketing/weekly/health-madness.png",
+  "base_variant": 28,
+  "base_locked": false
 }

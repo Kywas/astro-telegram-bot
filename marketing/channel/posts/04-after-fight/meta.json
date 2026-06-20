@@ -5,12 +5,34 @@
   "slot": "evening",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 150, 150],
-    "sparkle_rgb": [255, 220, 210],
-    "aurora_rgb": [200, 150, 240],
+    "glow_rgb": [
+      255,
+      150,
+      150
+    ],
+    "sparkle_rgb": [
+      255,
+      220,
+      210
+    ],
+    "aurora_rgb": [
+      200,
+      150,
+      240
+    ],
     "center_y": 0.44,
     "breath": 0.018,
-    "sparkle_anchor": [0.48, 0.48]
+    "sparkle_anchor": [
+      0.48,
+      0.48
+    ]
   },
-  "tags": ["conflict", "repair", "relationships"]
+  "tags": [
+    "conflict",
+    "repair",
+    "relationships"
+  ],
+  "base_source": "marketing/weekly/karma-week-base.png",
+  "base_variant": 3,
+  "base_locked": false
 }

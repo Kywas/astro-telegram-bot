@@ -5,12 +5,34 @@
   "slot": "evening",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 180, 200],
-    "sparkle_rgb": [255, 235, 225],
-    "aurora_rgb": [220, 160, 255],
+    "glow_rgb": [
+      255,
+      180,
+      200
+    ],
+    "sparkle_rgb": [
+      255,
+      235,
+      225
+    ],
+    "aurora_rgb": [
+      220,
+      160,
+      255
+    ],
     "center_y": 0.42,
     "breath": 0.02,
-    "sparkle_anchor": [0.52, 0.46]
+    "sparkle_anchor": [
+      0.52,
+      0.46
+    ]
   },
-  "tags": ["relationships", "closeness", "communication"]
+  "tags": [
+    "relationships",
+    "closeness",
+    "communication"
+  ],
+  "base_source": "marketing/weekly/health-madness-e2-base.png",
+  "base_variant": 2,
+  "base_locked": false
 }

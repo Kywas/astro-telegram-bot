@@ -11,9 +11,9 @@ POSTS_DIR = ROOT / "marketing" / "channel" / "posts"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.render_weekly_gifs import WeeklyGifTheme, build_frames, prepare_photo_base  # noqa: E402
+from scripts.render_weekly_gifs import FRAME_MS, WeeklyGifTheme, build_frames, prepare_photo_base  # noqa: E402
+from scripts.channel_base_pool import ensure_post_base  # noqa: E402
 
-FRAME_MS = 110
 
 
 def _load_meta(post_dir: Path) -> dict:
@@ -36,6 +36,7 @@ def _theme_from_meta(meta: dict) -> WeeklyGifTheme:
         aurora_rgb=tuple(gif.get("aurora_rgb", [140, 160, 255])),
         center_y=float(gif.get("center_y", 0.42)),
         breath=float(gif.get("breath", 0.022)),
+        ring_rotate=float(gif.get("ring_rotate", 1.0 + (hash(slug) % 7) * 0.08)),
         photo_base=True,
         sparkle_anchor=tuple(gif.get("sparkle_anchor", [0.5, 0.45])),
     )
@@ -74,7 +75,7 @@ def render_post(post_dir: Path) -> Path:
     meta = _load_meta(post_dir)
     slug = str(meta.get("slug") or post_dir.name.split("-", 1)[-1])
     theme = _theme_from_meta(meta)
-    source = post_dir / f"{slug}-base.png"
+    source = ensure_post_base(post_dir)
     if not source.is_file():
         raise FileNotFoundError(f"Missing photo base: {source}")
     prepared = post_dir / f".{slug}-prepared.png"

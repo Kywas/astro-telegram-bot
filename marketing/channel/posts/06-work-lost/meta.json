@@ -5,12 +5,34 @@
   "slot": "lunch",
   "status": "ready",
   "gif": {
-    "glow_rgb": [170, 210, 255],
-    "sparkle_rgb": [230, 245, 255],
-    "aurora_rgb": [180, 170, 255],
+    "glow_rgb": [
+      170,
+      210,
+      255
+    ],
+    "sparkle_rgb": [
+      230,
+      245,
+      255
+    ],
+    "aurora_rgb": [
+      180,
+      170,
+      255
+    ],
     "center_y": 0.4,
     "breath": 0.02,
-    "sparkle_anchor": [0.5, 0.4]
+    "sparkle_anchor": [
+      0.5,
+      0.4
+    ]
   },
-  "tags": ["career", "burnout", "direction"]
+  "tags": [
+    "career",
+    "burnout",
+    "direction"
+  ],
+  "base_source": "marketing/weekly/karma-week-e2-base.png",
+  "base_variant": 5,
+  "base_locked": false
 }

@@ -5,12 +5,32 @@
   "slot": "morning",
   "status": "published",
   "gif": {
-    "glow_rgb": [255, 200, 150],
-    "sparkle_rgb": [255, 240, 220],
-    "aurora_rgb": [200, 180, 255],
+    "glow_rgb": [
+      255,
+      200,
+      150
+    ],
+    "sparkle_rgb": [
+      255,
+      240,
+      220
+    ],
+    "aurora_rgb": [
+      200,
+      180,
+      255
+    ],
     "center_y": 0.42,
     "breath": 0.02,
-    "sparkle_anchor": [0.48, 0.45]
+    "sparkle_anchor": [
+      0.48,
+      0.45
+    ]
   },
-  "tags": ["anxiety", "self-care", "thoughts"]
+  "tags": [
+    "anxiety",
+    "self-care",
+    "thoughts"
+  ],
+  "base_locked": true
 }

@@ -5,12 +5,34 @@
   "slot": "morning",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 215, 170],
-    "sparkle_rgb": [255, 248, 235],
-    "aurora_rgb": [255, 190, 140],
+    "glow_rgb": [
+      255,
+      215,
+      170
+    ],
+    "sparkle_rgb": [
+      255,
+      248,
+      235
+    ],
+    "aurora_rgb": [
+      255,
+      190,
+      140
+    ],
     "center_y": 0.37,
-    "breath": 0.020,
-    "sparkle_anchor": [0.53, 0.40]
+    "breath": 0.02,
+    "sparkle_anchor": [
+      0.53,
+      0.4
+    ]
   },
-  "tags": ["ritual", "morning", "habits"]
+  "tags": [
+    "ritual",
+    "morning",
+    "habits"
+  ],
+  "base_source": "marketing/weekly/karma-week-e1-base.png",
+  "base_variant": 20,
+  "base_locked": false
 }

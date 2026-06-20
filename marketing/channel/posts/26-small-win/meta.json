@@ -5,12 +5,34 @@
   "slot": "morning",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 220, 150],
-    "sparkle_rgb": [255, 250, 230],
-    "aurora_rgb": [255, 200, 120],
+    "glow_rgb": [
+      255,
+      220,
+      150
+    ],
+    "sparkle_rgb": [
+      255,
+      250,
+      230
+    ],
+    "aurora_rgb": [
+      255,
+      200,
+      120
+    ],
     "center_y": 0.38,
     "breath": 0.024,
-    "sparkle_anchor": [0.54, 0.39]
+    "sparkle_anchor": [
+      0.54,
+      0.39
+    ]
   },
-  "tags": ["wins", "motivation", "kindness"]
+  "tags": [
+    "wins",
+    "motivation",
+    "kindness"
+  ],
+  "base_source": "marketing/weekly/money-week-base.png",
+  "base_variant": 25,
+  "base_locked": false
 }

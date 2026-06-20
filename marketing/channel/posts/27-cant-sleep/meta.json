@@ -5,12 +5,34 @@
   "slot": "evening",
   "status": "ready",
   "gif": {
-    "glow_rgb": [160, 175, 255],
-    "sparkle_rgb": [230, 235, 255],
-    "aurora_rgb": [130, 150, 255],
+    "glow_rgb": [
+      160,
+      175,
+      255
+    ],
+    "sparkle_rgb": [
+      230,
+      235,
+      255
+    ],
+    "aurora_rgb": [
+      130,
+      150,
+      255
+    ],
     "center_y": 0.45,
     "breath": 0.018,
-    "sparkle_anchor": [0.47, 0.50]
+    "sparkle_anchor": [
+      0.47,
+      0.5
+    ]
   },
-  "tags": ["sleep", "anxiety", "night"]
+  "tags": [
+    "sleep",
+    "anxiety",
+    "night"
+  ],
+  "base_source": "marketing/weekly/money-week-e1-base.png",
+  "base_variant": 26,
+  "base_locked": false
 }

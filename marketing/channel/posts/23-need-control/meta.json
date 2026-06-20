@@ -5,12 +5,34 @@
   "slot": "evening",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 185, 200],
-    "sparkle_rgb": [255, 240, 245],
-    "aurora_rgb": [190, 150, 255],
+    "glow_rgb": [
+      255,
+      185,
+      200
+    ],
+    "sparkle_rgb": [
+      255,
+      240,
+      245
+    ],
+    "aurora_rgb": [
+      190,
+      150,
+      255
+    ],
     "center_y": 0.44,
     "breath": 0.021,
-    "sparkle_anchor": [0.51, 0.47]
+    "sparkle_anchor": [
+      0.51,
+      0.47
+    ]
   },
-  "tags": ["control", "anxiety", "trust"]
+  "tags": [
+    "control",
+    "anxiety",
+    "trust"
+  ],
+  "base_source": "marketing/weekly/love-week-base.png",
+  "base_variant": 22,
+  "base_locked": false
 }

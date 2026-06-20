@@ -13,7 +13,10 @@ WEEKLY_DIR = ROOT / "marketing" / "weekly"
 TARGET_WIDTH = 480
 TARGET_HEIGHT = 540
 FRAME_COUNT = 24
-FRAME_MS = 110
+FRAME_MS = 100
+PHOTO_OVERLAY_INTENSITY = 0.88
+PHOTO_KEN_BURNS = 0.0
+PHOTO_SHARPNESS = 1.06
 
 
 def prepare_photo_base(source: Path, dest: Path) -> Path:
@@ -88,6 +91,29 @@ THEMES: tuple[WeeklyGifTheme, ...] = (
 )
 
 
+def _attenuate_layer(layer: Image.Image, factor: float) -> Image.Image:
+    if factor >= 0.999:
+        return layer
+    r, g, b, a = layer.split()
+    a = a.point(lambda x: int(x * factor))
+    return Image.merge("RGBA", (r, g, b, a))
+
+
+def _apply_ken_burns(frame: Image.Image, phase: float, amount: float = PHOTO_KEN_BURNS) -> Image.Image:
+    """Subtle zoom + drift so the photo itself moves, not only overlays."""
+    w, h = frame.size
+    scale = 1.0 + amount * (0.5 + 0.5 * math.sin(phase))
+    nw, nh = int(w * scale), int(h * scale)
+    enlarged = frame.resize((nw, nh), Image.Resampling.LANCZOS)
+    shift_x = int(6 * math.sin(phase * 0.85))
+    shift_y = int(4 * math.cos(phase * 0.65))
+    left = (nw - w) // 2 + shift_x
+    top = (nh - h) // 2 + shift_y
+    left = max(0, min(left, nw - w))
+    top = max(0, min(top, nh - h))
+    return enlarged.crop((left, top, left + w, top + h))
+
+
 def _load_base(source: Path) -> Image.Image:
     if not source.is_file():
         raise FileNotFoundError(f"Missing source image: {source}")
@@ -112,11 +138,11 @@ def _glow_overlay(
     pulse = 0.5 + 0.5 * math.sin(phase)
     radius = int(min(w, h) * (0.2 + 0.06 * pulse))
     r, g, b = theme.glow_rgb
-    for step in range(10, 0, -1):
-        alpha = int(22 * pulse * step / 10)
-        rad = radius + step * 8
+    for step in range(6, 0, -1):
+        alpha = int(14 * pulse * step / 6)
+        rad = radius + step * 5
         draw.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=(r, g, b, alpha))
-    return overlay.filter(ImageFilter.GaussianBlur(radius=16))
+    return overlay.filter(ImageFilter.GaussianBlur(radius=6))
 
 
 def _aurora_sweep(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
@@ -132,9 +158,9 @@ def _aurora_sweep(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) ->
             points.append((x, y + wave))
         points.extend([(w, h), (0, h)])
         if len(points) >= 3:
-            alpha = 35 + band * 10
+            alpha = 22 + band * 6
             draw.polygon(points, fill=(ar, ag, ab, alpha))
-    return layer.filter(ImageFilter.GaussianBlur(radius=14))
+    return layer.filter(ImageFilter.GaussianBlur(radius=5))
 
 
 def _magic_ring_spin(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
@@ -143,7 +169,7 @@ def _magic_ring_spin(size: tuple[int, int], phase: float, theme: WeeklyGifTheme)
     draw = ImageDraw.Draw(layer)
     cx, cy = w // 2, int(h * theme.center_y)
     r, g, b = theme.sparkle_rgb
-    for ring_idx, (radius, count) in enumerate(((130, 12), (155, 8))):
+    for ring_idx, (radius, count) in enumerate(((130, 14), (155, 10), (175, 6))):
         for i in range(count):
             angle = phase * theme.ring_rotate * (1 if ring_idx == 0 else -0.7) + i * (2 * math.pi / count)
             x = cx + int(radius * math.cos(angle))
@@ -168,6 +194,11 @@ def _sparkles(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Ima
         (0.55, 0.15, 2.0),
         (0.88, 0.2, 2.3),
         (0.08, 0.22, 1.8),
+        (0.18, 0.35, 2.6),
+        (0.42, 0.28, 1.6),
+        (0.68, 0.24, 2.2),
+        (0.92, 0.42, 1.9),
+        (0.05, 0.55, 2.0),
     )
     sr, sg, sb = theme.sparkle_rgb
     gr, gg, gb = theme.glow_rgb
@@ -198,33 +229,88 @@ def _shooting_star(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -
     r, g, b = theme.sparkle_rgb
     draw.line((x - 28, y + 10, x, y), fill=(r, g, b, int(180 * (1 - t))), width=2)
     draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(255, 255, 255, 220))
-    return layer.filter(ImageFilter.GaussianBlur(radius=0.6))
+    return layer
 
 
 def _floating_sparkles(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
-    """Extra gentle sparkles near the figure — health theme only."""
-    if theme.slug != "health-madness":
-        return Image.new("RGBA", size, (0, 0, 0, 0))
+    """Sparkles orbiting near the focal point — all themes."""
     w, h = size
     layer = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    cx, cy = w // 2, int(h * theme.center_y)
+    ax, ay = theme.sparkle_anchor
+    cx, cy = int(w * ax), int(h * ay)
     sr, sg, sb = theme.sparkle_rgb
-    spots = (
-        (cx + 38, cy - 14),
-        (cx + 52, cy - 24),
-        (cx - 58, cy - 38),
-        (cx + 48, cy + 18),
-        (cx - 42, cy - 58),
+    gr, gg, gb = theme.glow_rgb
+    orbit_specs = (
+        (42, 0.0, 2.2),
+        (58, 1.2, 1.7),
+        (36, 2.4, 2.5),
+        (68, 0.8, 1.4),
+        (50, 3.1, 2.0),
+        (74, 1.9, 1.6),
     )
-    for idx, (x, y) in enumerate(spots):
-        bob = int(4 * math.sin(phase * 2.2 + idx))
+    for idx, (radius, angle0, speed) in enumerate(orbit_specs):
+        angle = angle0 + phase * speed * theme.ring_rotate
+        x = cx + int(radius * math.cos(angle))
+        y = cy + int(radius * 0.55 * math.sin(angle))
+        bob = int(5 * math.sin(phase * 2.4 + idx))
         tw = 0.35 + 0.65 * abs(math.sin(phase * 3 + idx * 0.9))
         rad = 2 if tw < 0.6 else 3
+        color = (gr, gg, gb) if idx % 2 == 0 else (sr, sg, sb)
         draw.ellipse(
             (x - rad, y + bob - rad, x + rad, y + bob + rad),
-            fill=(sr, sg, sb, int(170 * tw)),
+            fill=(*color, int(175 * tw)),
         )
+        if tw > 0.7:
+            draw.line((x - 4, y + bob, x + 4, y + bob), fill=(*color, int(90 * tw)), width=1)
+            draw.line((x, y + bob - 4, x, y + bob + 4), fill=(*color, int(90 * tw)), width=1)
+    return layer
+
+
+def _drifting_particles(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
+    """Slow drifting dust motes across the frame."""
+    w, h = size
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    sr, sg, sb = theme.sparkle_rgb
+    ar, ag, ab = theme.aurora_rgb
+    specs = (
+        (0.08, 0.18, 1.3, 0.0),
+        (0.22, 0.32, 1.8, 1.1),
+        (0.38, 0.12, 1.5, 2.3),
+        (0.52, 0.28, 2.1, 0.7),
+        (0.66, 0.15, 1.6, 1.8),
+        (0.78, 0.38, 1.9, 2.9),
+        (0.14, 0.48, 1.4, 3.5),
+        (0.44, 0.52, 2.0, 4.1),
+        (0.84, 0.58, 1.7, 1.4),
+        (0.30, 0.62, 2.2, 2.6),
+        (0.58, 0.72, 1.5, 3.8),
+        (0.72, 0.82, 1.8, 0.5),
+    )
+    for idx, (rx, ry, speed, offset) in enumerate(specs):
+        drift = (phase * speed + offset) % (2 * math.pi)
+        x = int(w * rx + 22 * math.sin(drift))
+        y = int(h * ry - 28 * math.cos(drift * 0.75))
+        tw = 0.25 + 0.75 * abs(math.sin(phase * 2.5 + idx * 0.8))
+        rad = 1 if tw < 0.5 else 2
+        color = (sr, sg, sb) if idx % 3 else (ar, ag, ab)
+        draw.ellipse((x - rad, y - rad, x + rad, y + rad), fill=(*color, int(110 * tw)))
+    return layer
+
+
+def _light_streaks(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
+    """Two soft light streaks at different speeds."""
+    w, h = size
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    r, g, b = theme.glow_rgb
+    for streak_idx, (y_base, speed, width) in enumerate(((0.22, 1.1, 40), (0.68, -0.9, 55))):
+        progress = (phase * speed / (2 * math.pi)) % 1.0
+        x_start = int(w * (-0.15 + 1.3 * progress))
+        y = int(h * y_base + 12 * math.sin(phase + streak_idx))
+        alpha = int(55 * abs(math.sin(progress * math.pi)))
+        draw.line((x_start, y, x_start + width, y + 8), fill=(r, g, b, alpha), width=2)
     return layer
 
 
@@ -247,7 +333,82 @@ def _photo_sparkle_pulse(size: tuple[int, int], phase: float, theme: WeeklyGifTh
         if tw > 0.72:
             draw.line((x - 4, y, x + 4, y), fill=(sr, sg, sb, alpha // 2), width=1)
             draw.line((x, y - 4, x, y + 4), fill=(sr, sg, sb, alpha // 2), width=1)
-    return layer.filter(ImageFilter.GaussianBlur(radius=0.4))
+    return layer
+
+
+def _compose_photo_layers(
+    size: tuple[int, int],
+    phase: float,
+    theme: WeeklyGifTheme,
+) -> Image.Image:
+    """Sharp overlays only — no aurora/glow haze on photographic bases."""
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    spin_theme = WeeklyGifTheme(
+        slug=theme.slug,
+        glow_rgb=theme.glow_rgb,
+        sparkle_rgb=theme.sparkle_rgb,
+        aurora_rgb=theme.aurora_rgb,
+        center_y=theme.center_y,
+        ring_rotate=theme.ring_rotate * 1.35,
+        breath=theme.breath,
+        photo_base=theme.photo_base,
+        sparkle_anchor=theme.sparkle_anchor,
+    )
+    for part in (
+        _magic_ring_spin(size, phase, spin_theme),
+        _sparkles(size, phase, theme),
+        _floating_sparkles(size, phase, theme),
+        _drifting_particles(size, phase, theme),
+        _photo_sparkle_pulse(size, phase, theme),
+        _shooting_star(size, phase, theme),
+        _shooting_star(size, phase + math.pi * 0.55, theme),
+    ):
+        layer = Image.alpha_composite(layer, part)
+    return layer
+
+
+def _compose_magic_layers(
+    size: tuple[int, int],
+    phase: float,
+    theme: WeeklyGifTheme,
+    *,
+    intensity: float = 1.0,
+) -> Image.Image:
+    """Stack aurora, glow, rings, particles — optional alpha scaling for photo bases."""
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    spin_theme = WeeklyGifTheme(
+        slug=theme.slug,
+        glow_rgb=theme.glow_rgb,
+        sparkle_rgb=theme.sparkle_rgb,
+        aurora_rgb=theme.aurora_rgb,
+        center_y=theme.center_y,
+        ring_rotate=theme.ring_rotate * 1.35,
+        breath=theme.breath,
+        photo_base=theme.photo_base,
+        sparkle_anchor=theme.sparkle_anchor,
+    )
+    parts = (
+        _aurora_sweep(size, phase, theme),
+        _glow_overlay(size, phase, theme),
+        _light_streaks(size, phase, theme),
+        _magic_ring_spin(size, phase, spin_theme),
+        _drifting_particles(size, phase, theme),
+        _sparkles(size, phase, theme),
+        _floating_sparkles(size, phase, theme),
+        _shooting_star(size, phase, theme),
+        _photo_sparkle_pulse(size, phase, theme),
+    )
+    for part in parts:
+        if intensity < 0.999:
+            part = _attenuate_layer(part, intensity)
+        layer = Image.alpha_composite(layer, part)
+    # Second shooting star offset in the loop
+    star2_phase = phase + math.pi * 0.55
+    star2 = _shooting_star(size, star2_phase, theme)
+    if intensity < 0.999:
+        star2 = _attenuate_layer(star2, intensity * 0.85)
+    layer = Image.alpha_composite(layer, star2)
+    return layer
 
 
 def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
@@ -256,17 +417,15 @@ def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
         phase = (2 * math.pi * i) / FRAME_COUNT
         frame = base.copy()
         if theme.photo_base:
-            frame = Image.alpha_composite(frame, _photo_sparkle_pulse(frame.size, phase, theme))
-            breath = 1.0 + theme.breath * math.sin(phase)
+            if PHOTO_KEN_BURNS > 0:
+                frame = _apply_ken_burns(frame, phase)
+            frame = Image.alpha_composite(frame, _compose_photo_layers(frame.size, phase, theme))
+            breath = 1.0 + theme.breath * 0.6 * math.sin(phase)
             frame = ImageEnhance.Brightness(frame).enhance(breath)
+            frame = ImageEnhance.Sharpness(frame).enhance(PHOTO_SHARPNESS)
             frames.append(frame.convert("P", palette=Image.Palette.ADAPTIVE, colors=256))
             continue
-        frame = Image.alpha_composite(frame, _aurora_sweep(frame.size, phase, theme))
-        frame = Image.alpha_composite(frame, _glow_overlay(frame.size, phase, theme))
-        frame = Image.alpha_composite(frame, _magic_ring_spin(frame.size, phase, theme))
-        frame = Image.alpha_composite(frame, _sparkles(frame.size, phase, theme))
-        frame = Image.alpha_composite(frame, _floating_sparkles(frame.size, phase, theme))
-        frame = Image.alpha_composite(frame, _shooting_star(frame.size, phase, theme))
+        frame = Image.alpha_composite(frame, _compose_magic_layers(frame.size, phase, theme))
         breath = 1.0 + theme.breath * math.sin(phase)
         frame = ImageEnhance.Brightness(frame).enhance(breath)
         contrast = 1.0 + 0.04 * math.sin(phase * 1.5)

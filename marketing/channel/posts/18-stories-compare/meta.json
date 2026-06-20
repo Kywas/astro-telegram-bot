@@ -5,12 +5,34 @@
   "slot": "lunch",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 200, 220],
-    "sparkle_rgb": [255, 245, 250],
-    "aurora_rgb": [200, 170, 255],
+    "glow_rgb": [
+      255,
+      200,
+      220
+    ],
+    "sparkle_rgb": [
+      255,
+      245,
+      250
+    ],
+    "aurora_rgb": [
+      200,
+      170,
+      255
+    ],
     "center_y": 0.41,
     "breath": 0.022,
-    "sparkle_anchor": [0.50, 0.44]
+    "sparkle_anchor": [
+      0.5,
+      0.44
+    ]
   },
-  "tags": ["comparison", "social-media", "self-esteem"]
+  "tags": [
+    "comparison",
+    "social-media",
+    "self-esteem"
+  ],
+  "base_source": "marketing/weekly/health-madness-e1-base.png",
+  "base_variant": 17,
+  "base_locked": false
 }

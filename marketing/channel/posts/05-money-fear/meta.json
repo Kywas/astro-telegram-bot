@@ -5,12 +5,34 @@
   "slot": "lunch",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 220, 140],
-    "sparkle_rgb": [255, 245, 210],
-    "aurora_rgb": [130, 220, 170],
+    "glow_rgb": [
+      255,
+      220,
+      140
+    ],
+    "sparkle_rgb": [
+      255,
+      245,
+      210
+    ],
+    "aurora_rgb": [
+      130,
+      220,
+      170
+    ],
     "center_y": 0.43,
     "breath": 0.018,
-    "sparkle_anchor": [0.45, 0.5]
+    "sparkle_anchor": [
+      0.45,
+      0.5
+    ]
   },
-  "tags": ["money", "anxiety", "habits"]
+  "tags": [
+    "money",
+    "anxiety",
+    "habits"
+  ],
+  "base_source": "marketing/weekly/karma-week-e1-base.png",
+  "base_variant": 4,
+  "base_locked": false
 }

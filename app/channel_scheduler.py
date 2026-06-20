@@ -105,6 +105,12 @@ def format_schedule_preview(date_key: str | None = None) -> str:
     for slot, hhmm, slug in planned_posts_for_date(date_key, config=cfg):
         label = {"morning": "Утро", "lunch": "Обед", "evening": "Вечер"}.get(slot, slot)
         lines.append(f"• {label} {hhmm} → {slug}")
+    from app.channel_content_reminder import format_content_reminder_line
+    from app.services.channel_content import count_publishable_posts
+
+    reminder_line = format_content_reminder_line(cfg.start_date, count_publishable_posts())
+    if reminder_line:
+        lines.extend(["", reminder_line])
     lines.extend(
         [
             "",

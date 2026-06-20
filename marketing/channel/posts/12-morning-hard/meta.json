@@ -5,12 +5,34 @@
   "slot": "morning",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 210, 160],
-    "sparkle_rgb": [255, 250, 230],
-    "aurora_rgb": [255, 180, 120],
+    "glow_rgb": [
+      255,
+      210,
+      160
+    ],
+    "sparkle_rgb": [
+      255,
+      250,
+      230
+    ],
+    "aurora_rgb": [
+      255,
+      180,
+      120
+    ],
     "center_y": 0.36,
-    "breath": 0.020,
-    "sparkle_anchor": [0.54, 0.38]
+    "breath": 0.02,
+    "sparkle_anchor": [
+      0.54,
+      0.38
+    ]
   },
-  "tags": ["morning", "energy", "routine"]
+  "tags": [
+    "morning",
+    "energy",
+    "routine"
+  ],
+  "base_source": "marketing/weekly/money-week-e2-base.png",
+  "base_variant": 11,
+  "base_locked": false
 }

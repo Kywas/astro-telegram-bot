@@ -98,6 +98,10 @@ def iter_publishable_posts() -> list[tuple[str, str, dict]]:
     return rows
 
 
+def count_publishable_posts() -> int:
+    return len(iter_publishable_posts())
+
+
 def list_publishable_slugs_for_slot(slot: str) -> list[str]:
     slot = slot.strip().lower()
     return [slug for slug, post_slot_name, _ in iter_publishable_posts() if post_slot_name == slot]

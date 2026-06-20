@@ -5,12 +5,34 @@
   "slot": "lunch",
   "status": "ready",
   "gif": {
-    "glow_rgb": [200, 180, 255],
-    "sparkle_rgb": [255, 245, 255],
-    "aurora_rgb": [160, 200, 255],
-    "center_y": 0.40,
+    "glow_rgb": [
+      200,
+      180,
+      255
+    ],
+    "sparkle_rgb": [
+      255,
+      245,
+      255
+    ],
+    "aurora_rgb": [
+      160,
+      200,
+      255
+    ],
+    "center_y": 0.4,
     "breath": 0.023,
-    "sparkle_anchor": [0.52, 0.42]
+    "sparkle_anchor": [
+      0.52,
+      0.42
+    ]
   },
-  "tags": ["zodiac", "identity", "fun"]
+  "tags": [
+    "zodiac",
+    "identity",
+    "fun"
+  ],
+  "base_source": "marketing/weekly/love-week.png",
+  "base_variant": 13,
+  "base_locked": false
 }

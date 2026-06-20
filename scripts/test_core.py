@@ -1124,6 +1124,151 @@ def test_natal_qa_synthesis() -> None:
     ]
     assert len(set(finance_briefs)) == 5
 
+    from app.natal_sphere_qa import build_karma_answer, karma_picker_intro
+
+    karma_intro = karma_picker_intro("ru")
+    assert "12-й дом" not in karma_intro
+    assert "Тыкни" in karma_intro or "тыкни" in karma_intro.lower()
+    karma = build_karma_answer(chart, "ru", 0, style="plain")
+    assert "Начну с главного — про уроки" not in karma.split("Простыми словами")[0]
+    assert "повтор" in karma.lower() or "сценар" in karma.lower()
+    karma_briefs = [
+        build_karma_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(karma_briefs)) == 5
+    assert "умной фразой из интернета" not in karma
+
+    from app.natal_sphere_qa import build_traits_answer, traits_picker_intro
+
+    traits_intro = traits_picker_intro("ru")
+    assert "Лагна" not in traits_intro
+    assert "1-й дом" not in traits_intro
+    assert "Instagram" in traits_intro or "тыкни" in traits_intro.lower()
+    traits = build_traits_answer(chart, "ru", 0, style="plain")
+    assert "с первого контакта" in traits.lower() or "читаешься" in traits.lower()
+    traits_briefs = [
+        build_traits_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(traits_briefs)) == 5
+    eli5_q0 = traits.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in traits else ""
+    assert "заводской режим" in eli5_q0 or "маска для гостей" in eli5_q0
+
+    from app.natal_sphere_qa import build_lineage_answer, lineage_picker_intro
+
+    lineage_intro = lineage_picker_intro("ru")
+    assert "4-й дом" not in lineage_intro
+    assert "9-й дом" not in lineage_intro
+    assert "Тыкни" in lineage_intro or "тыкни" in lineage_intro.lower()
+    lineage = build_lineage_answer(chart, "ru", 0, style="plain")
+    assert "мама" in lineage.lower() or "дом" in lineage.lower()
+    lineage_briefs = [
+        build_lineage_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(lineage_briefs)) == 5
+    eli5_lineage = lineage.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in lineage else ""
+    assert "отдыхать внутри" in eli5_lineage or "не только человек" in eli5_lineage
+    assert "умной фразой из интернета" not in lineage
+
+    from app.natal_sphere_qa import build_health_answer, health_picker_intro
+
+    health_intro = health_picker_intro("ru")
+    assert "1-й дом" not in health_intro
+    assert "6-й дом" not in health_intro
+    assert "Google" in health_intro or "тыкни" in health_intro.lower()
+    health = build_health_answer(chart, "ru", 0, style="plain")
+    assert "бензин" in health.lower() or "энерг" in health.lower()
+    health_briefs = [
+        build_health_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(health_briefs)) == 5
+    eli5_health = health.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in health else ""
+    assert "бензобак" in eli5_health or "не только «я же могу" in eli5_health
+
+    from app.natal_sphere_qa import build_purpose_answer, purpose_picker_intro
+
+    purpose_intro = purpose_picker_intro("ru")
+    assert "9-й дом" not in purpose_intro
+    assert "Лагна" not in purpose_intro
+    assert "YouTube" in purpose_intro or "тыкни" in purpose_intro.lower()
+    purpose = build_purpose_answer(chart, "ru", 0, style="plain")
+    assert "табличк" in purpose.lower() or "предназнач" in purpose.lower()
+    purpose_briefs = [
+        build_purpose_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(purpose_briefs)) == 5
+    eli5_purpose = purpose.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in purpose else ""
+    assert "linkedin" in eli5_purpose.lower() or "возвращаешься" in eli5_purpose.lower()
+
+    from app.natal_sphere_qa import build_dharma_answer, dharma_picker_intro
+
+    dharma_intro = dharma_picker_intro("ru")
+    assert "9-й дом" not in dharma_intro
+    assert "12-й дом" not in dharma_intro
+    assert "мокша" not in dharma_intro.lower()
+    assert "просветись" in dharma_intro.lower() or "тыкни" in dharma_intro.lower()
+    dharma = build_dharma_answer(chart, "ru", 0, style="plain")
+    assert "монастыр" in dharma.lower()
+    dharma_briefs = [
+        build_dharma_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(dharma_briefs)) == 5
+    dharma_meditation = build_dharma_answer(chart, "ru", 2, style="plain")
+    assert "медита" in dharma_meditation.lower() or "тишин" in dharma_meditation.lower()
+    eli5_dharma = dharma.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in dharma else ""
+    assert "честность" in eli5_dharma.lower() or "монастыр" in eli5_dharma.lower()
+
+    from app.natal_sphere_qa import build_travel_answer, travel_picker_intro
+
+    travel_intro = travel_picker_intro("ru")
+    assert "9-й дом" not in travel_intro
+    assert "3-й дом" not in travel_intro
+    assert "сбеги" in travel_intro.lower() or "тыкни" in travel_intro.lower()
+    travel = build_travel_answer(chart, "ru", 0, style="plain")
+    assert "переезд" in travel.lower() or "декорац" in travel.lower()
+    travel_briefs = [
+        build_travel_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(travel_briefs)) == 5
+    travel_home = build_travel_answer(chart, "ru", 4, style="plain")
+    assert "дом" in travel_home.lower()
+    eli5_travel = travel.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in travel else ""
+    assert "декорац" in eli5_travel.lower() or "другим человеком" in eli5_travel.lower()
+
+    from app.natal_sphere_qa import build_upaya_answer, upaya_picker_intro
+
+    upaya_intro = upaya_picker_intro("ru")
+    assert "дни планет" not in upaya_intro.lower() or "магический" in upaya_intro.lower()
+    assert "камень" in upaya_intro.lower() or "тыкни" in upaya_intro.lower()
+    upaya = build_upaya_answer(chart, "ru", 0, style="plain")
+    assert "гармониза" in upaya.lower() or "камень" in upaya.lower()
+    upaya_briefs = [
+        build_upaya_answer(chart, "ru", i, style="plain").split("Короче")[0]
+        for i in range(5)
+    ]
+    assert len(set(upaya_briefs)) == 5
+    upaya_soften = build_upaya_answer(chart, "ru", 1, style="plain")
+    assert "напряж" in upaya_soften.lower() or "смягч" in upaya_soften.lower()
+    eli5_upaya = upaya.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in upaya else ""
+    assert "магический" in eli5_upaya.lower() or "шопинг" in eli5_upaya.lower() or "режим" in eli5_upaya.lower()
+
+    from app.natal_sphere_qa import finance_picker_intro
+
+    finance_intro = finance_picker_intro("ru")
+    assert "2-й дом" not in finance_intro
+    assert "10-й дом" not in finance_intro
+    finance = build_finance_answer(chart, "ru", 0, style="plain")
+    eli5_fin = finance.split("Простыми словами")[1].split("Подробнее")[0] if "Простыми словами" in finance else ""
+    assert "цифры в приложении" in eli5_fin.lower() or "ценишь" in eli5_fin.lower()
+    finance_income = build_finance_answer(chart, "ru", 3, style="plain")
+    assert "доход" in finance_income.lower() or "молитв" in finance_income.lower()
+
     sphere7 = build_sphere_answer(chart, "ru", 7, 0, style="plain")
     assert "управитель" not in sphere7.lower()
     assert "7-" not in sphere7
@@ -1289,6 +1434,7 @@ def main() -> None:
     test_weekly_digest()
     test_channel_posting()
     test_channel_scheduler()
+    test_channel_content_reminder()
     test_channel_bulk_publish()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
@@ -1342,6 +1488,25 @@ def test_channel_scheduler() -> None:
     assert len(plan) == 3
     assert plan[0][0] == "morning" and plan[0][1] == "08:30"
     assert plan[2][0] == "evening" and plan[2][1] == "19:30"
+
+
+def test_channel_content_reminder() -> None:
+    from datetime import date
+
+    from app.channel_content_reminder import (
+        content_runway_days,
+        last_content_day,
+        reminder_day,
+    )
+
+    assert content_runway_days(31) == 11
+    assert content_runway_days(21) == 7
+    assert content_runway_days(0) == 0
+
+    start = date(2026, 6, 21)
+    assert last_content_day(start, 31) == date(2026, 7, 1)
+    assert reminder_day(start, 31) == date(2026, 6, 29)
+    assert reminder_day(start, 21) == date(2026, 6, 25)
 
 
 def test_channel_bulk_publish() -> None:

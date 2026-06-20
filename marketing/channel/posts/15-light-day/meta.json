@@ -5,12 +5,34 @@
   "slot": "evening",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 220, 180],
-    "sparkle_rgb": [255, 250, 240],
-    "aurora_rgb": [255, 200, 160],
+    "glow_rgb": [
+      255,
+      220,
+      180
+    ],
+    "sparkle_rgb": [
+      255,
+      250,
+      240
+    ],
+    "aurora_rgb": [
+      255,
+      200,
+      160
+    ],
     "center_y": 0.42,
     "breath": 0.018,
-    "sparkle_anchor": [0.46, 0.46]
+    "sparkle_anchor": [
+      0.46,
+      0.46
+    ]
   },
-  "tags": ["rest", "permission", "cozy"]
+  "tags": [
+    "rest",
+    "permission",
+    "cozy"
+  ],
+  "base_source": "marketing/weekly/money-week.png",
+  "base_variant": 14,
+  "base_locked": false
 }

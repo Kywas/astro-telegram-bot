@@ -5,12 +5,34 @@
   "slot": "morning",
   "status": "ready",
   "gif": {
-    "glow_rgb": [255, 190, 140],
-    "sparkle_rgb": [255, 240, 210],
-    "aurora_rgb": [200, 150, 255],
-    "center_y": 0.40,
+    "glow_rgb": [
+      255,
+      190,
+      140
+    ],
+    "sparkle_rgb": [
+      255,
+      240,
+      210
+    ],
+    "aurora_rgb": [
+      200,
+      150,
+      255
+    ],
+    "center_y": 0.4,
     "breath": 0.024,
-    "sparkle_anchor": [0.48, 0.44]
+    "sparkle_anchor": [
+      0.48,
+      0.44
+    ]
   },
-  "tags": ["patterns", "cycles", "self-awareness"]
+  "tags": [
+    "patterns",
+    "cycles",
+    "self-awareness"
+  ],
+  "base_source": "marketing/weekly/money-week-e1-base.png",
+  "base_variant": 10,
+  "base_locked": false
 }

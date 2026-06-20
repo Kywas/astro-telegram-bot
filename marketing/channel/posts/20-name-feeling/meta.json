@@ -5,12 +5,34 @@
   "slot": "lunch",
   "status": "ready",
   "gif": {
-    "glow_rgb": [180, 210, 255],
-    "sparkle_rgb": [240, 248, 255],
-    "aurora_rgb": [160, 180, 255],
-    "center_y": 0.40,
+    "glow_rgb": [
+      180,
+      210,
+      255
+    ],
+    "sparkle_rgb": [
+      240,
+      248,
+      255
+    ],
+    "aurora_rgb": [
+      160,
+      180,
+      255
+    ],
+    "center_y": 0.4,
     "breath": 0.021,
-    "sparkle_anchor": [0.52, 0.43]
+    "sparkle_anchor": [
+      0.52,
+      0.43
+    ]
   },
-  "tags": ["emotions", "awareness", "communication"]
+  "tags": [
+    "emotions",
+    "awareness",
+    "communication"
+  ],
+  "base_source": "marketing/weekly/karma-week-base.png",
+  "base_variant": 19,
+  "base_locked": false
 }

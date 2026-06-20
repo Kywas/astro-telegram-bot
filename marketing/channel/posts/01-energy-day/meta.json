@@ -5,12 +5,32 @@
   "slot": "morning",
   "status": "test",
   "gif": {
-    "glow_rgb": [180, 200, 255],
-    "sparkle_rgb": [255, 245, 220],
-    "aurora_rgb": [140, 160, 255],
+    "glow_rgb": [
+      180,
+      200,
+      255
+    ],
+    "sparkle_rgb": [
+      255,
+      245,
+      220
+    ],
+    "aurora_rgb": [
+      140,
+      160,
+      255
+    ],
     "center_y": 0.38,
     "breath": 0.022,
-    "sparkle_anchor": [0.52, 0.32]
+    "sparkle_anchor": [
+      0.52,
+      0.32
+    ]
   },
-  "tags": ["astrology", "moon", "self-care"]
+  "tags": [
+    "astrology",
+    "moon",
+    "self-care"
+  ],
+  "base_locked": true
 }
