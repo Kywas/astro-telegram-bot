@@ -119,8 +119,7 @@ async def _send_channel_test(bot: Bot, locale: str) -> str:
         return t(locale, "channel_not_configured")
     text = (
         "🌙 <b>Тест публикации AstroPulse</b>\n\n"
-        "Если видишь этот пост — бот подключён к каналу и может публиковать автоматически.\n\n"
-        "Развлекательный контент, не замена консультации специалиста."
+        "Если видишь этот пост — бот подключён к каналу и может публиковать автоматически."
     )
     try:
         await send_channel_text(bot, text, with_bot_button=True)
