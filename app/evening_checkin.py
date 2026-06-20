@@ -3,23 +3,56 @@ from __future__ import annotations
 from datetime import date
 
 from app.astro_engine import EveningSnapshot, build_evening_snapshot
-from app.astro_glossary import format_moon_in_sign_short
+from app.astro_glossary import format_moon_in_sign_short, moon_in_sign_hint
 from app.forecast_text import format_summary_aspect
+from app.i18n import goal_display
 from app.moon_calendar import PHASE_GUIDANCE, PHASE_NAMES
 from app.text_format import b, format_screen_body, p
 
-GOAL_FOCUS = {
+GOAL_EVENING = {
     "ru": {
-        "love": "близость",
-        "career": "карьеру",
-        "money": "финансы",
-        "balance": "баланс",
+        "love": (
+            "Темы близости можно отложить — «давай поговорим серьёзно» "
+            "лучше не сегодня, если сил уже нет."
+        ),
+        "career": (
+            "Рабочие чаты можно заглушить — завтра всё равно никуда не денется, "
+            "а мозгу нужен офлайн."
+        ),
+        "money": (
+            "Финансовые «надо бы» подождут до утра — вечером цифры только злят, "
+            "если устал."
+        ),
+        "balance": (
+            "Не обязательно вечером «дожимать баланс» — ты уже отметился, "
+            "этого достаточно."
+        ),
     },
     "en": {
-        "love": "closeness",
-        "career": "career",
-        "money": "finances",
-        "balance": "balance",
+        "love": (
+            "Closeness topics can wait — «let's talk seriously» is better not tonight "
+            "if you're out of steam."
+        ),
+        "career": (
+            "Work chats can go on mute — nothing urgent will vanish, your brain needs offline."
+        ),
+        "money": (
+            "Money to-dos can wait until morning — numbers only annoy when you're tired."
+        ),
+        "balance": (
+            "No need to «force balance» tonight — you checked in, that's enough."
+        ),
+    },
+}
+
+GOAL_RELATIONSHIP_EVENING = {
+    "ru": {
+        ("love", "relationship"): " Партнёр никуда не денется — «устал, обниму завтра» тоже норм.",
+        ("love", "single"): " Свидания и переписки подождут — вечер для восстановления, не для свайпов.",
+    },
+    "en": {
+        ("love", "relationship"): " Your partner isn't going anywhere — «tired, hug tomorrow» counts.",
+        ("love", "single"): " Dating can wait — evening is for recharge, not swiping.",
     },
 }
 
@@ -62,136 +95,322 @@ def _top_aspect_line(locale: str, snapshot: EveningSnapshot) -> str | None:
     return format_summary_aspect(locale, transit, natal, aspect, orb)
 
 
-def _build_mood_reflection(locale: str, score: int, snapshot: EveningSnapshot) -> str:
+def _mood_feel_label(locale: str, score: int) -> str:
+    lang = _lang(locale)
+    if lang == "ru":
+        if score >= 8:
+            return "хорошо"
+        if score >= 6:
+            return "нормально"
+        if score >= 4:
+            return "так себе"
+        return "тяжело"
+    if score >= 8:
+        return "good"
+    if score >= 6:
+        return "okay"
+    if score >= 4:
+        return "so-so"
+    return "rough"
+
+
+def _day_strength_label(locale: str, score: int) -> str:
+    """Plain label for chart day-energy (not the user's mood rating)."""
+    lang = _lang(locale)
+    if lang == "ru":
+        if score >= 8:
+            return "бодрый"
+        if score >= 6:
+            return "средний"
+        if score >= 4:
+            return "спокойный"
+        return "на экономном режиме"
+    if score >= 8:
+        return "high"
+    if score >= 6:
+        return "moderate"
+    if score >= 4:
+        return "calm"
+    return "low battery"
+
+
+def _format_evening_header(
+    locale: str,
+    score: int,
+    energy_score: int,
+    *,
+    name_bit: str = "",
+) -> str:
+    lang = _lang(locale)
+    mood_word = _mood_feel_label(locale, score)
+    strength_word = _day_strength_label(locale, energy_score)
+    if lang == "ru":
+        return (
+            f"🌙 Принято{name_bit}! Ты отметил настроение: {mood_word} ({score}/10) · "
+            f"день по силам на карте: {strength_word} ({energy_score}/10)"
+        )
+    return (
+        f"🌙 Got it{name_bit}! You rated your mood: {mood_word} ({score}/10) · "
+        f"chart day strength: {strength_word} ({energy_score}/10)"
+    )
+
+
+def _personal_sky_opener(
+    locale: str,
+    snapshot: EveningSnapshot,
+    profile,
+    *,
+    include_energy: bool = True,
+) -> str:
+    """One short line tying today's sky to this user's chart."""
+    lang = _lang(locale)
+    phase = PHASE_NAMES[lang][snapshot.moon_phase_key].lower()
+    moon_line = format_moon_in_sign_short(locale, snapshot.moon_sign)
+
+    if lang == "ru":
+        base = f"Сегодня {phase}, {moon_line}"
+        if not include_energy:
+            return f"{base}."
+        strength = _day_strength_label(locale, snapshot.energy_score)
+        return f"{base} — по карте день шёл на {strength} уровень сил."
+    base = f"Today: {phase}, {moon_line}"
+    if not include_energy:
+        return f"{base}."
+    strength = _day_strength_label(locale, snapshot.energy_score)
+    return f"{base} — on your chart, a {strength} day strength-wise."
+
+
+def _mood_energy_gap_note(locale: str, score: int, snapshot: EveningSnapshot) -> str | None:
+    """When self-reported mood diverges from chart energy for this user."""
+    lang = _lang(locale)
+    gap = score - snapshot.energy_score
+    if gap >= 3:
+        if lang == "ru":
+            return (
+                "Твоё настроение выше, чем силы дня по карте — "
+                "держишь лицо, хотя день забрал больше энергии."
+            )
+        return (
+            "Your mood is higher than the chart's day strength — "
+            "you're holding up even though the day cost more."
+        )
+    if gap <= -3:
+        if lang == "ru":
+            return (
+                "Твоё настроение ниже, чем силы дня по карте — "
+                "видимо, просело не из‑за «неба», а по своим причинам."
+            )
+        return (
+            "Your mood is lower than the chart's day strength — "
+            "likely dipped for your own reasons, not just the sky."
+        )
+    if score >= 8 and snapshot.energy_score <= score - 2:
+        if lang == "ru":
+            return (
+                "Классика: настроение хорошее, а силы по карте уже на спаде — "
+                "батарейка села раньше, чем настроение."
+            )
+        return (
+            "Classic: mood still good, chart strength already fading — "
+            "battery died before the vibe."
+        )
+    return None
+
+
+def _build_mood_reflection(
+    locale: str,
+    score: int,
+    snapshot: EveningSnapshot,
+    profile=None,
+) -> str:
     lang = _lang(locale)
     tone = _sky_tone(snapshot)
     aspect_line = _top_aspect_line(locale, snapshot)
+    gap_note = _mood_energy_gap_note(locale, score, snapshot)
+    opener = _personal_sky_opener(locale, snapshot, profile, include_energy=gap_note is None)
+    moon_hint = moon_in_sign_hint(locale, snapshot.moon_sign)
+
+    def _join(*parts: str) -> str:
+        return " ".join(part for part in parts if part)
 
     if score <= 4:
         if snapshot.energy_score >= 7:
-            return (
-                "Небо было бодрее, чем вы себя чувствуете — возможно, день забрал больше сил, чем кажется."
+            body = (
+                "По карте день был бодрый, а ты чувствуешь себя иначе — "
+                "похоже, забрал больше сил, чем кажется. Это нормально."
                 if lang == "ru"
-                else "The sky was brighter than you feel — the day may have cost more energy than it looked."
+                else "Your chart had a brighter day than you feel — it likely cost more. That's normal."
             )
+            return _join(opener, body)
         if tone == "heavy":
             if aspect_line:
                 lead = (
-                    f"День мог быть тяжёлым — главный фон: {aspect_line}."
+                    f"К твоей карте сегодня шёл напряжённый фон: {aspect_line}."
                     if lang == "ru"
-                    else f"Today may have felt heavy — main backdrop: {aspect_line}."
+                    else f"Tense backdrop to your chart today: {aspect_line}."
                 )
             else:
                 lead = (
-                    "День мог быть тяжёлым — транзиты давили на фон."
+                    "По транзитам день мог давить — это фон, не приговор тебе лично."
                     if lang == "ru"
-                    else "Today may have felt heavy — transits pressed on the background."
+                    else "Transits may have pressed today — background noise, not a verdict on you."
                 )
             tail = (
-                "Это про небо, а не про вашу ценность."
+                "Сейчас не разбирать — просто выдохни."
                 if lang == "ru"
-                else "That is about the sky, not your worth."
+                else "No unpacking now — just exhale."
             )
-            return f"{lead} {tail}"
+            return _join(opener, lead, tail)
 
         if tone == "light":
-            return (
-                "Небо давало поддержку, но вы устали — возможно, отдали слишком много сил."
+            body = (
+                "Небо подкидывало поддержку, а настроение всё равно просело — "
+                "видимо, отдал слишком много. Можно остановиться без вины."
                 if lang == "ru"
-                else "The sky offered support, but you are tired — you may have spent a lot of energy."
+                else "The sky offered support, but mood still dipped — you may have given a lot. Stop without guilt."
             )
+            return _join(opener, body)
 
-        return (
-            "Низкое настроение — нормальный сигнал замедлиться и отпустить лишнее."
+        body = (
+            "Низкое настроение — сигнал «хватит на сегодня», не приговор. "
+            "Телефон можно отложить."
             if lang == "ru"
-            else "A low mood is a valid signal to slow down and release what is extra."
+            else "Low mood is a «stop for today» signal, not a verdict. Phone can wait."
         )
+        return _join(opener, body)
 
     if score >= 8:
+        if gap_note:
+            tail = (
+                "Вспомни один маленький момент, который хочется повторить — "
+                "не для отчёта, просто чтобы мозг не стёр за ночь."
+                if lang == "ru"
+                else "Recall one small moment you'd repeat — not for a report, so your brain won't erase it."
+            )
+            return _join(opener, gap_note, tail)
         if tone == "heavy":
-            return (
-                "Вы выдержали непростой день с силой — отметьте, что всё же получилось."
+            body = (
+                "Ты выдержал непростой день по карте — и настроение всё равно хорошее. "
+                "Это победа, даже если кажется «просто пережил»."
                 if lang == "ru"
-                else "You held a demanding day with strength — note what still worked."
+                else "You held a heavy chart day — mood still good. A win, even if it feels like «just survived»."
             )
+            return _join(opener, body)
         if aspect_line and tone == "light":
-            return (
-                f"Энергия дня и ваше состояние совпали. Главный фон: {aspect_line}."
+            body = (
+                f"Настроение и небо совпали — приятно. Главный транзит к тебе: {aspect_line}. "
+                f"Можно не анализировать до утра."
                 if lang == "ru"
-                else f"Today's energy matched how you feel. Main backdrop: {aspect_line}."
+                else f"Mood and sky aligned — nice. Main transit to you: {aspect_line}. Skip analysis until morning."
             )
-        return (
-            "Хороший день — закрепите один момент, который стоит повторить."
+            return _join(opener, body)
+        if moon_hint:
+            body = (
+                f"{moon_hint.capitalize()} — хороший финал. "
+                f"Один маленький момент на память, и на сегодня достаточно."
+                if lang == "ru"
+                else f"{moon_hint.capitalize()} — nice finish. One small moment to remember, then enough for today."
+            )
+            return _join(opener, body)
+        body = (
+            "Хороший день — приятный финал. Вспомни один маленький момент, "
+            "который хочется повторить: не для отчёта, просто чтобы мозг не стёр его за ночь."
             if lang == "ru"
-            else "A good day — anchor one moment worth repeating."
+            else "A good day — nice finish. Recall one small moment you'd repeat: not for a report, so your brain won't erase it overnight."
         )
+        return _join(opener, body)
 
-    if snapshot.energy_score >= 7 and score <= 6:
-        return (
-            "Небо было бодрее, чем ваше состояние — возможно, день потребовал больше, чем казалось."
+    if gap_note:
+        tail = (
+            "Можно не докручивать итоги."
             if lang == "ru"
-            else "The sky was brighter than your mood — the day may have cost more than it looked."
+            else "No need to over-process."
         )
-    if snapshot.energy_score <= 4 and score >= 6:
-        return (
-            "Вы держались лучше, чем позволял фон дня — это внутренний ресурс."
-            if lang == "ru"
-            else "You held up better than the day's backdrop — that is inner resource."
-        )
+        return _join(opener, gap_note, tail)
 
     if aspect_line:
-        return (
-            f"День прошёл ровно на фоне: {aspect_line}."
+        body = (
+            f"День ровный. К твоей карте: {aspect_line} — "
+            f"вечером это не домашнее задание."
             if lang == "ru"
-            else f"The day moved evenly against this backdrop: {aspect_line}."
+            else f"Steady day. To your chart: {aspect_line} — not homework tonight."
         )
-    return (
-        "День прошёл ровно — вечером уместно подвести короткий итог."
+        return _join(opener, body)
+    body = (
+        "День прошёл ровно — для вечера достаточно. Короткий итог в голове, и можно отпускать."
         if lang == "ru"
-        else "A steady day — a short evening summary is enough."
+        else "A steady day — enough for evening. A short mental note, then let go."
     )
+    return _join(opener, body)
 
 
 def _build_evening_tip(
     locale: str,
     score: int,
     snapshot: EveningSnapshot,
-    goal: str | None,
+    profile=None,
 ) -> str:
     lang = _lang(locale)
     guidance = PHASE_GUIDANCE[lang].get(
         snapshot.moon_phase_key,
         PHASE_GUIDANCE[lang]["waxing_gibbous"],
     )
-    goal_focus = GOAL_FOCUS[lang].get(goal or "", "")
+    goal = profile.goal if profile else None
+    goal_label = goal_display(locale, goal) if goal else None
+    phase_name = PHASE_NAMES[lang][snapshot.moon_phase_key].lower()
 
     if score <= 4:
+        avoid_bit = snapshot.avoid_line if snapshot.avoid_line else guidance["avoid"]
         if lang == "ru":
-            tip = f"🌙 Вечером: {guidance['avoid'].capitalize()} — отдых важнее новых решений."
+            tip = (
+                f"🌙 {phase_name.capitalize()} + твой вечер: {avoid_bit} — "
+                f"новые решения подождут до утра."
+            )
         else:
-            tip = f"🌙 This evening: {guidance['avoid'].capitalize()} — rest beats new decisions."
+            tip = (
+                f"🌙 {phase_name.capitalize()} + your evening: {avoid_bit} — "
+                f"new decisions can wait until morning."
+            )
     elif score >= 8:
         if lang == "ru":
-            tip = f"💡 Зафиксируйте один удачный момент. Завтра уместно: {guidance['do']}."
+            tip = (
+                f"💡 Лунная фаза ({phase_name}) подсказывает на завтра: {guidance['do']} — "
+                f"но только если захочется, не по приказу."
+            )
         else:
-            tip = f"💡 Anchor one good moment. Tomorrow suits: {guidance['do']}."
+            tip = (
+                f"💡 Moon phase ({phase_name}) hints for tomorrow: {guidance['do']} — "
+                f"only if you feel like it."
+            )
     else:
         if lang == "ru":
-            tip = f"🌙 Отпустите лишнее. Завтра: {guidance['do']}."
+            tip = (
+                f"🌙 Ты уже отметился — этого достаточно. "
+                f"Завтра, если будет настроение ({phase_name}): {guidance['do']}."
+            )
         else:
-            tip = f"🌙 Release what is extra. Tomorrow: {guidance['do']}."
+            tip = (
+                f"🌙 You checked in — that's enough. "
+                f"Tomorrow, if you're up for it ({phase_name}): {guidance['do']}."
+            )
 
-    if goal_focus:
+    if goal and goal in GOAL_EVENING[lang]:
+        tip += f" {GOAL_EVENING[lang][goal]}"
+        if profile and profile.relationship_status:
+            rel_extra = GOAL_RELATIONSHIP_EVENING[lang].get((goal, profile.relationship_status))
+            if rel_extra:
+                tip += rel_extra
+    elif goal_label:
         if lang == "ru":
-            tip += f" Фокус «{goal_focus}» лучше не форсировать сегодня вечером."
+            tip += f" Фокус «{goal_label.lower()}» вечером можно отложить — смена закончилась."
         else:
-            tip += f" Ease off pushing {goal_focus} tonight."
+            tip += f" «{goal_label}» focus can wait tonight — shift's over."
 
     if snapshot.solar_only:
         if lang == "ru":
-            tip += " Укажите дату, время и город рождения — вечерний разбор станет точнее."
+            tip += " Когда будет минута — добавь дату, время и город рождения: вечерний разбор станет точнее."
         else:
-            tip += " Add birth date, time, and city for a sharper evening read."
+            tip += " When you have a minute — add birth date, time, and city for a sharper evening read."
 
     return tip
 
@@ -199,22 +418,26 @@ def _build_evening_tip(
 def format_streak_message(locale: str, streak: int) -> str:
     lang = _lang(locale)
     if streak == 1:
-        return "Серия началась — хороший ритм 🌱" if lang == "ru" else "Streak started — good rhythm 🌱"
+        return (
+            "Серия началась — ты уже в ритме 🌱 (да, просто отметить настроение тоже считается)"
+            if lang == "ru"
+            else "Streak started — you're in rhythm 🌱 (yes, tapping mood counts)"
+        )
     if streak == 3:
         return (
-            "3 дня подряд — привычка уже держится ✨"
+            "3 дня подряд — привычка держится ✨ Мозг начинает верить, что это не разовая акция."
             if lang == "ru"
-            else "3 days in a row — the habit is holding ✨"
+            else "3 days in a row — the habit is holding ✨ Your brain is starting to believe it."
         )
     if streak == 7:
         return (
-            "🔥 7 дней подряд — вы строите полезный ритм."
+            "🔥 7 дней подряд — ты реально строишь полезный ритм. Не героизм, просто регулярность."
             if lang == "ru"
-            else "🔥 7 days in a row — you are building a useful rhythm."
+            else "🔥 7 days in a row — you're building a useful rhythm. Not heroics, just showing up."
         )
     if lang == "ru":
-        return f"🔥 Серия: {streak} дн. подряд."
-    return f"🔥 Streak: {streak} days in a row."
+        return f"🔥 Серия: {streak} дн. подряд — продолжай в своём темпе."
+    return f"🔥 Streak: {streak} days in a row — keep your own pace."
 
 
 def build_evening_checkin_prompt(
@@ -275,21 +498,36 @@ def build_evening_response(
     snapshot = _snapshot_from_profile(profile, locale, for_date)
 
     if snapshot is None:
+        mood_word = _mood_feel_label(locale, score)
         if lang == "ru":
             return format_screen_body(
-                f"🌙 Спасибо! Настроение: {score}/10\n\n{format_streak_message(locale, streak)}"
+                f"🌙 Принято! Ты отметил настроение: {mood_word} ({score}/10)\n\n"
+                f"{format_streak_message(locale, streak)}"
             )
         return format_screen_body(
-            f"🌙 Thanks! Mood: {score}/10\n\n{format_streak_message(locale, streak)}"
+            f"🌙 Got it! You rated your mood: {mood_word} ({score}/10)\n\n"
+            f"{format_streak_message(locale, streak)}"
         )
 
-    reflection = _build_mood_reflection(locale, score, snapshot)
-    tip = _build_evening_tip(locale, score, snapshot, profile.goal if profile else None)
+    reflection = _build_mood_reflection(locale, score, snapshot, profile=profile)
+    tip = _build_evening_tip(locale, score, snapshot, profile=profile)
     streak_line = format_streak_message(locale, streak)
 
-    if lang == "ru":
-        header = f"🌙 Спасибо! Настроение: {score}/10 · энергия дня {snapshot.energy_score}/10"
-    else:
-        header = f"🌙 Thanks! Mood: {score}/10 · day energy {snapshot.energy_score}/10"
+    name_bit = ""
+    if profile and profile.first_name and len(profile.first_name.strip()) <= 20:
+        name_bit = f", {profile.first_name.strip()}"
 
-    return p(b(header), format_screen_body(reflection), format_screen_body(tip), format_screen_body(streak_line))
+    if lang == "ru":
+        header = _format_evening_header(locale, score, snapshot.energy_score, name_bit=name_bit)
+        footer = "На сегодня хватит. Спокойного вечера — телефон можно отложить 🌙"
+    else:
+        header = _format_evening_header(locale, score, snapshot.energy_score, name_bit=name_bit)
+        footer = "That's enough for today. Good evening — phone can wait 🌙"
+
+    return p(
+        b(header),
+        format_screen_body(reflection),
+        format_screen_body(tip),
+        format_screen_body(streak_line),
+        format_screen_body(footer),
+    )
