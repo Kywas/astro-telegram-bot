@@ -24,15 +24,19 @@ class WeeklyGifTheme:
     center_y: float = 0.42
     ring_rotate: float = 1.0
     breath: float = 0.05
+    photo_base: bool = False
 
 
 THEMES: tuple[WeeklyGifTheme, ...] = (
     WeeklyGifTheme(
         "health-madness",
         (130, 240, 220),
-        (255, 250, 255),
+        (255, 230, 160),
         (190, 150, 255),
-        breath=0.04,
+        center_y=0.48,
+        breath=0.025,
+        ring_rotate=0.35,
+        photo_base=True,
     ),
     WeeklyGifTheme(
         "love-week",
@@ -193,11 +197,37 @@ def _floating_sparkles(size: tuple[int, int], phase: float, theme: WeeklyGifThem
     return layer
 
 
+def _photo_sparkle_pulse(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
+    """Subtle twinkle over the hand-light area on photographic bases."""
+    w, h = size
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    cx, cy = int(w * 0.38), int(h * 0.52)
+    sr, sg, sb = theme.sparkle_rgb
+    for idx, (dx, dy, speed) in enumerate(((0, 0, 1.0), (12, -8, 1.3), (-10, 6, 1.1), (18, 4, 1.5))):
+        tw = 0.25 + 0.75 * abs(math.sin(phase * speed * 2 + idx))
+        x = cx + dx + int(3 * math.sin(phase + idx))
+        y = cy + dy + int(2 * math.cos(phase * 0.8 + idx))
+        rad = 2 if tw < 0.55 else 3
+        alpha = int(120 * tw)
+        draw.ellipse((x - rad, y - rad, x + rad, y + rad), fill=(sr, sg, sb, alpha))
+        if tw > 0.7:
+            draw.line((x - 4, y, x + 4, y), fill=(sr, sg, sb, alpha // 2), width=1)
+            draw.line((x, y - 4, x, y + 4), fill=(sr, sg, sb, alpha // 2), width=1)
+    return layer.filter(ImageFilter.GaussianBlur(radius=0.4))
+
+
 def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
     frames: list[Image.Image] = []
     for i in range(FRAME_COUNT):
         phase = (2 * math.pi * i) / FRAME_COUNT
         frame = base.copy()
+        if theme.photo_base:
+            frame = Image.alpha_composite(frame, _photo_sparkle_pulse(frame.size, phase, theme))
+            breath = 1.0 + theme.breath * math.sin(phase)
+            frame = ImageEnhance.Brightness(frame).enhance(breath)
+            frames.append(frame.convert("P", palette=Image.Palette.ADAPTIVE, colors=256))
+            continue
         frame = Image.alpha_composite(frame, _aurora_sweep(frame.size, phase, theme))
         frame = Image.alpha_composite(frame, _glow_overlay(frame.size, phase, theme))
         frame = Image.alpha_composite(frame, _magic_ring_spin(frame.size, phase, theme))

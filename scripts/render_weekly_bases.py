@@ -379,6 +379,10 @@ def render_base(theme: BaseTheme) -> Path:
 def main() -> None:
     WEEKLY_DIR.mkdir(parents=True, exist_ok=True)
     for theme in THEMES:
+        if theme.slug == "health-madness":
+            # Realistic photo base — edit marketing/weekly/health-madness-base.png manually.
+            print(f"SKIP {theme.slug}-base.png (photographic asset)")
+            continue
         render_base(theme)
 
 
