@@ -12,6 +12,13 @@ from aiogram.types import ErrorEvent
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.auth import is_admin
+from app.channel_gate_middleware import ChannelGateMiddleware
+from app.channel_subscription import (
+    check_channel_subscription,
+    continue_registration_after_channel,
+    show_channel_subscription_panel,
+    user_needs_channel_gate,
+)
 from app.admin_alerts import (
     notify_admins_bot_crashed,
     notify_admins_bot_started,
@@ -258,6 +265,9 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             )
             await attach_start_source_from_start(user.id, payload)
         await state.clear()
+        if await user_needs_channel_gate(user.id):
+            await show_channel_subscription_panel(locale=default_lang, message=message)
+            return
         lang_sent = await message.answer(
             "Выбери язык / Choose language:",
             reply_markup=language_keyboard(prefix="startlang"),
@@ -282,6 +292,9 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         )
         await attach_start_source_from_start(user.id, payload)
     await state.clear()
+    if await user_needs_channel_gate(user.id, existing_profile):
+        await show_channel_subscription_panel(locale=language, message=message)
+        return
     try:
         if existing_profile.birth_date is None:
             await state.set_state(ProfileSetup.waiting_birth_date)
@@ -326,6 +339,30 @@ async def start_handler(message: Message, state: FSMContext) -> None:
             fallback_text = t(language, "start_home")
         sent = await message.answer(fallback_text, reply_markup=home_panel_keyboard(language))
         _save_user_panel(user.id, sent.chat.id, sent.message_id)
+
+
+@router.callback_query(F.data == "channel:check")
+async def channel_check_callback_handler(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    subscribed, error = await check_channel_subscription(callback.bot, user.id)
+    if not subscribed:
+        if error:
+            await callback.answer(t(locale, "channel_check_error"), show_alert=True)
+        else:
+            await callback.answer(t(locale, "channel_not_subscribed"), show_alert=True)
+        return
+    await db.set_channel_verified(user.id, verified=True)
+    await db.log_event(user.id, "channel_subscribed")
+    await callback.answer(t(locale, "channel_subscribed_ok"))
+    await continue_registration_after_channel(
+        user_id=user.id,
+        locale=locale,
+        state=state,
+        callback=callback,
+    )
 
 
 @router.callback_query(F.data.startswith("startlang:"))
@@ -4186,7 +4223,12 @@ async def run_bot() -> None:
             pass
 
     cleanup_middleware = DeleteUserInputMiddleware()
+    channel_gate_middleware = ChannelGateMiddleware()
     activity_middleware = UserActivityMiddleware()
+    for event_router in (router,):
+        event_router.message.middleware(channel_gate_middleware)
+        event_router.callback_query.middleware(channel_gate_middleware)
+        event_router.pre_checkout_query.middleware(channel_gate_middleware)
     for event_router in (router, admin_router):
         event_router.message.middleware(activity_middleware)
         event_router.callback_query.middleware(activity_middleware)

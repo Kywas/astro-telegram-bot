@@ -1120,6 +1120,29 @@ def home_goal_keyboard(locale: str, *, back_callback: str | None = "nav:home") -
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+
+
+def channel_subscription_keyboard(locale: str) -> InlineKeyboardMarkup:
+    from app.channel_posting import channel_join_url
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "channel_subscribe_btn"),
+                    url=channel_join_url(),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t(locale, "channel_check_btn"),
+                    callback_data="channel:check",
+                )
+            ],
+        ]
+    )
+
+
 def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -1133,6 +1156,9 @@ def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text=t(locale, "admin_btn_broadcast"), callback_data="admin:broadcast"),
                 InlineKeyboardButton(text=t(locale, "admin_btn_grant"), callback_data="admin:grant"),
+            ],
+            [
+                InlineKeyboardButton(text=t(locale, "admin_btn_channel"), callback_data="admin:channel"),
             ],
             [
                 InlineKeyboardButton(text=t(locale, "admin_btn_users"), callback_data="admin:users:0"),
@@ -1182,6 +1208,17 @@ def broadcast_confirm_keyboard(locale: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text=t(locale, "broadcast_confirm"), callback_data="admin:broadcast_confirm"),
                 InlineKeyboardButton(text=t(locale, "broadcast_cancel"), callback_data="admin:broadcast_cancel"),
+            ]
+        ]
+    )
+
+
+def channel_post_confirm_keyboard(locale: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t(locale, "broadcast_confirm"), callback_data="admin:channel_confirm"),
+                InlineKeyboardButton(text=t(locale, "broadcast_cancel"), callback_data="admin:channel_cancel"),
             ]
         ]
     )

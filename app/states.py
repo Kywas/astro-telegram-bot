@@ -39,6 +39,8 @@ class AdminPanel(StatesGroup):
     waiting_broadcast_text = State()
     waiting_broadcast_confirm = State()
     waiting_grant_input = State()
+    waiting_channel_post_text = State()
+    waiting_channel_post_confirm = State()
 
 
 class DailySetup(StatesGroup):

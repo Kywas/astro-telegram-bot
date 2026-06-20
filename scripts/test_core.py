@@ -154,6 +154,43 @@ def test_stats_keys() -> None:
     asyncio.run(run())
 
 
+def test_channel_subscription_gate() -> None:
+    import asyncio
+    import tempfile
+    from datetime import date
+    from pathlib import Path
+
+    from app.channel_subscription import user_needs_channel_gate
+    from app.database import Database
+
+    async def run() -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = str(Path(tmp) / "test.db")
+            database = Database(db_path)
+            await database.init()
+            await database.upsert_user_identity(1, "newbie", "New", "ru")
+            profile = await database.get_user(1)
+            assert profile is not None
+            assert await user_needs_channel_gate(1, profile) is True
+            await database.set_channel_verified(1, verified=True)
+            profile = await database.get_user(1)
+            assert profile is not None
+            assert await user_needs_channel_gate(1, profile) is False
+            await database.upsert_user_identity(2, "oldie", "Old", "ru")
+            await database.update_profile(
+                2,
+                birth_date=date(1990, 5, 1),
+                birth_time=None,
+                city="Moscow",
+                sign="Taurus",
+            )
+            profile = await database.get_user(2)
+            assert profile is not None
+            assert await user_needs_channel_gate(2, profile) is False
+
+    asyncio.run(run())
+
+
 def test_user_activity_tracking() -> None:
     import asyncio
     import tempfile
@@ -1198,6 +1235,7 @@ def main() -> None:
     test_premium_dates()
     test_start_source_payloads()
     test_stats_keys()
+    test_channel_subscription_gate()
     test_user_activity_tracking()
     test_sun_sign_compat()
     test_synastry_style()
@@ -1223,8 +1261,19 @@ def main() -> None:
     test_format_screen_body()
     test_natal_qa_synthesis()
     test_weekly_digest()
+    test_channel_posting()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 
-if __name__ == "__main__":
+def test_channel_posting() -> None:
+    from app.channel_posting import channel_configured, normalize_channel_chat_id
+
+    assert normalize_channel_chat_id("@my_channel") == "@my_channel"
+    assert normalize_channel_chat_id("my_channel") == "@my_channel"
+    assert normalize_channel_chat_id("-1001234567890") == -1001234567890
+    assert channel_configured("@x") is True
+    assert channel_configured("  ") is False
+    assert channel_configured(None) is False
+
+
     main()

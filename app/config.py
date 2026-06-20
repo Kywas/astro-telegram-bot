@@ -26,6 +26,7 @@ class Settings:
     premium_price_usd_cents: int = DEFAULT_PREMIUM_PRICE_USD_CENTS
     premium_trial_days: int = DEFAULT_PREMIUM_TRIAL_DAYS
     feedback_username: str | None = None
+    channel_id: str | None = None
 
 
 def load_settings() -> Settings:
@@ -86,6 +87,9 @@ def load_settings() -> Settings:
         else DEFAULT_PREMIUM_TRIAL_DAYS
     )
 
+    channel_id_raw = os.getenv("CHANNEL_ID", "").strip() or os.getenv("TELEGRAM_CHANNEL_ID", "").strip()
+    channel_id = channel_id_raw or "@AstroPulse_Channel"
+
     return Settings(
         bot_token=bot_token,
         proxy_url=proxy_url,
@@ -98,4 +102,5 @@ def load_settings() -> Settings:
         premium_price_usd_cents=premium_price_usd_cents,
         premium_trial_days=premium_trial_days,
         feedback_username=feedback_username,
+        channel_id=channel_id,
     )

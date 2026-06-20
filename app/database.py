@@ -49,6 +49,7 @@ class UserProfile:
     ref_code: Optional[str]
     referrer_id: Optional[int]
     ref_bonus_count: int
+    channel_verified: bool = False
 
 
 @dataclass
@@ -187,6 +188,7 @@ class Database:
                 "start_source": "TEXT",
                 "created_at": "TEXT",
                 "last_active_at": "TEXT",
+                "channel_verified": "INTEGER DEFAULT 0",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
@@ -289,6 +291,22 @@ class Database:
                     await db.execute(
                         "INSERT INTO schema_migrations (name) VALUES (?)",
                         ("backfill_last_active_at",),
+                    )
+            async with db.execute(
+                "SELECT 1 FROM schema_migrations WHERE name = ?",
+                ("backfill_channel_verified",),
+            ) as cursor:
+                if await cursor.fetchone() is None:
+                    await db.execute(
+                        """
+                        UPDATE users
+                        SET channel_verified = 1
+                        WHERE sign IS NOT NULL AND sign != ''
+                        """
+                    )
+                    await db.execute(
+                        "INSERT INTO schema_migrations (name) VALUES (?)",
+                        ("backfill_channel_verified",),
                     )
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_users_last_active_at ON users(last_active_at)"
@@ -494,6 +512,9 @@ class Database:
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
+                    channel_verified=bool(
+                        row["channel_verified"] if row["channel_verified"] is not None else 0
+                    ),
                 )
                 return await self._sync_user_sign(profile)
 
@@ -721,9 +742,20 @@ class Database:
                     ref_code=row["ref_code"],
                     referrer_id=row["referrer_id"],
                     ref_bonus_count=row["ref_bonus_count"] or 0,
+                    channel_verified=bool(
+                        row["channel_verified"] if row["channel_verified"] is not None else 0
+                    ),
                 )
             )
         return result
+
+    async def set_channel_verified(self, user_id: int, *, verified: bool = True) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET channel_verified = ? WHERE user_id = ?",
+                (1 if verified else 0, user_id),
+            )
+            await db.commit()
 
     async def _profiles_from_rows(self, rows: list) -> list[UserProfile]:
         synced: list[UserProfile] = []

@@ -2,16 +2,24 @@
 from datetime import datetime, timezone
 
 from aiogram import Bot, F
-from aiogram.enums import ParseMode
+from aiogram.enums import MessageOriginType, ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.admin_alerts import notify_admins
 from app.bot_context import admin_router, db, settings
+from app.channel_posting import channel_configured, channel_env_value, send_channel_text
 from app.error_reporting import report_error
 from app.i18n import t
-from app.keyboards import admin_panel_keyboard, admin_users_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
+from app.keyboards import (
+    admin_panel_keyboard,
+    admin_users_keyboard,
+    broadcast_confirm_keyboard,
+    breadcrumb,
+    channel_post_confirm_keyboard,
+    home_panel_keyboard,
+)
 from app.premium import format_premium_until
 from app.services.admin_users import build_admin_users_page
 from app.services.home import build_admin_activity_text, build_admin_stats_text, build_home_panel_text
@@ -88,6 +96,44 @@ async def build_stars_report_text(bot: Bot, locale: str) -> str:
         return t(locale, "stars_error", error=str(exc))
 
 
+def _extract_forwarded_channel(message: Message) -> tuple[int, str | None, str | None] | None:
+    origin = message.forward_origin
+    if origin is not None and origin.type == MessageOriginType.CHANNEL:
+        chat = origin.chat
+        return chat.id, chat.username, chat.title
+    forward_chat = message.forward_from_chat
+    if forward_chat is not None and forward_chat.type == "channel":
+        return forward_chat.id, forward_chat.username, forward_chat.title
+    return None
+
+
+async def _send_channel_test(bot: Bot, locale: str) -> str:
+    if not channel_configured():
+        return t(locale, "channel_not_configured")
+    text = (
+        "🌙 <b>Тест публикации AstroPulse</b>\n\n"
+        "Если видишь этот пост — бот подключён к каналу и может публиковать автоматически.\n\n"
+        "Развлекательный контент, не замена консультации специалиста."
+    )
+    try:
+        await send_channel_text(bot, text, with_bot_button=True)
+        return t(locale, "channel_test_ok")
+    except Exception as exc:
+        return t(locale, "channel_test_fail", error=str(exc))
+
+
+async def _publish_channel_post(bot: Bot, locale: str, payload: str) -> str:
+    if not channel_configured():
+        return t(locale, "channel_not_configured")
+    if not payload.strip():
+        return t(locale, "channel_post_usage")
+    try:
+        await send_channel_text(bot, payload.strip(), with_bot_button=True)
+        return t(locale, "channel_post_ok")
+    except Exception as exc:
+        return t(locale, "channel_post_fail", error=str(exc))
+
+
 async def _send_admin_users(
     *,
     message: Message | None = None,
@@ -101,6 +147,155 @@ async def _send_admin_users(
         await render_inline_panel(callback, text, keyboard)
     elif message is not None:
         await message.answer(text, reply_markup=keyboard)
+
+
+@admin_router.message(Command("channeltest"))
+async def channeltest_handler(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    result = await _send_channel_test(bot, locale)
+    if result == t(locale, "channel_test_ok"):
+        await db.log_event(user.id, "channel_test_ok")
+    else:
+        await db.log_event(user.id, "channel_test_fail")
+    await message.answer(result, reply_markup=admin_panel_keyboard(locale))
+
+
+@admin_router.message(Command("channelpost"))
+async def channelpost_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    if not channel_configured():
+        await message.answer(t(locale, "channel_not_configured"), reply_markup=admin_panel_keyboard(locale))
+        return
+
+    raw_text = message.text or ""
+    payload = raw_text[len("/channelpost") :].strip() if raw_text.startswith("/channelpost") else ""
+    if not payload:
+        await state.set_state(AdminPanel.waiting_channel_post_text)
+        await message.answer(
+            f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_prompt')}",
+            reply_markup=admin_panel_keyboard(locale),
+        )
+        return
+
+    await state.update_data(channel_post_payload=payload)
+    await state.set_state(AdminPanel.waiting_channel_post_confirm)
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'broadcast_preview', text=payload)}",
+        reply_markup=admin_panel_keyboard(locale),
+    )
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
+        reply_markup=channel_post_confirm_keyboard(locale),
+    )
+
+
+@admin_router.message(F.forward_origin | F.forward_from_chat)
+async def channel_id_from_forward_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    forwarded = _extract_forwarded_channel(message)
+    if forwarded is None:
+        return
+    chat_id, username, _title = forwarded
+    locale = await get_user_locale(user.id)
+    env_value = channel_env_value(chat_id, username)
+    username_label = f"@{username}" if username else "—"
+    await message.answer(
+        t(
+            locale,
+            "channel_id_detected",
+            chat_id=str(chat_id),
+            username=username_label,
+            env_value=env_value,
+        ),
+        reply_markup=admin_panel_keyboard(locale),
+    )
+
+
+@admin_router.message(AdminPanel.waiting_channel_post_text)
+async def admin_channel_post_input_handler(message: Message, state: FSMContext) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    payload = (message.text or "").strip()
+    if not payload:
+        await message.answer(t(locale, "channel_post_usage"), reply_markup=admin_panel_keyboard(locale))
+        return
+
+    await state.update_data(channel_post_payload=payload)
+    await state.set_state(AdminPanel.waiting_channel_post_confirm)
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'broadcast_preview', text=payload)}",
+        reply_markup=admin_panel_keyboard(locale),
+    )
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
+        reply_markup=channel_post_confirm_keyboard(locale),
+    )
+
+
+@admin_router.message(AdminPanel.waiting_channel_post_confirm)
+async def admin_channel_post_waiting_confirm(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await message.answer(
+        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
+        reply_markup=channel_post_confirm_keyboard(locale),
+    )
+
+
+@admin_router.callback_query(F.data == "admin:channel_cancel")
+async def admin_channel_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    await state.clear()
+    await callback.answer()
+    if callback.message:
+        await render_inline_panel(
+            callback,
+            t(locale, "broadcast_cancelled"),
+            admin_panel_keyboard(locale),
+        )
+
+
+@admin_router.callback_query(F.data == "admin:channel_confirm")
+async def admin_channel_confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user = callback.from_user
+    if user is None or callback.message is None:
+        return
+    locale = await get_user_locale(user.id)
+    data = await state.get_data()
+    payload = (data.get("channel_post_payload") or "").strip()
+    if not payload:
+        await state.clear()
+        await callback.answer()
+        await render_inline_panel(
+            callback,
+            t(locale, "channel_post_usage"),
+            admin_panel_keyboard(locale),
+        )
+        return
+
+    result = await _publish_channel_post(callback.message.bot, locale, payload)
+    if result == t(locale, "channel_post_ok"):
+        await db.log_event(user.id, "channel_post_ok")
+    else:
+        await db.log_event(user.id, "channel_post_fail")
+    await state.clear()
+    await callback.answer()
+    await render_inline_panel(callback, result, admin_panel_keyboard(locale))
 
 
 @admin_router.message(Command("users"))
@@ -419,6 +614,21 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
         await render_inline_panel(
             callback,
             f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'admin_broadcast_prompt')}",
+            admin_panel_keyboard(locale),
+        )
+        return
+    if action == "channel":
+        if not channel_configured():
+            await render_inline_panel(
+                callback,
+                t(locale, "channel_not_configured"),
+                admin_panel_keyboard(locale),
+            )
+            return
+        await state.set_state(AdminPanel.waiting_channel_post_text)
+        await render_inline_panel(
+            callback,
+            f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_prompt')}",
             admin_panel_keyboard(locale),
         )
         return

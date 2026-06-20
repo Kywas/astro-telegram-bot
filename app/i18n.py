@@ -275,6 +275,18 @@ TEXTS = {
         "stats_errors_line": "• {time} UTC · {source}: {error_type} — {message}",
         "stats_errors_empty": "• Записей нет",
         "home_ref_promo": "👥 Приведи друга — +7 дней Premium",
+        "channel_subscribe_required": (
+            "📢 Чтобы пользоваться ботом, подпишись на канал AstroPulse.\n\n"
+            "Там гороскопы, луна и короткие посты без воды — раз в неделю хватит и для настроения.\n\n"
+            "1. Нажми «Подписаться»\n"
+            "2. Вернись сюда и нажми «Я подписался — проверить»"
+        ),
+        "channel_subscribe_btn": "📢 Подписаться на канал",
+        "channel_check_btn": "✅ Я подписался — проверить",
+        "channel_subscribed_ok": "Подписка подтверждена! Продолжаем регистрацию.",
+        "channel_not_subscribed": "Подписка не найдена. Подпишись на канал и нажми «Проверить» ещё раз.",
+        "channel_check_error": "Не удалось проверить подписку. Убедись, что бот — админ канала.",
+        "channel_gate_blocked": "Сначала подпишись на канал AstroPulse — без этого бот не откроется.",
         "admin_only": "Эта команда доступна только администратору.",
         "premium_active": "Premium активен до {until}.",
         "premium_inactive": "Premium не активен. Сейчас доступен базовый режим.",
@@ -313,6 +325,27 @@ TEXTS = {
         "grant_done": "Premium выдан пользователю {user_id} на {days} дн.",
         "broadcast_usage": "Используй: /broadcast текст сообщения",
         "broadcast_done": "Рассылка завершена. Успешно: {ok}, ошибок: {fail}",
+        "channel_not_configured": (
+            "Канал не настроен.\n\n"
+            "1. Перешли любой пост из канала сюда — бот покажет ID.\n"
+            "2. Добавь в .env: CHANNEL_ID=@username или -100...\n"
+            "3. Перезапусти бота."
+        ),
+        "channel_id_detected": (
+            "ID канала: {chat_id}\n"
+            "Username: {username}\n\n"
+            "Добавь в .env:\n"
+            "CHANNEL_ID={env_value}\n\n"
+            "Перезапусти бота и проверь /channeltest"
+        ),
+        "channel_test_ok": "✅ Тестовый пост отправлен в канал.",
+        "channel_test_fail": "❌ Не удалось отправить в канал: {error}",
+        "channel_post_ok": "✅ Пост опубликован в канале.",
+        "channel_post_fail": "❌ Не удалось опубликовать: {error}",
+        "channel_post_prompt": "Введи текст поста для канала:",
+        "channel_post_confirm_title": "Опубликовать этот пост в канале?",
+        "channel_post_usage": "Используй: /channelpost текст поста",
+        "admin_btn_channel": "📢 Канал",
         "ping_text": "Сервис работает. UTC: {utc}\n{alerts_line}",
         "ping_alerts_ok": "Алерты: настроено {count} админ(ов), ты в списке",
         "ping_alerts_missing_env": "Алерты: ADMIN_IDS пуст — стартовые уведомления не отправляются",
@@ -726,6 +759,18 @@ TEXTS = {
         "stats_errors_line": "• {time} UTC · {source}: {error_type} — {message}",
         "stats_errors_empty": "• No entries",
         "home_ref_promo": "👥 Invite a friend — +7 days Premium",
+        "channel_subscribe_required": (
+            "📢 Subscribe to the AstroPulse channel to use the bot.\n\n"
+            "Horoscopes, moon tips, and short useful posts — no fluff.\n\n"
+            "1. Tap «Subscribe»\n"
+            "2. Come back and tap «I'm subscribed — check»"
+        ),
+        "channel_subscribe_btn": "📢 Subscribe to channel",
+        "channel_check_btn": "✅ I'm subscribed — check",
+        "channel_subscribed_ok": "Subscription confirmed! Let's continue.",
+        "channel_not_subscribed": "Subscription not found. Join the channel and tap «Check» again.",
+        "channel_check_error": "Could not verify subscription. Ensure the bot is a channel admin.",
+        "channel_gate_blocked": "Subscribe to AstroPulse first — the bot stays locked until then.",
         "admin_only": "This command is available to admin only.",
         "premium_active": "Premium active until {until}.",
         "premium_inactive": "Premium is not active. You are using base mode.",
@@ -764,6 +809,27 @@ TEXTS = {
         "grant_done": "Premium granted to user {user_id} for {days} days.",
         "broadcast_usage": "Use: /broadcast message text",
         "broadcast_done": "Broadcast finished. Success: {ok}, failed: {fail}",
+        "channel_not_configured": (
+            "Channel is not configured.\n\n"
+            "1. Forward any channel post here — the bot will show the ID.\n"
+            "2. Add to .env: CHANNEL_ID=@username or -100...\n"
+            "3. Restart the bot."
+        ),
+        "channel_id_detected": (
+            "Channel ID: {chat_id}\n"
+            "Username: {username}\n\n"
+            "Add to .env:\n"
+            "CHANNEL_ID={env_value}\n\n"
+            "Restart the bot and run /channeltest"
+        ),
+        "channel_test_ok": "✅ Test post sent to the channel.",
+        "channel_test_fail": "❌ Failed to post to channel: {error}",
+        "channel_post_ok": "✅ Post published to the channel.",
+        "channel_post_fail": "❌ Failed to publish: {error}",
+        "channel_post_prompt": "Enter the channel post text:",
+        "channel_post_confirm_title": "Publish this post to the channel?",
+        "channel_post_usage": "Use: /channelpost post text",
+        "admin_btn_channel": "📢 Channel",
         "ping_text": "Service is up. UTC: {utc}\n{alerts_line}",
         "ping_alerts_ok": "Alerts: {count} admin(s) configured, you are listed",
         "ping_alerts_missing_env": "Alerts: ADMIN_IDS is empty — startup notifications are disabled",
