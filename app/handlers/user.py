@@ -1413,7 +1413,33 @@ async def _ensure_natal_qa_answer_access(
     return False
 
 
-@router.callback_query(F.data.startswith("weekly:"))
+@router.callback_query(F.data.startswith("weekly:menu:"))
+async def weekly_digest_menu_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3:
+        await callback.answer()
+        return
+
+    theme_id = parts[2]
+    slot = parts[3] if len(parts) > 3 and parts[3] == "friday" else "monday"
+    theme = theme_by_id(theme_id)
+    if theme is None:
+        await callback.answer()
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    chart = build_chart_from_profile(profile) if profile else None
+    await callback.answer()
+    text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
+    await edit_or_send(callback, text, inline_keyboard=weekly_digest_keyboard(locale, theme))
+
+
+@router.callback_query(F.data.startswith("weekly:") & ~F.data.startswith("weekly:menu:"))
 async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
     user = callback.from_user
     if user is None:
@@ -1485,32 +1511,6 @@ async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
     )
     text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
     await edit_or_send(callback, text, inline_keyboard=keyboard)
-
-
-@router.callback_query(F.data.startswith("weekly:menu:"))
-async def weekly_digest_menu_handler(callback: CallbackQuery) -> None:
-    user = callback.from_user
-    if user is None:
-        return
-
-    parts = (callback.data or "").split(":")
-    if len(parts) < 3:
-        await callback.answer()
-        return
-
-    theme_id = parts[2]
-    slot = parts[3] if len(parts) > 3 and parts[3] == "friday" else "monday"
-    theme = theme_by_id(theme_id)
-    if theme is None:
-        await callback.answer()
-        return
-
-    locale = await get_user_locale(user.id)
-    profile = await db.get_user(user.id)
-    chart = build_chart_from_profile(profile) if profile else None
-    await callback.answer()
-    text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
-    await edit_or_send(callback, text, inline_keyboard=weekly_digest_keyboard(locale, theme))
 
 
 @router.callback_query(F.data.startswith("natal:qa:"))
