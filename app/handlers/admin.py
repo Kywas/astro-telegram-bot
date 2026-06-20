@@ -1,5 +1,4 @@
 """Admin commands and panel."""
-import asyncio
 from datetime import datetime, timezone
 
 from aiogram import Bot, F
@@ -254,31 +253,28 @@ async def channelpublishall_handler(message: Message, bot: Bot) -> None:
         await message.answer(t(locale, "channel_not_configured"), reply_markup=admin_panel_keyboard(locale))
         return
 
-    slugs = list_post_slugs()
+    from app.channel_bulk_publish import bulk_publish_slugs, publish_all_channel_posts
+
+    slugs = bulk_publish_slugs()
     if not slugs:
         await message.answer("Нет постов в marketing/channel/posts/", reply_markup=admin_panel_keyboard(locale))
         return
 
-    await message.answer(f"Публикую {len(slugs)} постов в канал…", reply_markup=admin_panel_keyboard(locale))
-    ok = 0
-    fail = 0
-    failures: list[str] = []
-    for slug in slugs:
-        try:
-            bundle = load_post_bundle(slug)
-            await send_channel_animation(bot, bundle.gif_path, bundle.caption)
-            ok += 1
-            await asyncio.sleep(2)
-        except Exception as exc:
-            fail += 1
-            failures.append(f"{slug}: {exc}")
+    await message.answer(
+        f"Публикую {len(slugs)} постов в канал…\n"
+        f"Между GIF — пауза ~6 сек, при лимите Telegram жду и повторяю.",
+        reply_markup=admin_panel_keyboard(locale),
+    )
+    report = await publish_all_channel_posts(bot, slugs=slugs)
 
-    lines = [f"✅ Опубликовано: {ok}", f"❌ Ошибок: {fail}"]
-    if failures:
+    lines = [f"✅ Опубликовано: {report.ok}", f"❌ Ошибок: {report.fail}"]
+    if report.failures:
         lines.append("")
-        lines.extend(f"• {line}" for line in failures[:8])
+        lines.extend(f"• {line}" for line in report.failures[:8])
+        if report.fail > 8:
+            lines.append(f"• … и ещё {report.fail - 8}")
     await message.answer("\n".join(lines), reply_markup=admin_panel_keyboard(locale))
-    await db.log_event(user.id, f"channel_publish_all:ok={ok}:fail={fail}")
+    await db.log_event(user.id, f"channel_publish_all:ok={report.ok}:fail={report.fail}")
 
 
 @admin_router.message(Command("channelschedule"))

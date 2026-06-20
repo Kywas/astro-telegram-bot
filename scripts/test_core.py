@@ -1289,6 +1289,7 @@ def main() -> None:
     test_weekly_digest()
     test_channel_posting()
     test_channel_scheduler()
+    test_channel_bulk_publish()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 
@@ -1341,6 +1342,15 @@ def test_channel_scheduler() -> None:
     assert len(plan) == 3
     assert plan[0][0] == "morning" and plan[0][1] == "08:30"
     assert plan[2][0] == "evening" and plan[2][1] == "19:30"
+
+
+def test_channel_bulk_publish() -> None:
+    from app.channel_bulk_publish import DEFAULT_PAUSE_SECONDS, MAX_FLOOD_RETRIES, bulk_publish_slugs
+
+    slugs = bulk_publish_slugs()
+    assert len(slugs) >= 10
+    assert DEFAULT_PAUSE_SECONDS >= 6.0
+    assert MAX_FLOOD_RETRIES >= 5
 
 
 if __name__ == "__main__":
