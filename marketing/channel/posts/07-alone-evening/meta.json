@@ -1,0 +1,15 @@
+{
+  "slug": "alone-evening",
+  "rubric": "😶 Когда одиноко",
+  "day": "sunday",
+  "status": "draft",
+  "gif": {
+    "glow_rgb": [160, 190, 255],
+    "sparkle_rgb": [230, 235, 255],
+    "aurora_rgb": [190, 160, 240],
+    "center_y": 0.46,
+    "breath": 0.02,
+    "sparkle_anchor": [0.5, 0.5]
+  },
+  "tags": ["loneliness", "self-worth", "support"]
+}

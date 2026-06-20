@@ -1,0 +1,15 @@
+{
+  "slug": "after-fight",
+  "rubric": "💔 После ссоры",
+  "day": "wednesday",
+  "status": "draft",
+  "gif": {
+    "glow_rgb": [255, 150, 150],
+    "sparkle_rgb": [255, 220, 210],
+    "aurora_rgb": [200, 150, 240],
+    "center_y": 0.44,
+    "breath": 0.018,
+    "sparkle_anchor": [0.48, 0.48]
+  },
+  "tags": ["conflict", "repair", "relationships"]
+}
