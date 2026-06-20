@@ -176,6 +176,8 @@ from app.user_location import current_location_label
 from app.weekly_digest import (
     build_weekly_block_answer,
     build_weekly_post_text,
+    parse_weekly_block_callback,
+    parse_weekly_menu_callback,
     theme_by_id,
     weekly_digest_keyboard,
 )
@@ -1420,12 +1422,12 @@ async def weekly_digest_menu_handler(callback: CallbackQuery) -> None:
         return
 
     parts = (callback.data or "").split(":")
-    if len(parts) < 3:
+    parsed = parse_weekly_menu_callback(parts)
+    if parsed is None:
         await callback.answer()
         return
 
-    theme_id = parts[2]
-    slot = parts[3] if len(parts) > 3 and parts[3] == "friday" else "monday"
+    theme_id, slot, edition = parsed
     theme = theme_by_id(theme_id)
     if theme is None:
         await callback.answer()
@@ -1436,7 +1438,7 @@ async def weekly_digest_menu_handler(callback: CallbackQuery) -> None:
     chart = build_chart_from_profile(profile) if profile else None
     await callback.answer()
     text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
-    await edit_or_send(callback, text, inline_keyboard=weekly_digest_keyboard(locale, theme))
+    await edit_or_send(callback, text, inline_keyboard=weekly_digest_keyboard(locale, theme, edition=edition))
 
 
 @router.callback_query(F.data.startswith("weekly:") & ~F.data.startswith("weekly:menu:"))
@@ -1446,19 +1448,21 @@ async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
         return
 
     parts = (callback.data or "").split(":")
-    if len(parts) < 3:
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    tz = profile.timezone if profile and profile.timezone else "Europe/Moscow"
+    date_key = user_local_date_key(datetime.now(timezone.utc), tz)
+    parsed = parse_weekly_block_callback(parts, for_date_key=date_key)
+    if parsed is None:
         await callback.answer()
         return
 
-    theme_id = parts[1]
-    block_id = parts[2]
+    theme_id, block_id, edition = parsed
     theme = theme_by_id(theme_id)
     if theme is None:
         await callback.answer()
         return
 
-    locale = await get_user_locale(user.id)
-    profile = await db.get_user(user.id)
     if profile is None or profile.birth_date is None or not profile.sign:
         await callback.answer()
         await edit_or_send(
@@ -1491,13 +1495,15 @@ async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
         await edit_or_send(
             callback,
             f"{t(locale, 'premium_required_weekly_qa')}\n\n{t(locale, 'premium_features')}",
-            inline_keyboard=premium_upsell_keyboard(locale, back_data=f"weekly:menu:{theme_id}"),
+            inline_keyboard=premium_upsell_keyboard(
+                locale, back_data=f"weekly:menu:{theme_id}:{edition}"
+            ),
         )
         return
 
     style = profile.natal_style or "plain"
     answer = build_weekly_block_answer(
-        theme_id, block_id, chart, locale, style=style, profile=profile
+        theme_id, block_id, chart, locale, style=style, profile=profile, edition=edition
     )
     if answer is None:
         await callback.answer()
@@ -1505,9 +1511,9 @@ async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
 
     await callback.answer()
     back_label = "⬅️ К блокам" if locale == "ru" else "⬅️ Back to blocks"
-    keyboard = weekly_digest_keyboard(locale, theme)
+    keyboard = weekly_digest_keyboard(locale, theme, edition=edition)
     keyboard.inline_keyboard.append(
-        [InlineKeyboardButton(text=back_label, callback_data=f"weekly:menu:{theme_id}")]
+        [InlineKeyboardButton(text=back_label, callback_data=f"weekly:menu:{theme_id}:{edition}")]
     )
     text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
     await edit_or_send(callback, text, inline_keyboard=keyboard)

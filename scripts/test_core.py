@@ -1021,14 +1021,34 @@ def test_weekly_digest() -> None:
         build_weekly_friday_post_text,
         build_weekly_post_text,
         theme_for_date,
+        weekly_block_route,
         weekly_digest_keyboard,
         weekly_profile_banner,
+        weekly_question_edition,
     )
 
     theme = theme_for_date("2026-06-22")
     assert theme.theme_id == "love_week"
     assert theme_for_date("2026-06-20").theme_id == "health_madness"
     assert theme_for_date("2026-06-29").theme_id == "money_week"
+
+    assert weekly_question_edition("2026-06-22") == 0
+    assert weekly_question_edition("2026-06-29") == 0
+    assert weekly_question_edition("2026-07-20") == 1
+    assert weekly_question_edition("2026-08-17") == 2
+    assert weekly_question_edition("2026-09-14") == 0
+
+    assert weekly_block_route("health_madness", "madness", 0) == ("traits", 1)
+    assert weekly_block_route("health_madness", "madness", 1) == ("traits", 0)
+    assert weekly_block_route("health_madness", "madness", 2) == ("traits", 4)
+    assert weekly_block_route("love_week", "home", 1) == ("lineage", 3)
+
+    routes_w0 = {weekly_block_route("health_madness", b.block_id, 0) for b in theme_for_date("2026-06-20").blocks}
+    routes_w1 = {weekly_block_route("health_madness", b.block_id, 1) for b in theme_for_date("2026-06-20").blocks}
+    assert routes_w0.isdisjoint(routes_w1)
+
+    kb = weekly_digest_keyboard("ru", theme, edition=1)
+    assert kb.inline_keyboard[0][0].callback_data.endswith(":1")
 
     text = build_weekly_post_text("ru", theme)
     assert "безумия" in text.lower() or "любов" in text.lower() or "деньг" in text.lower() or "карм" in text.lower()
@@ -1099,6 +1119,7 @@ def test_weekly_digest() -> None:
     kb = weekly_digest_keyboard("ru", theme)
     assert len(kb.inline_keyboard) == 3
     assert kb.inline_keyboard[0][0].callback_data.startswith("weekly:")
+    assert kb.inline_keyboard[0][0].callback_data.endswith(":0")
 
     monday_moscow = datetime(2026, 6, 15, 8, 0, tzinfo=timezone.utc)
     assert user_local_weekday(monday_moscow, "Europe/Moscow") == 0

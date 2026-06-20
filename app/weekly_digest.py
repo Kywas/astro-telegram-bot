@@ -75,20 +75,75 @@ _WEEKLY_FRIDAY_BODY: dict[str, tuple[str, str]] = {
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _WEEKLY_MEDIA_DIR = _PROJECT_ROOT / "marketing" / "weekly"
 
-# (theme_id, block_id) -> (builder_name, question_index)
+# (theme_id, block_id) -> up to 3 editions × (builder, question_index); cycles every ~12 weeks.
+_WEEKLY_BLOCK_POOLS: dict[tuple[str, str], tuple[tuple[str, int], ...]] = {
+    ("health_madness", "madness"): (
+        ("traits", 1),
+        ("traits", 0),
+        ("traits", 4),
+    ),
+    ("health_madness", "mental"): (
+        ("traits", 2),
+        ("traits", 3),
+        ("health", 1),
+    ),
+    ("health_madness", "body"): (
+        ("health", 0),
+        ("health", 2),
+        ("health", 4),
+    ),
+    ("love_week", "bond"): (
+        ("family", 0),
+        ("family", 2),
+        ("family", 4),
+    ),
+    ("love_week", "partner"): (
+        ("family", 1),
+        ("family", 0),
+        ("family", 2),
+    ),
+    ("love_week", "home"): (
+        ("family", 3),
+        ("lineage", 3),
+        ("family", 4),
+    ),
+    ("money_week", "values"): (
+        ("finance", 0),
+        ("finance", 3),
+        ("finance", 2),
+    ),
+    ("money_week", "career"): (
+        ("finance", 1),
+        ("finance", 0),
+        ("finance", 3),
+    ),
+    ("money_week", "blocks"): (
+        ("finance", 4),
+        ("finance", 2),
+        ("finance", 1),
+    ),
+    ("karma_week", "theme"): (
+        ("karma", 0),
+        ("karma", 4),
+        ("karma", 3),
+    ),
+    ("karma_week", "past"): (
+        ("karma", 1),
+        ("karma", 3),
+        ("karma", 0),
+    ),
+    ("karma_week", "lesson"): (
+        ("karma", 2),
+        ("karma", 4),
+        ("karma", 1),
+    ),
+}
+
+WEEKLY_QUESTION_EDITIONS = 3
+
+# Legacy fixed routes (edition 0 only) — kept for tests referencing old structure.
 _ANSWER_ROUTES: dict[tuple[str, str], tuple[str, int]] = {
-    ("health_madness", "madness"): ("traits", 1),
-    ("health_madness", "mental"): ("traits", 2),
-    ("health_madness", "body"): ("health", 0),
-    ("love_week", "bond"): ("family", 0),
-    ("love_week", "partner"): ("family", 1),
-    ("love_week", "home"): ("family", 3),
-    ("money_week", "values"): ("finance", 0),
-    ("money_week", "career"): ("finance", 1),
-    ("money_week", "blocks"): ("finance", 4),
-    ("karma_week", "theme"): ("karma", 0),
-    ("karma_week", "past"): ("karma", 1),
-    ("karma_week", "lesson"): ("karma", 2),
+    key: pool[0] for key, pool in _WEEKLY_BLOCK_POOLS.items()
 }
 
 
@@ -233,6 +288,70 @@ def theme_for_date(for_date_key: str) -> WeeklyTheme:
 
 def launch_theme() -> WeeklyTheme:
     return WEEKLY_THEMES[0]
+
+
+def schedule_week_index(for_date_key: str) -> int:
+    """Mondays since regular schedule started (0 on first schedule Monday)."""
+    epoch = date.fromisoformat(WEEKLY_DIGEST_SCHEDULE_MONDAY)
+    week_monday = _monday_of_week(for_date_key)
+    if week_monday < epoch:
+        return -1
+    return (week_monday - epoch).days // 7
+
+
+def weekly_question_edition(for_date_key: str) -> int:
+    """0..2 — rotates every 4 theme weeks (~12 weeks / 3 months)."""
+    if for_date_key in {"launch", ""}:
+        return 0
+    try:
+        date.fromisoformat(for_date_key)
+    except ValueError:
+        return 0
+    weeks = schedule_week_index(for_date_key)
+    if weeks < 0:
+        return 0
+    return (weeks // len(WEEKLY_THEMES)) % WEEKLY_QUESTION_EDITIONS
+
+
+def weekly_block_route(
+    theme_id: str,
+    block_id: str,
+    edition: int,
+) -> tuple[str, int] | None:
+    pool = _WEEKLY_BLOCK_POOLS.get((theme_id, block_id))
+    if not pool:
+        return None
+    return pool[edition % len(pool)]
+
+
+def parse_weekly_menu_callback(parts: list[str]) -> tuple[str, str, int] | None:
+    if len(parts) < 3 or parts[1] != "menu":
+        return None
+    theme_id = parts[2]
+    slot = "monday"
+    edition = 0
+    for token in parts[3:]:
+        if token == "friday":
+            slot = "friday"
+        elif token.isdigit():
+            edition = int(token) % WEEKLY_QUESTION_EDITIONS
+    return theme_id, slot, edition
+
+
+def parse_weekly_block_callback(
+    parts: list[str],
+    *,
+    for_date_key: str,
+) -> tuple[str, str, int] | None:
+    if len(parts) < 3:
+        return None
+    theme_id = parts[1]
+    block_id = parts[2]
+    if len(parts) > 3 and parts[3].isdigit():
+        edition = int(parts[3]) % WEEKLY_QUESTION_EDITIONS
+    else:
+        edition = weekly_question_edition(for_date_key)
+    return theme_id, block_id, edition
 
 
 def theme_by_id(theme_id: str) -> WeeklyTheme | None:
@@ -427,13 +546,19 @@ def build_weekly_friday_post_text(
     return p(*parts)
 
 
-def weekly_digest_keyboard(locale: str, theme: WeeklyTheme) -> InlineKeyboardMarkup:
+def weekly_digest_keyboard(
+    locale: str,
+    theme: WeeklyTheme,
+    *,
+    edition: int = 0,
+) -> InlineKeyboardMarkup:
     lang = _lang(locale)
+    ed = edition % WEEKLY_QUESTION_EDITIONS
     rows = [
         [
             InlineKeyboardButton(
                 text=block.label_ru if lang == "ru" else block.label_en,
-                callback_data=f"weekly:{theme.theme_id}:{block.block_id}",
+                callback_data=f"weekly:{theme.theme_id}:{block.block_id}:{ed}",
             )
         ]
         for block in theme.blocks
@@ -450,9 +575,10 @@ async def send_weekly_digest_message(
     profile=None,
     chart: "JyotishChart | None" = None,
     slot: str = "monday",
+    edition: int = 0,
 ) -> None:
     text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
-    keyboard = weekly_digest_keyboard(locale, theme)
+    keyboard = weekly_digest_keyboard(locale, theme, edition=edition)
     media = _media_path(theme)
     if media is None:
         await send_formatted_message(bot, user_id, text, reply_markup=keyboard)
@@ -488,8 +614,9 @@ def build_weekly_block_answer(
     *,
     style: str,
     profile=None,
+    edition: int = 0,
 ) -> str | None:
-    route = _ANSWER_ROUTES.get((theme_id, block_id))
+    route = weekly_block_route(theme_id, block_id, edition)
     if route is None:
         return None
     builder_name, question_index = route
@@ -498,6 +625,7 @@ def build_weekly_block_answer(
         build_finance_answer,
         build_health_answer,
         build_karma_answer,
+        build_lineage_answer,
         build_traits_answer,
     )
 
@@ -507,6 +635,7 @@ def build_weekly_block_answer(
         "family": build_family_answer,
         "finance": build_finance_answer,
         "karma": build_karma_answer,
+        "lineage": build_lineage_answer,
     }
     builder = builders.get(builder_name)
     if builder is None:
@@ -584,6 +713,7 @@ async def _send_weekly_to_user(
             profile=user,
             chart=chart,
             slot=slot,
+            edition=weekly_question_edition(date_key),
         )
         await db.mark_daily_sent(user.user_id, period, date_key)
         await db.log_event(user.user_id, event_name)
