@@ -1125,6 +1125,9 @@ def admin_panel_keyboard(locale: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text=t(locale, "admin_btn_stats"), callback_data="admin:stats"),
+                InlineKeyboardButton(text=t(locale, "admin_btn_activity"), callback_data="admin:activity"),
+            ],
+            [
                 InlineKeyboardButton(text=t(locale, "admin_btn_stars"), callback_data="admin:stars"),
             ],
             [

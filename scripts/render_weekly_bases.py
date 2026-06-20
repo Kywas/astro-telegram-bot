@@ -376,12 +376,14 @@ def render_base(theme: BaseTheme) -> Path:
     return out
 
 
+PHOTO_BASE_SLUGS = frozenset({"health-madness", "love-week", "money-week", "karma-week"})
+
+
 def main() -> None:
     WEEKLY_DIR.mkdir(parents=True, exist_ok=True)
     for theme in THEMES:
-        if theme.slug == "health-madness":
-            # Realistic photo base — edit marketing/weekly/health-madness-base.png manually.
-            print(f"SKIP {theme.slug}-base.png (photographic asset)")
+        if theme.slug in PHOTO_BASE_SLUGS:
+            print(f"SKIP {theme.slug}-base.png (photographic asset in marketing/weekly/)")
             continue
         render_base(theme)
 

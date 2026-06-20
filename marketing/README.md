@@ -60,7 +60,8 @@
 |------|------------|
 | `post-1-intro.html` / `.png` | Знакомство с ботом |
 | `post-2-compat.html` / `.png` | Совместимость и Premium |
-| `mts-telegram-ad.html` / `.png` | Баннер 1280×720 для MTS / Telegram Ads |
+| **`ad-telegram-1280x720.png`** | **Реклама 1280×720 (новый макет)** |
+| `mts-telegram-ad.png` | Реклама 1280×720 (предыдущий макет) |
 | `posts-social.md` | Тексты постов под картинки |
 
 ### Экспорт PNG

@@ -318,7 +318,23 @@ TEXTS = {
         "ping_alerts_missing_env": "Алерты: ADMIN_IDS пуст — стартовые уведомления не отправляются",
         "ping_alerts_not_listed": "Алерты: ADMIN_IDS={ids}, твой id {user_id} не в списке",
         "admin_panel": "Админ-панель:",
+        "admin_activity_text": (
+            "📈 Реальная активность\n\n"
+            "Считаем только тех, кто сам написал боту или нажал кнопку.\n\n"
+            "Всего в базе: {total_users}\n"
+            "С заполненной картой: {onboarded_users}\n"
+            "Только /start, без карты: {started_only}\n\n"
+            "Пользовались ботом:\n"
+            "• за 24 ч: {active_24h} ({pct_24h}% от базы)\n"
+            "• за 7 дн.: {active_7d} ({pct_7d}%)\n"
+            "• за 30 дн.: {active_30d} ({pct_30d}% · {pct_onboarded_30d}% от с картой)\n\n"
+            "С картой, но молчат 30+ дн.: {dormant_30d}\n\n"
+            "Сделали действие (настроение, совместимость, настройки и т.д.):\n"
+            "• за 7 дн.: {engaged_7d}\n"
+            "• за 30 дн.: {engaged_30d}"
+        ),
         "admin_btn_stats": "📊 Stats",
+        "admin_btn_activity": "📈 Активность",
         "admin_btn_stars": "⭐ Stars",
         "admin_btn_broadcast": "📣 Broadcast",
         "admin_btn_grant": "🎁 Grant Premium",
@@ -753,7 +769,23 @@ TEXTS = {
         "ping_alerts_missing_env": "Alerts: ADMIN_IDS is empty — startup notifications are disabled",
         "ping_alerts_not_listed": "Alerts: ADMIN_IDS={ids}, your id {user_id} is not listed",
         "admin_panel": "Admin panel:",
+        "admin_activity_text": (
+            "📈 Real activity\n\n"
+            "Counts users who sent a message or tapped a button.\n\n"
+            "Total in database: {total_users}\n"
+            "With completed chart: {onboarded_users}\n"
+            "/start only, no chart: {started_only}\n\n"
+            "Used the bot:\n"
+            "• last 24h: {active_24h} ({pct_24h}% of total)\n"
+            "• last 7 days: {active_7d} ({pct_7d}%)\n"
+            "• last 30 days: {active_30d} ({pct_30d}% · {pct_onboarded_30d}% of chart users)\n\n"
+            "Chart users inactive 30+ days: {dormant_30d}\n\n"
+            "Meaningful actions (mood, compatibility, settings, etc.):\n"
+            "• last 7 days: {engaged_7d}\n"
+            "• last 30 days: {engaged_30d}"
+        ),
         "admin_btn_stats": "📊 Stats",
+        "admin_btn_activity": "📈 Activity",
         "admin_btn_stars": "⭐ Stars",
         "admin_btn_broadcast": "📣 Broadcast",
         "admin_btn_grant": "🎁 Grant Premium",

@@ -11,8 +11,24 @@ ROOT = Path(__file__).resolve().parent.parent
 WEEKLY_DIR = ROOT / "marketing" / "weekly"
 
 TARGET_WIDTH = 480
+TARGET_HEIGHT = 540
 FRAME_COUNT = 24
 FRAME_MS = 110
+
+
+def prepare_photo_base(source: Path, dest: Path) -> Path:
+    """Center-crop and resize a photographic base to Telegram weekly size."""
+    img = Image.open(source).convert("RGB")
+    w, h = img.size
+    scale = max(TARGET_WIDTH / w, TARGET_HEIGHT / h)
+    nw, nh = int(w * scale), int(h * scale)
+    img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    left = (nw - TARGET_WIDTH) // 2
+    top = (nh - TARGET_HEIGHT) // 2
+    img = img.crop((left, top, left + TARGET_WIDTH, top + TARGET_HEIGHT))
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    img.save(dest, optimize=True)
+    return dest
 
 
 @dataclass(frozen=True)
@@ -25,6 +41,7 @@ class WeeklyGifTheme:
     ring_rotate: float = 1.0
     breath: float = 0.05
     photo_base: bool = False
+    sparkle_anchor: tuple[float, float] = (0.5, 0.5)
 
 
 THEMES: tuple[WeeklyGifTheme, ...] = (
@@ -34,27 +51,39 @@ THEMES: tuple[WeeklyGifTheme, ...] = (
         (255, 230, 160),
         (190, 150, 255),
         center_y=0.48,
-        breath=0.025,
-        ring_rotate=0.35,
+        breath=0.022,
         photo_base=True,
+        sparkle_anchor=(0.36, 0.54),
     ),
     WeeklyGifTheme(
         "love-week",
-        (255, 120, 190),
-        (255, 240, 250),
-        (255, 160, 220),
+        (255, 160, 200),
+        (255, 220, 200),
+        (255, 120, 180),
+        center_y=0.45,
+        breath=0.02,
+        photo_base=True,
+        sparkle_anchor=(0.52, 0.46),
     ),
     WeeklyGifTheme(
         "money-week",
-        (120, 255, 170),
-        (255, 240, 180),
-        (80, 220, 140),
+        (255, 210, 120),
+        (255, 240, 200),
+        (120, 255, 180),
+        center_y=0.44,
+        breath=0.018,
+        photo_base=True,
+        sparkle_anchor=(0.42, 0.58),
     ),
     WeeklyGifTheme(
         "karma-week",
-        (180, 150, 255),
+        (190, 160, 255),
         (220, 240, 255),
-        (120, 200, 255),
+        (150, 180, 255),
+        center_y=0.46,
+        breath=0.02,
+        photo_base=True,
+        sparkle_anchor=(0.48, 0.52),
     ),
 )
 
@@ -63,9 +92,11 @@ def _load_base(source: Path) -> Image.Image:
     if not source.is_file():
         raise FileNotFoundError(f"Missing source image: {source}")
     img = Image.open(source).convert("RGBA")
-    ratio = TARGET_WIDTH / img.width
-    height = int(img.height * ratio)
-    return img.resize((TARGET_WIDTH, height), Image.Resampling.LANCZOS)
+    if img.size != (TARGET_WIDTH, TARGET_HEIGHT):
+        tmp = source.parent / f".{source.stem}-resized.png"
+        prepare_photo_base(source, tmp)
+        img = Image.open(tmp).convert("RGBA")
+    return img
 
 
 def _glow_overlay(
@@ -198,20 +229,22 @@ def _floating_sparkles(size: tuple[int, int], phase: float, theme: WeeklyGifThem
 
 
 def _photo_sparkle_pulse(size: tuple[int, int], phase: float, theme: WeeklyGifTheme) -> Image.Image:
-    """Subtle twinkle over the hand-light area on photographic bases."""
+    """Subtle twinkle on photographic bases — anchor per theme."""
     w, h = size
     layer = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    cx, cy = int(w * 0.38), int(h * 0.52)
+    ax, ay = theme.sparkle_anchor
+    cx, cy = int(w * ax), int(h * ay)
     sr, sg, sb = theme.sparkle_rgb
-    for idx, (dx, dy, speed) in enumerate(((0, 0, 1.0), (12, -8, 1.3), (-10, 6, 1.1), (18, 4, 1.5))):
+    offsets = ((0, 0, 1.0), (14, -10, 1.3), (-12, 8, 1.1), (20, 6, 1.5), (-8, -14, 1.2))
+    for idx, (dx, dy, speed) in enumerate(offsets):
         tw = 0.25 + 0.75 * abs(math.sin(phase * speed * 2 + idx))
         x = cx + dx + int(3 * math.sin(phase + idx))
         y = cy + dy + int(2 * math.cos(phase * 0.8 + idx))
         rad = 2 if tw < 0.55 else 3
-        alpha = int(120 * tw)
+        alpha = int(115 * tw)
         draw.ellipse((x - rad, y - rad, x + rad, y + rad), fill=(sr, sg, sb, alpha))
-        if tw > 0.7:
+        if tw > 0.72:
             draw.line((x - 4, y, x + 4, y), fill=(sr, sg, sb, alpha // 2), width=1)
             draw.line((x, y - 4, x, y + 4), fill=(sr, sg, sb, alpha // 2), width=1)
     return layer.filter(ImageFilter.GaussianBlur(radius=0.4))
@@ -242,9 +275,9 @@ def build_frames(base: Image.Image, theme: WeeklyGifTheme) -> list[Image.Image]:
     return frames
 
 
-def render_theme(theme: WeeklyGifTheme) -> Path:
-    source = WEEKLY_DIR / f"{theme.slug}-base.png"
-    output = WEEKLY_DIR / f"{theme.slug}.gif"
+def render_theme(theme: WeeklyGifTheme, *, edition: int = 0) -> Path:
+    source = WEEKLY_DIR / (f"{theme.slug}-base.png" if edition == 0 else f"{theme.slug}-e{edition}-base.png")
+    output = WEEKLY_DIR / (f"{theme.slug}.gif" if edition == 0 else f"{theme.slug}-e{edition}.gif")
     base = _load_base(source)
     frames = build_frames(base, theme)
     frames[0].save(
@@ -264,7 +297,14 @@ def render_theme(theme: WeeklyGifTheme) -> Path:
 def main() -> None:
     WEEKLY_DIR.mkdir(parents=True, exist_ok=True)
     for theme in THEMES:
-        render_theme(theme)
+        for edition in range(3):
+            source = WEEKLY_DIR / (
+                f"{theme.slug}-base.png" if edition == 0 else f"{theme.slug}-e{edition}-base.png"
+            )
+            if not source.is_file():
+                print(f"SKIP {theme.slug} e{edition} — missing {source.name}")
+                continue
+            render_theme(theme, edition=edition)
 
 
 if __name__ == "__main__":

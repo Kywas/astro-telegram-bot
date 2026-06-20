@@ -186,6 +186,7 @@ class Database:
                 "ref_bonus_count": "INTEGER DEFAULT 0",
                 "start_source": "TEXT",
                 "created_at": "TEXT",
+                "last_active_at": "TEXT",
             }
             for col_name, col_def in required_columns.items():
                 if col_name not in column_names:
@@ -263,6 +264,35 @@ class Database:
             for col_name, col_def in {"lat": "REAL", "lon": "REAL"}.items():
                 if col_name not in partner_columns:
                     await db.execute(f"ALTER TABLE partner_profiles ADD COLUMN {col_name} {col_def}")
+            async with db.execute(
+                "SELECT 1 FROM schema_migrations WHERE name = ?",
+                ("backfill_last_active_at",),
+            ) as cursor:
+                if await cursor.fetchone() is None:
+                    await db.execute(
+                        """
+                        UPDATE users
+                        SET last_active_at = (
+                            SELECT MAX(e.created_at)
+                            FROM events e
+                            WHERE e.user_id = users.user_id
+                              AND e.event_name NOT IN (
+                                  'daily_sent', 'daily_send_failed',
+                                  'evening_checkin_sent', 'evening_checkin_failed'
+                              )
+                              AND e.event_name NOT LIKE 'premium_reminder_%'
+                              AND e.event_name NOT LIKE 'weekly_digest_%'
+                        )
+                        WHERE last_active_at IS NULL
+                        """
+                    )
+                    await db.execute(
+                        "INSERT INTO schema_migrations (name) VALUES (?)",
+                        ("backfill_last_active_at",),
+                    )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_users_last_active_at ON users(last_active_at)"
+            )
             await db.execute("PRAGMA journal_mode=WAL")
             await db.execute("PRAGMA busy_timeout=5000")
             await db.commit()
@@ -970,6 +1000,102 @@ class Database:
             ) as cursor:
                 rows = await cursor.fetchall()
         return await self._profiles_from_rows(rows)
+
+    async def touch_user_activity(self, user_id: int) -> None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET last_active_at = ? WHERE user_id = ?",
+                (now_iso, user_id),
+            )
+            await db.commit()
+
+    async def get_user_activity_stats(self) -> dict[str, int]:
+        now = datetime.now(timezone.utc)
+        since_24h = (now - timedelta(hours=24)).isoformat()
+        since_7d = (now - timedelta(days=7)).isoformat()
+        since_30d = (now - timedelta(days=30)).isoformat()
+        passive_event_filter = """
+            event_name NOT IN ('daily_sent', 'daily_send_failed',
+                               'evening_checkin_sent', 'evening_checkin_failed')
+            AND event_name NOT LIKE 'premium_reminder_%'
+            AND event_name NOT LIKE 'weekly_digest_%'
+        """
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM users") as c:
+                total_users = int((await c.fetchone())[0])
+            async with db.execute(
+                "SELECT COUNT(*) FROM users WHERE sign IS NOT NULL AND sign != ''"
+            ) as c:
+                onboarded_users = int((await c.fetchone())[0])
+            async with db.execute(
+                "SELECT COUNT(*) FROM users WHERE sign IS NULL OR sign = ''"
+            ) as c:
+                started_only = int((await c.fetchone())[0])
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE last_active_at IS NOT NULL AND last_active_at >= ?
+                """,
+                (since_24h,),
+            ) as c:
+                active_24h = int((await c.fetchone())[0])
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE last_active_at IS NOT NULL AND last_active_at >= ?
+                """,
+                (since_7d,),
+            ) as c:
+                active_7d = int((await c.fetchone())[0])
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE last_active_at IS NOT NULL AND last_active_at >= ?
+                """,
+                (since_30d,),
+            ) as c:
+                active_30d = int((await c.fetchone())[0])
+            async with db.execute(
+                """
+                SELECT COUNT(*) FROM users
+                WHERE sign IS NOT NULL AND sign != ''
+                  AND (last_active_at IS NULL OR last_active_at < ?)
+                """,
+                (since_30d,),
+            ) as c:
+                dormant_30d = int((await c.fetchone())[0])
+            async with db.execute(
+                f"""
+                SELECT COUNT(DISTINCT user_id) FROM events
+                WHERE user_id IS NOT NULL
+                  AND created_at >= ?
+                  AND {passive_event_filter}
+                """,
+                (since_7d,),
+            ) as c:
+                engaged_7d = int((await c.fetchone())[0])
+            async with db.execute(
+                f"""
+                SELECT COUNT(DISTINCT user_id) FROM events
+                WHERE user_id IS NOT NULL
+                  AND created_at >= ?
+                  AND {passive_event_filter}
+                """,
+                (since_30d,),
+            ) as c:
+                engaged_30d = int((await c.fetchone())[0])
+        return {
+            "total_users": total_users,
+            "onboarded_users": onboarded_users,
+            "started_only": started_only,
+            "active_24h": active_24h,
+            "active_7d": active_7d,
+            "active_30d": active_30d,
+            "dormant_30d": dormant_30d,
+            "engaged_7d": engaged_7d,
+            "engaged_30d": engaged_30d,
+        }
 
     async def log_event(self, user_id: int, event_name: str) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()

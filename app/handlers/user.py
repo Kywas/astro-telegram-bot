@@ -224,6 +224,7 @@ from app.ui import (
     show_ui_panel,
 )
 from app.ui_cleanup_middleware import DeleteUserInputMiddleware
+from app.user_activity_middleware import UserActivityMiddleware
 from app.zodiac import resolve_sun_sign
 
 @router.message(CommandStart())
@@ -4185,6 +4186,11 @@ async def run_bot() -> None:
             pass
 
     cleanup_middleware = DeleteUserInputMiddleware()
+    activity_middleware = UserActivityMiddleware()
+    for event_router in (router, admin_router):
+        event_router.message.middleware(activity_middleware)
+        event_router.callback_query.middleware(activity_middleware)
+        event_router.pre_checkout_query.middleware(activity_middleware)
     router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(

@@ -14,7 +14,7 @@ from app.i18n import t
 from app.keyboards import admin_panel_keyboard, admin_users_keyboard, broadcast_confirm_keyboard, breadcrumb, home_panel_keyboard
 from app.premium import format_premium_until
 from app.services.admin_users import build_admin_users_page
-from app.services.home import build_admin_stats_text, build_home_panel_text
+from app.services.home import build_admin_activity_text, build_admin_stats_text, build_home_panel_text
 from app.services.locale_users import get_user_locale
 from app.states import AdminPanel
 from app.ui import edit_or_send, render_inline_panel
@@ -389,6 +389,13 @@ async def admin_panel_callback_handler(callback: CallbackQuery, state: FSMContex
         await render_inline_panel(
             callback,
             await build_admin_stats_text(locale),
+            admin_panel_keyboard(locale),
+        )
+        return
+    if action == "activity":
+        await render_inline_panel(
+            callback,
+            await build_admin_activity_text(locale),
             admin_panel_keyboard(locale),
         )
         return

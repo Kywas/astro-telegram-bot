@@ -108,3 +108,34 @@ async def build_admin_stats_text(locale: str) -> str:
 
     return "\n\n".join(sections)
 
+
+def _activity_pct(count: int, total: int) -> str:
+    if total <= 0:
+        return "0%"
+    return f"{round(100 * count / total)}%"
+
+
+async def build_admin_activity_text(locale: str) -> str:
+    stats = await db.get_user_activity_stats()
+    total = stats["total_users"]
+    onboarded = stats["onboarded_users"]
+    return format_screen_body(
+        t(
+            locale,
+            "admin_activity_text",
+            total_users=str(total),
+            onboarded_users=str(onboarded),
+            started_only=str(stats["started_only"]),
+            active_24h=str(stats["active_24h"]),
+            active_7d=str(stats["active_7d"]),
+            active_30d=str(stats["active_30d"]),
+            pct_24h=_activity_pct(stats["active_24h"], total),
+            pct_7d=_activity_pct(stats["active_7d"], total),
+            pct_30d=_activity_pct(stats["active_30d"], total),
+            pct_onboarded_30d=_activity_pct(stats["active_30d"], onboarded),
+            dormant_30d=str(stats["dormant_30d"]),
+            engaged_7d=str(stats["engaged_7d"]),
+            engaged_30d=str(stats["engaged_30d"]),
+        )
+    )
+

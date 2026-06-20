@@ -354,6 +354,31 @@ def parse_weekly_block_callback(
     return theme_id, block_id, edition
 
 
+def weekly_media_stem(theme_id: str) -> str:
+    return theme_id.replace("_", "-")
+
+
+def weekly_media_filenames(theme_id: str, edition: int) -> tuple[str, ...]:
+    """GIF/PNG names for a theme edition; falls back to edition 0 asset."""
+    stem = weekly_media_stem(theme_id)
+    ed = edition % WEEKLY_QUESTION_EDITIONS
+    names: list[str] = []
+    if ed == 0:
+        names.extend((f"{stem}.gif", f"{stem}.png", f"{stem}.jpg"))
+    names.extend((f"{stem}-e{ed}.gif", f"{stem}-e{ed}.png", f"{stem}-e{ed}.jpg"))
+    if ed != 0:
+        names.extend((f"{stem}.gif", f"{stem}.png"))
+    return tuple(names)
+
+
+def weekly_media_base_name(theme_id: str, edition: int) -> str:
+    stem = weekly_media_stem(theme_id)
+    ed = edition % WEEKLY_QUESTION_EDITIONS
+    if ed == 0:
+        return f"{stem}-base.png"
+    return f"{stem}-e{ed}-base.png"
+
+
 def theme_by_id(theme_id: str) -> WeeklyTheme | None:
     for theme in WEEKLY_THEMES:
         if theme.theme_id == theme_id:
@@ -361,9 +386,9 @@ def theme_by_id(theme_id: str) -> WeeklyTheme | None:
     return None
 
 
-def _media_path(theme: WeeklyTheme) -> Path | None:
-    for ext in (theme.media_name, theme.media_name.replace(".gif", ".png"), theme.media_name.replace(".gif", ".jpg")):
-        path = _WEEKLY_MEDIA_DIR / ext
+def _media_path(theme: WeeklyTheme, *, edition: int = 0) -> Path | None:
+    for name in weekly_media_filenames(theme.theme_id, edition):
+        path = _WEEKLY_MEDIA_DIR / name
         if path.is_file():
             return path
     return None
@@ -579,7 +604,7 @@ async def send_weekly_digest_message(
 ) -> None:
     text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
     keyboard = weekly_digest_keyboard(locale, theme, edition=edition)
-    media = _media_path(theme)
+    media = _media_path(theme, edition=edition)
     if media is None:
         await send_formatted_message(bot, user_id, text, reply_markup=keyboard)
         return

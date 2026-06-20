@@ -137,6 +137,67 @@ def test_stats_keys() -> None:
                 "total_errors",
             ):
                 assert key in stats
+            activity = await database.get_user_activity_stats()
+            for key in (
+                "total_users",
+                "onboarded_users",
+                "started_only",
+                "active_24h",
+                "active_7d",
+                "active_30d",
+                "dormant_30d",
+                "engaged_7d",
+                "engaged_30d",
+            ):
+                assert key in activity
+
+    asyncio.run(run())
+
+
+def test_user_activity_tracking() -> None:
+    import asyncio
+    import tempfile
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from app.database import Database
+
+    async def run() -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = str(Path(tmp) / "test.db")
+            database = Database(db_path)
+            await database.init()
+            await database.upsert_user_identity(1, "u1", "One", "ru")
+            await database.upsert_user_identity(2, "u2", "Two", "ru")
+            await database.update_profile(
+                1,
+                birth_date=datetime(1990, 1, 1).date(),
+                birth_time=None,
+                city="Moscow",
+                sign="Aries",
+            )
+            await database.touch_user_activity(1)
+            await database.log_event(1, "mood_updated")
+            await database.log_event(2, "daily_sent")
+
+            stats = await database.get_user_activity_stats()
+            assert stats["total_users"] == 2
+            assert stats["onboarded_users"] == 1
+            assert stats["started_only"] == 1
+            assert stats["active_24h"] == 1
+            assert stats["engaged_7d"] == 1
+            assert stats["engaged_30d"] == 1
+
+            old = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
+            async with __import__("aiosqlite").connect(db_path) as db:
+                await db.execute(
+                    "UPDATE users SET last_active_at = ? WHERE user_id = ?",
+                    (old, 1),
+                )
+                await db.commit()
+            stats = await database.get_user_activity_stats()
+            assert stats["active_30d"] == 0
+            assert stats["dormant_30d"] == 1
 
     asyncio.run(run())
 
@@ -1023,6 +1084,7 @@ def test_weekly_digest() -> None:
         theme_for_date,
         weekly_block_route,
         weekly_digest_keyboard,
+        weekly_media_filenames,
         weekly_profile_banner,
         weekly_question_edition,
     )
@@ -1042,6 +1104,10 @@ def test_weekly_digest() -> None:
     assert weekly_block_route("health_madness", "madness", 1) == ("traits", 0)
     assert weekly_block_route("health_madness", "madness", 2) == ("traits", 4)
     assert weekly_block_route("love_week", "home", 1) == ("lineage", 3)
+
+    assert weekly_media_filenames("health_madness", 0)[0] == "health-madness.gif"
+    assert weekly_media_filenames("health_madness", 1)[0] == "health-madness-e1.gif"
+    assert weekly_media_filenames("love_week", 2)[0] == "love-week-e2.gif"
 
     routes_w0 = {weekly_block_route("health_madness", b.block_id, 0) for b in theme_for_date("2026-06-20").blocks}
     routes_w1 = {weekly_block_route("health_madness", b.block_id, 1) for b in theme_for_date("2026-06-20").blocks}
@@ -1132,6 +1198,7 @@ def main() -> None:
     test_premium_dates()
     test_start_source_payloads()
     test_stats_keys()
+    test_user_activity_tracking()
     test_sun_sign_compat()
     test_synastry_style()
     test_horoscope_style()
