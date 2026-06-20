@@ -22,7 +22,6 @@ from app.keyboards import (
     admin_users_keyboard,
     broadcast_confirm_keyboard,
     breadcrumb,
-    channel_post_confirm_keyboard,
     home_panel_keyboard,
 )
 from app.premium import format_premium_until
@@ -277,17 +276,13 @@ async def channelpost_handler(message: Message, state: FSMContext) -> None:
             reply_markup=admin_panel_keyboard(locale),
         )
         return
-
-    await state.update_data(channel_post_payload=payload)
-    await state.set_state(AdminPanel.waiting_channel_post_confirm)
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'broadcast_preview', text=payload)}",
-        reply_markup=admin_panel_keyboard(locale),
-    )
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
-        reply_markup=channel_post_confirm_keyboard(locale),
-    )
+    result = await _publish_channel_post(message.bot, locale, payload)
+    if result == t(locale, "channel_post_ok"):
+        await db.log_event(user.id, "channel_post_ok")
+    else:
+        await db.log_event(user.id, "channel_post_fail")
+    await state.clear()
+    await message.answer(result, reply_markup=admin_panel_keyboard(locale))
 
 
 @admin_router.message(F.forward_origin | F.forward_from_chat)
@@ -324,73 +319,13 @@ async def admin_channel_post_input_handler(message: Message, state: FSMContext) 
     if not payload:
         await message.answer(t(locale, "channel_post_usage"), reply_markup=admin_panel_keyboard(locale))
         return
-
-    await state.update_data(channel_post_payload=payload)
-    await state.set_state(AdminPanel.waiting_channel_post_confirm)
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'broadcast_preview', text=payload)}",
-        reply_markup=admin_panel_keyboard(locale),
-    )
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
-        reply_markup=channel_post_confirm_keyboard(locale),
-    )
-
-
-@admin_router.message(AdminPanel.waiting_channel_post_confirm)
-async def admin_channel_post_waiting_confirm(message: Message) -> None:
-    user = message.from_user
-    if user is None:
-        return
-    locale = await get_user_locale(user.id)
-    await message.answer(
-        f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'channel_post_confirm_title')}",
-        reply_markup=channel_post_confirm_keyboard(locale),
-    )
-
-
-@admin_router.callback_query(F.data == "admin:channel_cancel")
-async def admin_channel_cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    user = callback.from_user
-    if user is None:
-        return
-    locale = await get_user_locale(user.id)
-    await state.clear()
-    await callback.answer()
-    if callback.message:
-        await render_inline_panel(
-            callback,
-            t(locale, "broadcast_cancelled"),
-            admin_panel_keyboard(locale),
-        )
-
-
-@admin_router.callback_query(F.data == "admin:channel_confirm")
-async def admin_channel_confirm_callback(callback: CallbackQuery, state: FSMContext) -> None:
-    user = callback.from_user
-    if user is None or callback.message is None:
-        return
-    locale = await get_user_locale(user.id)
-    data = await state.get_data()
-    payload = (data.get("channel_post_payload") or "").strip()
-    if not payload:
-        await state.clear()
-        await callback.answer()
-        await render_inline_panel(
-            callback,
-            t(locale, "channel_post_usage"),
-            admin_panel_keyboard(locale),
-        )
-        return
-
-    result = await _publish_channel_post(callback.message.bot, locale, payload)
+    result = await _publish_channel_post(message.bot, locale, payload)
     if result == t(locale, "channel_post_ok"):
         await db.log_event(user.id, "channel_post_ok")
     else:
         await db.log_event(user.id, "channel_post_fail")
     await state.clear()
-    await callback.answer()
-    await render_inline_panel(callback, result, admin_panel_keyboard(locale))
+    await message.answer(result, reply_markup=admin_panel_keyboard(locale))
 
 
 @admin_router.message(Command("users"))

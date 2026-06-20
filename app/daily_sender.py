@@ -21,17 +21,17 @@ from app.moon_calendar import (
 )
 from app.premium import is_premium_active
 from app.premium_lifecycle import (
-    days_until_premium_end,
+    premium_expiry_period_key,
     premium_expiry_reminder_text,
     premium_renew_keyboard,
-    premium_until_date_key,
+    should_send_premium_24h_reminder,
 )
 from app.timezones import user_local_date_key, user_local_hhmm
 from app.ui import send_formatted_message
 from app.weekly_digest import send_due_weekly_digests
 
 LUNAR_NOTIFY_TIME = "10:00"
-PREMIUM_REMINDER_TIME = "11:00"
+PREMIUM_24H_REMINDER_PERIOD = "premium_reminder:24h"
 
 
 def mood_checkin_keyboard() -> InlineKeyboardMarkup:
@@ -237,24 +237,18 @@ async def _send_lunar_notifications(db: Database, bot: Bot, now_utc: datetime) -
 async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: datetime) -> None:
     recipients = await db.get_users_with_premium()
     for user in recipients:
-        if user_local_hhmm(now_utc, user.timezone) != PREMIUM_REMINDER_TIME:
-            continue
         if not user.premium_until:
             continue
-        days_left = days_until_premium_end(user.premium_until, user.timezone)
-        if days_left not in {0, 1, 3}:
+        if not should_send_premium_24h_reminder(user.premium_until, now_utc):
             continue
-        until_key = premium_until_date_key(user.premium_until, user.timezone)
-        if until_key is None:
-            continue
-        period = f"premium_reminder:{days_left}d"
-        if await db.was_daily_sent(user.user_id, period, until_key):
+        until_key = premium_expiry_period_key(user.premium_until)
+        if await db.was_daily_sent(user.user_id, PREMIUM_24H_REMINDER_PERIOD, until_key):
             continue
         locale = user.language or "en"
         text = premium_expiry_reminder_text(
             locale,
-            days_left=days_left,
             until_iso=user.premium_until,
+            hours_left=24,
         )
         try:
             await send_formatted_message(
@@ -263,10 +257,10 @@ async def _send_premium_expiry_reminders(db: Database, bot: Bot, now_utc: dateti
                 text,
                 reply_markup=premium_renew_keyboard(locale),
             )
-            await db.mark_daily_sent(user.user_id, period, until_key)
-            await db.log_event(user.user_id, f"premium_reminder_{days_left}d_sent")
+            await db.mark_daily_sent(user.user_id, PREMIUM_24H_REMINDER_PERIOD, until_key)
+            await db.log_event(user.user_id, "premium_reminder_24h_sent")
         except Exception:
-            await db.log_event(user.user_id, f"premium_reminder_{days_left}d_failed")
+            await db.log_event(user.user_id, "premium_reminder_24h_failed")
 
 
 async def run_daily_loop(

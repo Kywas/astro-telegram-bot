@@ -97,6 +97,31 @@ def test_referral_profile_requirements() -> None:
     assert complete.relationship_status and complete.goal and complete.sign
 
 
+def test_premium_24h_reminder_window() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from app.premium_lifecycle import (
+        premium_expiry_period_key,
+        premium_expiry_reminder_text,
+        seconds_until_premium_end,
+        should_send_premium_24h_reminder,
+    )
+
+    now = datetime(2026, 6, 20, 12, 0, tzinfo=timezone.utc)
+    until_ok = (now + timedelta(hours=24)).isoformat()
+    until_early = (now + timedelta(hours=12)).isoformat()
+    until_late = (now + timedelta(hours=30)).isoformat()
+
+    assert should_send_premium_24h_reminder(until_ok, now) is True
+    assert should_send_premium_24h_reminder(until_early, now) is False
+    assert should_send_premium_24h_reminder(until_late, now) is False
+    assert abs(seconds_until_premium_end(until_ok, now) - 86400) < 1
+
+    text_ru = premium_expiry_reminder_text("ru", until_iso=until_ok, hours_left=24)
+    assert "24 часа" in text_ru
+    assert premium_expiry_period_key(until_ok)
+
+
 def test_premium_dates() -> None:
     until = extend_premium_until(None, 7)
     assert is_premium_active(until.isoformat())
@@ -1232,6 +1257,7 @@ def main() -> None:
     test_payment_payloads()
     test_payment_options()
     test_referral_profile_requirements()
+    test_premium_24h_reminder_window()
     test_premium_dates()
     test_start_source_payloads()
     test_stats_keys()

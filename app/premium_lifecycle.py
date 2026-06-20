@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
@@ -10,6 +10,19 @@ from app.payments import PayCurrency
 from app.premium import format_premium_until
 from app.text_format import format_screen_body
 from app.timezones import normalize_timezone
+
+PREMIUM_24H_REMINDER_HOURS = 24
+PREMIUM_24H_REMINDER_WINDOW = timedelta(hours=1)
+
+
+def _parse_premium_until(premium_until: str) -> datetime | None:
+    try:
+        until = datetime.fromisoformat(premium_until)
+    except ValueError:
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    return until
 
 
 def format_payment_amount(currency: PayCurrency, invoice_amount: int, telegram_currency: str) -> str:
@@ -26,27 +39,58 @@ def days_until_premium_end(premium_until: str | None, user_timezone: str) -> int
     if not premium_until:
         return None
     try:
-        until = datetime.fromisoformat(premium_until)
-        if until.tzinfo is None:
-            until = until.replace(tzinfo=timezone.utc)
+        until = _parse_premium_until(premium_until)
+        if until is None:
+            return None
         tz = ZoneInfo(normalize_timezone(user_timezone))
         until_local = until.astimezone(tz).date()
         today_local = datetime.now(tz).date()
         return (until_local - today_local).days
-    except (ValueError, KeyError):
+    except KeyError:
         return None
+
+
+def seconds_until_premium_end(premium_until: str | None, now_utc: datetime | None = None) -> float | None:
+    if not premium_until:
+        return None
+    until = _parse_premium_until(premium_until)
+    if until is None:
+        return None
+    now = now_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return (until - now).total_seconds()
+
+
+def should_send_premium_24h_reminder(
+    premium_until: str | None,
+    now_utc: datetime | None = None,
+) -> bool:
+    seconds_left = seconds_until_premium_end(premium_until, now_utc)
+    if seconds_left is None or seconds_left <= 0:
+        return False
+    target = PREMIUM_24H_REMINDER_HOURS * 3600
+    window = int(PREMIUM_24H_REMINDER_WINDOW.total_seconds())
+    return (target - window) <= seconds_left <= (target + window)
+
+
+def premium_expiry_period_key(premium_until: str) -> str:
+    until = _parse_premium_until(premium_until)
+    if until is None:
+        return premium_until
+    return until.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
 
 def premium_until_date_key(premium_until: str | None, user_timezone: str) -> str | None:
     if not premium_until:
         return None
+    until = _parse_premium_until(premium_until)
+    if until is None:
+        return None
     try:
-        until = datetime.fromisoformat(premium_until)
-        if until.tzinfo is None:
-            until = until.replace(tzinfo=timezone.utc)
         tz = ZoneInfo(normalize_timezone(user_timezone))
         return until.astimezone(tz).date().isoformat()
-    except (ValueError, KeyError):
+    except KeyError:
         return None
 
 
@@ -57,8 +101,25 @@ def premium_renew_keyboard(locale: str) -> InlineKeyboardMarkup:
     )
 
 
-def premium_expiry_reminder_text(locale: str, *, days_left: int, until_iso: str) -> str:
+def premium_expiry_reminder_text(
+    locale: str,
+    *,
+    until_iso: str,
+    hours_left: int | None = None,
+    days_left: int | None = None,
+) -> str:
     until = format_premium_until(until_iso, locale)
+    if hours_left == 24:
+        if locale == "ru":
+            return format_screen_body(
+                f"⏳ Через 24 часа заканчивается Premium (до {until}).\n\n"
+                "Если чувствуешь пользу от гороскопов, полной карты и лунного календаря — можно мягко продлить сейчас,"
+                " чтобы доступ не прерывался."
+            )
+        return format_screen_body(
+            f"⏳ Premium expires in 24 hours (until {until}).\n\n"
+            "If the readings and tools feel helpful, you can gently renew now so access continues without a break."
+        )
     if locale == "ru":
         if days_left == 0:
             return format_screen_body(
