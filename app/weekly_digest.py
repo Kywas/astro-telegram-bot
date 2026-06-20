@@ -26,9 +26,11 @@ WEEKLY_DIGEST_TIME = "11:00"
 WEEKLY_DIGEST_WEEKDAY = 0  # Monday
 WEEKLY_DIGEST_FRIDAY_WEEKDAY = 4  # Friday
 
-# First post goes out on launch day (Friday bootstrap); regular Mon/Fri 11:00 from schedule Monday.
-WEEKLY_DIGEST_LAUNCH_DATE = "2026-06-12"
-WEEKLY_DIGEST_SCHEDULE_MONDAY = "2026-06-15"
+# First post goes out on launch day (bootstrap); regular Mon/Fri 11:00 from schedule Monday.
+WEEKLY_DIGEST_LAUNCH_DATE = "2026-06-20"
+WEEKLY_DIGEST_SCHEDULE_MONDAY = "2026-06-22"
+WEEKLY_DIGEST_BOOTSTRAP_PERIOD = "weekly:bootstrap:health_madness:launch"
+_LEGACY_BOOTSTRAP_DATES = ("2026-06-12",)
 
 _WEEKLY_FRIDAY_INTRO: dict[str, tuple[str, str]] = {
     "health_madness": (
@@ -525,6 +527,16 @@ def _weekly_time_due(now_utc: datetime, timezone_name: str, *, bootstrap: bool) 
     return hhmm == WEEKLY_DIGEST_TIME
 
 
+async def _bootstrap_already_sent(db: "Database", user_id: int) -> bool:
+    if await db.was_daily_sent(user_id, WEEKLY_DIGEST_BOOTSTRAP_PERIOD, "launch"):
+        return True
+    for legacy_date in _LEGACY_BOOTSTRAP_DATES:
+        legacy_period = f"weekly:bootstrap:health_madness:{legacy_date}"
+        if await db.was_daily_sent(user_id, legacy_period, legacy_date):
+            return True
+    return False
+
+
 async def _send_weekly_to_user(
     db: "Database",
     bot: Bot,
@@ -575,16 +587,15 @@ async def _try_send_weekly_bootstrap(
         return
 
     theme = launch_theme()
-    period = f"weekly:bootstrap:{theme.theme_id}:{date_key}"
-    if await db.was_daily_sent(user.user_id, period, date_key):
+    if await _bootstrap_already_sent(db, user.user_id):
         return
     await _send_weekly_to_user(
         db,
         bot,
         user,
         theme=theme,
-        date_key=date_key,
-        period=period,
+        date_key="launch",
+        period=WEEKLY_DIGEST_BOOTSTRAP_PERIOD,
         event_name=f"weekly_digest_bootstrap_{theme.theme_id}_sent",
         slot="monday",
     )
@@ -595,17 +606,16 @@ async def send_weekly_bootstrap_now(db: "Database", bot: Bot) -> tuple[int, int]
     theme = launch_theme()
     sent = 0
     failed = 0
-    period = f"weekly:bootstrap:{theme.theme_id}:{WEEKLY_DIGEST_LAUNCH_DATE}"
     for user in await db.get_weekly_digest_subscribers():
-        if await db.was_daily_sent(user.user_id, period, WEEKLY_DIGEST_LAUNCH_DATE):
+        if await _bootstrap_already_sent(db, user.user_id):
             continue
         ok = await _send_weekly_to_user(
             db,
             bot,
             user,
             theme=theme,
-            date_key=WEEKLY_DIGEST_LAUNCH_DATE,
-            period=period,
+            date_key="launch",
+            period=WEEKLY_DIGEST_BOOTSTRAP_PERIOD,
             event_name=f"weekly_digest_bootstrap_{theme.theme_id}_sent",
             slot="monday",
         )

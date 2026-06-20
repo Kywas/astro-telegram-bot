@@ -1025,10 +1025,10 @@ def test_weekly_digest() -> None:
         weekly_profile_banner,
     )
 
-    theme = theme_for_date("2026-06-15")
+    theme = theme_for_date("2026-06-22")
     assert theme.theme_id == "love_week"
-    assert theme_for_date("2026-06-12").theme_id == "health_madness"
-    assert theme_for_date("2026-06-22").theme_id == "money_week"
+    assert theme_for_date("2026-06-20").theme_id == "health_madness"
+    assert theme_for_date("2026-06-29").theme_id == "money_week"
 
     text = build_weekly_post_text("ru", theme)
     assert "безумия" in text.lower() or "любов" in text.lower() or "деньг" in text.lower() or "карм" in text.lower()
