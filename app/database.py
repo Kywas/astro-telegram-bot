@@ -628,6 +628,18 @@ class Database:
 
         return await self._profiles_from_rows(rows)
 
+    async def get_weekly_digest_subscribers(self) -> list[UserProfile]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM users
+                WHERE sign IS NOT NULL
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return await self._profiles_from_rows(rows)
+
     def _rows_to_profiles(self, rows: list) -> list[UserProfile]:
         result: list[UserProfile] = []
         for row in rows:

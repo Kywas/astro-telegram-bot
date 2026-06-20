@@ -13,6 +13,7 @@ from app.natal_qa_common import (
     rank_dignity,
 )
 from app.natal_qa_voice import (
+    life_manifestation_echo,
     plain_area,
     plain_lord_line,
     plain_placement_line,
@@ -52,10 +53,15 @@ def _pack(
     roles: tuple[str, ...] = (),
 ) -> StructuredQaAnswer:
     hook = plain_topic_hook(locale, question)
-    body = sanitize_plain_qa_text(f"{opening} {detail}".strip(), locale)
+    echo = life_manifestation_echo(locale, question, style="plain")
+    chunks = [opening.strip()]
+    if echo and echo.lower() not in opening.lower() and echo.lower() not in detail.lower():
+        chunks.append(echo)
+    chunks.append(detail.strip())
+    body = sanitize_plain_qa_text(" ".join(chunks), locale)
     return StructuredQaAnswer(
         make_brief(locale, hook, body, style="plain"),
-        pick_markers(locale, markers_chart, style="plain", roles=roles, limit=2),
+        pick_markers(locale, markers_chart, style="plain", roles=roles, limit=3),
         practice,
     )
 

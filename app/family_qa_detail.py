@@ -571,8 +571,17 @@ def _friction_points(locale: str, chart: JyotishChart, *, style: str) -> list[st
 
 def _family_brief(locale: str, frame: str, body: str, *, style: str) -> str:
     if _use_terms(style):
-        return p(b(frame), h(body))
-    return make_brief(locale, frame, body, style=style)
+        return make_brief(locale, frame, body, style=style)
+    opening = frame.strip()
+    core = body.strip()
+    if opening and core:
+        combined = f"{opening}\n\n{core}" if len(core) > 80 else f"{opening} {core}"
+    else:
+        combined = (opening or core).strip()
+    from app.natal_qa_voice import sanitize_plain_qa_text
+    from app.text_format import h
+
+    return h(sanitize_plain_qa_text(combined, locale))
 
 
 def _brief_q0(locale: str, chart: JyotishChart, question: str, *, style: str) -> str:
@@ -971,8 +980,17 @@ def build_family_structured(
     idx = max(0, min(4, question_index))
     brief_fns = (_brief_q0, _brief_q1, _brief_q2, _brief_q3, _brief_q4)
     marker_fns = (_markers_q0, _markers_q1, _markers_q2, _markers_q3, _markers_q4)
+    brief = brief_fns[idx](locale, chart, question, style=style)
+    if not _use_terms(style):
+        from app.natal_qa_voice import life_manifestation_echo, sanitize_plain_qa_text, strip_telegram_html
+        from app.text_format import h
+
+        echo = life_manifestation_echo(locale, question, style="plain")
+        core = strip_telegram_html(brief)
+        if echo and echo.lower() not in core.lower():
+            brief = h(sanitize_plain_qa_text(f"{core} {echo}", locale))
     return FamilyStructuredAnswer(
-        brief=brief_fns[idx](locale, chart, question, style=style),
+        brief=brief,
         markers=marker_fns[idx](locale, chart, style=style),
         practice=_practice_for(locale, idx, chart, style=style),
     )

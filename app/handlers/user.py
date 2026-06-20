@@ -173,6 +173,12 @@ from app.services.daily_panels import (
     show_daily_panel_callback,
 )
 from app.user_location import current_location_label
+from app.weekly_digest import (
+    build_weekly_block_answer,
+    build_weekly_post_text,
+    theme_by_id,
+    weekly_digest_keyboard,
+)
 from app.services.dates import target_date_from_day_month
 from app.services.home import build_home_panel_text
 from app.services.locale_users import detect_locale_for_user, get_user_locale
@@ -1405,6 +1411,106 @@ async def _ensure_natal_qa_answer_access(
         inline_keyboard=premium_upsell_keyboard(locale, back_data=f"natal:qa:pick:{part}"),
     )
     return False
+
+
+@router.callback_query(F.data.startswith("weekly:"))
+async def weekly_digest_callback_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3:
+        await callback.answer()
+        return
+
+    theme_id = parts[1]
+    block_id = parts[2]
+    theme = theme_by_id(theme_id)
+    if theme is None:
+        await callback.answer()
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    if profile is None or profile.birth_date is None or not profile.sign:
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            t(locale, "natal_profile_missing"),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+    if profile.birth_time is None:
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            t(locale, "natal_time_required"),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+
+    chart = build_chart_from_profile(profile)
+    if chart is None:
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            t(locale, "natal_qa_unavailable"),
+            inline_keyboard=home_panel_keyboard(locale),
+        )
+        return
+
+    if not is_premium_active(profile.premium_until):
+        await callback.answer()
+        await edit_or_send(
+            callback,
+            f"{t(locale, 'premium_required_weekly_qa')}\n\n{t(locale, 'premium_features')}",
+            inline_keyboard=premium_upsell_keyboard(locale, back_data=f"weekly:menu:{theme_id}"),
+        )
+        return
+
+    style = profile.natal_style or "plain"
+    answer = build_weekly_block_answer(
+        theme_id, block_id, chart, locale, style=style, profile=profile
+    )
+    if answer is None:
+        await callback.answer()
+        return
+
+    await callback.answer()
+    back_label = "⬅️ К блокам" if locale == "ru" else "⬅️ Back to blocks"
+    keyboard = weekly_digest_keyboard(locale, theme)
+    keyboard.inline_keyboard.append(
+        [InlineKeyboardButton(text=back_label, callback_data=f"weekly:menu:{theme_id}")]
+    )
+    text = f"{breadcrumb(locale, t(locale, 'natal_header'))}\n\n{answer}"
+    await edit_or_send(callback, text, inline_keyboard=keyboard)
+
+
+@router.callback_query(F.data.startswith("weekly:menu:"))
+async def weekly_digest_menu_handler(callback: CallbackQuery) -> None:
+    user = callback.from_user
+    if user is None:
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) < 3:
+        await callback.answer()
+        return
+
+    theme_id = parts[2]
+    slot = parts[3] if len(parts) > 3 and parts[3] == "friday" else "monday"
+    theme = theme_by_id(theme_id)
+    if theme is None:
+        await callback.answer()
+        return
+
+    locale = await get_user_locale(user.id)
+    profile = await db.get_user(user.id)
+    chart = build_chart_from_profile(profile) if profile else None
+    await callback.answer()
+    text = build_weekly_post_text(locale, theme, profile=profile, chart=chart, slot=slot)
+    await edit_or_send(callback, text, inline_keyboard=weekly_digest_keyboard(locale, theme))
 
 
 @router.callback_query(F.data.startswith("natal:qa:"))
@@ -3099,7 +3205,7 @@ async def prefs_current_city_handler(message: Message, state: FSMContext) -> Non
 
     await _finalize_prefs_wizard(
         user.id,
-        locale,
+            locale,
         state,
         message.bot,
         update_current=True,

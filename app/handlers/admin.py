@@ -236,6 +236,21 @@ async def stars_handler(message: Message) -> None:
     await message.answer(report, reply_markup=admin_panel_keyboard(locale))
 
 
+@admin_router.message(Command("weeklysend"))
+async def weeklysend_handler(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    from app.weekly_digest import send_weekly_bootstrap_now
+
+    sent, failed = await send_weekly_bootstrap_now(db, bot)
+    await message.answer(
+        f"Еженедельный launch-пост: отправлено {sent}, ошибок {failed}.",
+        reply_markup=admin_panel_keyboard(locale),
+    )
+
+
 @admin_router.message(Command("admin"))
 async def admin_panel_handler(message: Message) -> None:
     user = message.from_user

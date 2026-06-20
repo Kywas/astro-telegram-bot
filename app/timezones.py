@@ -77,6 +77,12 @@ def user_local_date_key(now_utc: datetime, tz_name: str) -> str:
     return now_utc.astimezone(tz).strftime("%Y-%m-%d")
 
 
+def user_local_weekday(now_utc: datetime, tz_name: str) -> int:
+    """0 = Monday … 6 = Sunday, in the user's timezone."""
+    tz = ZoneInfo(normalize_timezone(tz_name))
+    return now_utc.astimezone(tz).weekday()
+
+
 def default_timezone_for_locale(locale: str) -> str:
     if locale == "ru":
         return "Europe/Moscow"

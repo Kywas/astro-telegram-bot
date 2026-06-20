@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from app.astro_engine import sign_label
 from app.jyotish_engine import JyotishChart, PlanetPlacement
 from app.jyotish_text import LAGNA_ESSENCE, _house_theme, _lang, _pl, _sign_line, _use_terms
-from app.natal_qa_voice import compose_plain_qa_answer, humanize_natal_plain, plain_practice, plain_topic_hook, strip_telegram_html
+from app.natal_qa_voice import compose_plain_qa_answer, humanize_natal_plain, life_manifestation_echo, plain_practice, plain_topic_hook, strip_telegram_html
 from app.text_format import b, h, labeled_block, p
 
 _DIGNITY_RANK = {"exalted": 4, "own": 3, "neutral": 2, "debilitated": 1}
@@ -614,13 +614,18 @@ def _build_plain_narrative(
         if lang == "ru":
             chunks.append(
                 "Точную дату не назову — смотри, когда внутри «да, готов» "
-                "и тема перестаёт быть фоном."
+                "и тема перестаёт быть фоном. Календарь тут как напоминалка, не начальник."
             )
         else:
             chunks.append(
                 "The chart does not give an exact date — watch inner readiness "
                 "and periods when this theme feels louder."
             )
+    elif lang == "ru" and focus != "challenge":
+        chunks.append(
+            "Если коротко и по-человечески: это не про «судьба решила», "
+            "а про то, как ты обычно реагируешь — и что можно подкрутить без революции."
+        )
 
     return h(" ".join(part for part in chunks if part))
 
@@ -962,6 +967,7 @@ def format_qa_body(
     style: str = "terms",
     markers: tuple[str, ...] = (),
     practice: str = "",
+    question: str = "",
 ) -> str:
     lang = _lang(locale)
     answer = direct_answer.strip()
@@ -979,14 +985,29 @@ def format_qa_body(
             answer,
             tuple(marker_lines),
             practice,
+            question,
         )
 
-    blocks = [labeled_block("💬 Ответ" if lang == "ru" else "💬 Answer", answer)]
+    answer_block = labeled_block("💬 Ответ" if lang == "ru" else "💬 Answer", answer)
+    blocks = [answer_block]
+    if question.strip():
+        echo = life_manifestation_echo(locale, question, style=style)
+        if echo:
+            blocks.append(
+                labeled_block(
+                    "📖 Как это проявляется" if lang == "ru" else "📖 How it shows up",
+                    echo,
+                )
+            )
     if marker_lines:
-        chart_block = "\n".join(f"• {line}" for line in marker_lines)
-        blocks.append(labeled_block("📊 По карте" if lang == "ru" else "📊 Chart markers", chart_block))
+        chart_block = "\n".join(f"• {line}" for line in marker_lines[:4])
+        blocks.append(
+            labeled_block("📊 По карте" if lang == "ru" else "📊 Chart markers", chart_block)
+        )
     elif evidence.strip():
-        blocks.append(labeled_block("📊 Подробнее по карте" if lang == "ru" else "📊 Chart details", evidence))
+        blocks.append(
+            labeled_block("📊 Подробнее по карте" if lang == "ru" else "📊 Chart details", evidence)
+        )
     if practice.strip():
         label = "💡 На практике" if lang == "ru" else "💡 In practice"
         blocks.append(labeled_block(label, practice))
@@ -1024,6 +1045,7 @@ def finish_qa_body(
             style=style,
             markers=structured.markers,
             practice=structured.practice,
+            question=question,
         )
 
     markers = _build_chart_markers(
@@ -1051,4 +1073,5 @@ def finish_qa_body(
         style=style,
         markers=markers,
         practice=practice,
+        question=question,
     )

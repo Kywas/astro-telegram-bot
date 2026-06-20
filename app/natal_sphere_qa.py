@@ -315,6 +315,7 @@ def _wrap_structured(
         style=style,
         markers=structured.markers,
         practice=structured.practice,
+        question=question,
     )
 
 
@@ -1308,6 +1309,7 @@ def build_family_answer(
         style=style,
         markers=structured.markers,
         practice=structured.practice,
+        question=question,
     )
 
     if lang == "ru":

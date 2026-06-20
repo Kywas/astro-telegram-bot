@@ -189,9 +189,18 @@ def topic_frame(locale: str, question: str, *, ru: str, en: str, style: str = "t
 
 def make_brief(locale: str, frame: str, body: str, *, style: str = "terms") -> str:
     if not _use_terms(style):
-        combined = f"{frame} {body}".strip() if frame else body.strip()
+        opening = frame.strip()
+        core = body.strip()
+        if opening and core:
+            combined = f"{opening}\n\n{core}" if len(core) > 100 else f"{opening} {core}"
+        else:
+            combined = (opening or core).strip()
         return h(combined)
-    return p(b(frame), h(body))
+    frame_clean = frame.strip()
+    body_clean = body.strip()
+    if frame_clean and body_clean:
+        return f"{frame_clean}\n\n{body_clean}"
+    return frame_clean or body_clean
 
 
 def pick_markers(
@@ -200,7 +209,7 @@ def pick_markers(
     *,
     style: str,
     roles: tuple[str, ...] = (),
-    limit: int = 3,
+    limit: int = 4,
 ) -> tuple[str, ...]:
     lines: list[str] = []
     for i, pl in enumerate(placements[:limit]):

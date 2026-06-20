@@ -1011,6 +1011,99 @@ def test_natal_qa_synthesis() -> None:
     assert "📊" in family_terms
 
 
+def test_weekly_digest() -> None:
+    from datetime import date, datetime, time, timezone
+
+    from app.database import UserProfile
+    from app.jyotish_engine import build_jyotish_chart
+    from app.timezones import user_local_weekday
+    from app.weekly_digest import (
+        build_weekly_friday_post_text,
+        build_weekly_post_text,
+        theme_for_date,
+        weekly_digest_keyboard,
+        weekly_profile_banner,
+    )
+
+    theme = theme_for_date("2026-06-15")
+    assert theme.theme_id == "love_week"
+    assert theme_for_date("2026-06-12").theme_id == "health_madness"
+    assert theme_for_date("2026-06-22").theme_id == "money_week"
+
+    text = build_weekly_post_text("ru", theme)
+    assert "безумия" in text.lower() or "любов" in text.lower() or "деньг" in text.lower() or "карм" in text.lower()
+    assert "<b>" in text
+
+    chart = build_jyotish_chart(
+        birth_date=date(1995, 4, 15),
+        birth_time=time(14, 30),
+        city="Moscow",
+        timezone_name="Europe/Moscow",
+        locale="ru",
+    )
+    assert chart is not None
+    profile = UserProfile(
+        user_id=1,
+        username=None,
+        first_name="Test",
+        birth_date=date(1995, 4, 15),
+        birth_time=time(14, 30),
+        city="Moscow",
+        birth_lat=None,
+        birth_lon=None,
+        birth_timezone=None,
+        current_city=None,
+        current_lat=None,
+        current_lon=None,
+        current_timezone=None,
+        sign="Aries",
+        language="ru",
+        gender=None,
+        relationship_status=None,
+        goal=None,
+        mood_score=None,
+        mood_updated_at=None,
+        daily_enabled=True,
+        daily_time="09:00",
+        timezone="Europe/Moscow",
+        evening_enabled=False,
+        evening_time="21:00",
+        mood_streak=0,
+        last_mood_date=None,
+        lunar_notify_enabled=False,
+        moon_focus="day",
+        moon_style="terms",
+        horoscope_style="terms",
+        compat_style="terms",
+        premium_until=None,
+        trial_used=False,
+        natal_mode="jyotish",
+        natal_style="plain",
+        natal_qa_free_used=False,
+        ref_code=None,
+        referrer_id=None,
+        ref_bonus_count=0,
+    )
+    personal = build_weekly_post_text("ru", theme, profile=profile, chart=chart)
+    assert "15.04.1995" in personal
+    assert "14:30" in personal
+    banner = weekly_profile_banner("ru", profile, chart)
+    assert "Солнце" in banner
+    assert "Лагна" in banner
+    assert "личн" in personal.lower() or "тво" in personal.lower()
+
+    friday = build_weekly_friday_post_text("ru", theme, profile=profile, chart=chart)
+    assert "Пятница" in friday
+    assert "15.04.1995" in friday
+
+    kb = weekly_digest_keyboard("ru", theme)
+    assert len(kb.inline_keyboard) == 3
+    assert kb.inline_keyboard[0][0].callback_data.startswith("weekly:")
+
+    monday_moscow = datetime(2026, 6, 15, 8, 0, tzinfo=timezone.utc)
+    assert user_local_weekday(monday_moscow, "Europe/Moscow") == 0
+
+
 def main() -> None:
     test_payment_payloads()
     test_payment_options()
@@ -1041,6 +1134,7 @@ def main() -> None:
     test_split_telegram_text()
     test_format_screen_body()
     test_natal_qa_synthesis()
+    test_weekly_digest()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 

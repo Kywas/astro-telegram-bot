@@ -12,7 +12,8 @@ if (-not (Test-Path $edge)) {
 $posts = @(
     @{ Html = "post-1-intro.html"; Png = "post-1-intro.png"; Size = "1080,1080" },
     @{ Html = "post-2-compat.html"; Png = "post-2-compat.png"; Size = "1080,1080" },
-    @{ Html = "mts-telegram-ad.html"; Png = "mts-telegram-ad.png"; Size = "1280,720" }
+    @{ Html = "mts-telegram-ad.html"; Png = "mts-telegram-ad.png"; Size = "1280,720" },
+    @{ Html = "ad-telegram-1280x720.html"; Png = "ad-telegram-1280x720.png"; Size = "1280,720" }
 )
 
 foreach ($post in $posts) {
@@ -21,4 +22,15 @@ foreach ($post in $posts) {
     $uri = "file:///" + ($htmlPath -replace "\\", "/")
     & $edge --headless --disable-gpu --hide-scrollbars --window-size=$($post.Size) --screenshot="$pngPath" "$uri"
     Write-Host "OK $($post.Png)"
+}
+
+$weeklyBaseScript = Join-Path $root "scripts\render_weekly_bases.py"
+$weeklyGifScript = Join-Path $root "scripts\render_weekly_gifs.py"
+if (Test-Path $weeklyBaseScript) {
+    python $weeklyBaseScript
+    Write-Host "OK marketing/weekly/*-base.png"
+}
+if (Test-Path $weeklyGifScript) {
+    python $weeklyGifScript
+    Write-Host "OK marketing/weekly/*.gif"
 }
