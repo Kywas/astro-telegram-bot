@@ -173,7 +173,7 @@ async def _preview_channel_bundle_for_admins(bot: Bot, locale: str, slug: str) -
             await bot.send_animation(
                 admin_id,
                 FSInputFile(bundle.gif_path),
-                caption=f"👀 Превью поста «{bundle.slug}»\n\n{bundle.caption}",
+                caption=f"👀 Превью «{bundle.slug}»\n\n{bundle.caption}",
                 reply_markup=channel_bot_keyboard(),
             )
             sent += 1
