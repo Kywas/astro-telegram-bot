@@ -10,7 +10,6 @@ from aiogram.types import CallbackQuery, FSInputFile, Message
 from app.admin_alerts import notify_admins
 from app.bot_context import admin_router, db, settings
 from app.channel_posting import (
-    channel_bot_keyboard,
     channel_configured,
     channel_env_value,
     send_channel_animation,
@@ -122,7 +121,7 @@ async def _send_channel_test(bot: Bot, locale: str) -> str:
         "Если видишь этот пост — бот подключён к каналу и может публиковать автоматически."
     )
     try:
-        await send_channel_text(bot, text, with_bot_button=True)
+        await send_channel_text(bot, text)
         return t(locale, "channel_test_ok")
     except Exception as exc:
         return t(locale, "channel_test_fail", error=str(exc))
@@ -134,7 +133,7 @@ async def _publish_channel_post(bot: Bot, locale: str, payload: str) -> str:
     if not payload.strip():
         return t(locale, "channel_post_usage")
     try:
-        await send_channel_text(bot, payload.strip(), with_bot_button=True)
+        await send_channel_text(bot, payload.strip())
         return t(locale, "channel_post_ok")
     except Exception as exc:
         return t(locale, "channel_post_fail", error=str(exc))
@@ -149,7 +148,6 @@ async def _publish_channel_bundle(bot: Bot, locale: str, slug: str) -> str:
             bot,
             bundle.gif_path,
             bundle.caption,
-            with_bot_button=True,
         )
         return t(locale, "channel_publish_ok", slug=bundle.slug)
     except Exception as exc:
@@ -173,7 +171,6 @@ async def _preview_channel_bundle_for_admins(bot: Bot, locale: str, slug: str) -
                 admin_id,
                 FSInputFile(bundle.gif_path),
                 caption=f"👀 Превью «{bundle.slug}»\n\n{bundle.caption}",
-                reply_markup=channel_bot_keyboard(),
             )
             sent += 1
         except Exception as exc:

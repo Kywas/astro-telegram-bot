@@ -35,7 +35,6 @@ async def main() -> None:
             bot,
             bundle.gif_path,
             bundle.caption,
-            with_bot_button=True,
         )
         print(f"OK published {bundle.slug} to {settings.channel_id} message_id={msg.message_id}")
     finally:

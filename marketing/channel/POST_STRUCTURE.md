@@ -49,11 +49,11 @@ marketing/channel/posts/01-energy-day/
 1. Открой канал → новый пост
 2. Прикрепи `energy-day.gif`
 3. Вставь текст из `post.txt`
-4. Добавь кнопку → @AstroPulsee_bot
+4. Ссылка на бота — в тексте поста (@AstroPulsee_bot)
 
-**Через бота (только текст + кнопка):**
+**Через бота (GIF + текст, без кнопки под постом):**
 ```
-/channelpost <текст из post.txt>
+/channelpublish energy-day
 ```
 
 ---
