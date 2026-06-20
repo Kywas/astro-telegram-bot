@@ -1,0 +1,16 @@
+{
+  "slug": "morning-hard",
+  "rubric": "🌅 Сложное утро",
+  "week_day": 2,
+  "slot": "morning",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 210, 160],
+    "sparkle_rgb": [255, 250, 230],
+    "aurora_rgb": [255, 180, 120],
+    "center_y": 0.36,
+    "breath": 0.020,
+    "sparkle_anchor": [0.54, 0.38]
+  },
+  "tags": ["morning", "energy", "routine"]
+}

@@ -1,0 +1,20 @@
+{
+  "timezone": "Europe/Moscow",
+  "enabled": true,
+  "start_date": "2026-06-21",
+  "weekday": {
+    "morning": "08:30",
+    "lunch": "13:00",
+    "evening": "19:30"
+  },
+  "weekend": {
+    "morning": "10:30",
+    "lunch": "14:30",
+    "evening": "20:00"
+  },
+  "slots": {
+    "morning": "Короткий пост — настрой дня, лёгкий заход",
+    "lunch": "Практичный пост — деньги, работа, тело",
+    "evening": "Главный пост дня — близость, эмоции, глубина"
+  }
+}

@@ -2,7 +2,8 @@
   "slug": "want-shame",
   "rubric": "🔥 Про желание",
   "day": "wednesday",
-  "status": "draft",
+  "slot": "evening",
+  "status": "ready",
   "gif": {
     "glow_rgb": [255, 170, 140],
     "sparkle_rgb": [255, 230, 210],

@@ -1,0 +1,16 @@
+{
+  "slug": "phone-drain",
+  "rubric": "📵 Телефон устал",
+  "week_day": 4,
+  "slot": "evening",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [170, 200, 255],
+    "sparkle_rgb": [235, 242, 255],
+    "aurora_rgb": [140, 170, 255],
+    "center_y": 0.43,
+    "breath": 0.020,
+    "sparkle_anchor": [0.48, 0.48]
+  },
+  "tags": ["phone", "rest", "digital-detox"]
+}

@@ -29,6 +29,7 @@ from app.premium_lifecycle import (
 from app.timezones import user_local_date_key, user_local_hhmm
 from app.ui import send_formatted_message
 from app.weekly_digest import send_due_weekly_digests
+from app.channel_scheduler import send_due_channel_posts
 
 LUNAR_NOTIFY_TIME = "10:00"
 PREMIUM_24H_REMINDER_PERIOD = "premium_reminder:24h"
@@ -278,6 +279,7 @@ async def run_daily_loop(
             await _send_lunar_notifications(db, bot, now)
             await _send_premium_expiry_reminders(db, bot, now)
             await send_due_weekly_digests(db, bot, now)
+            await send_due_channel_posts(db, bot, now)
             await check_and_notify_error_spike(db, bot, admin_ids)
         except Exception:
             logger.exception("daily loop tick failed")

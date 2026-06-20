@@ -326,8 +326,8 @@ def _marker_to_prose(locale: str, line: str) -> str:
 def _plain_detail_intro(locale: str) -> str:
     if _lang(locale) == "ru":
         return (
-            "Разверну без терминов — карта тут как подсказка от подруги, "
-            "которая шарит в астрологии, но не читает лекции три часа подряд:"
+            "Разложу спокойно и без зауми — как разговор с подругой, "
+            "которая в теме, но не мучает лекцией на три часа:"
         )
     return (
         "I'll unpack this without jargon — like a friend who knows astrology "
@@ -342,9 +342,33 @@ def _plain_eli5_bridge(locale: str, first_sentence: str) -> str:
     if not core:
         return ""
     if lang == "ru":
+        core_lower = core.lower()
+        if "отвечаю на" in core_lower and "простыми словами" in core_lower:
+            return (
+                "Если на совсем человеческом: без астрословаря и ребусов — "
+                "просто что у тебя работает в жизни, а где обычно спотыкаешься. "
+                "Версия «для нормальных людей», не для кафедры."
+            )
+        if "начну с главного" in core_lower or "разберём" in core_lower:
+            return (
+                "Если коротко и по делу: это про твои реальные привычки и выборы в жизни, "
+                "а не про красивую теорию «где-то в космосе». "
+                "Формат: ясно, по-человечески, без астробюрократии."
+            )
         return (
             f"Если совсем на пальцах: {core[0].lower()}{core[1:] if len(core) > 1 else ''}. "
             "Без звёзд, домов и словаря — просто про тебя и твою жизнь."
+        )
+    core_lower = core.lower()
+    if "clear words" in core_lower or "no astro dictionary" in core_lower:
+        return (
+            "In plain human language: no astro maze, no weird terms — "
+            "just what actually plays out in your real life."
+        )
+    if "main point first" in core_lower:
+        return (
+            "Short version: this is about your real patterns and choices, "
+            "not abstract cosmic poetry."
         )
     lower = core[0].lower() + core[1:] if core else core
     return (
@@ -556,7 +580,7 @@ def plain_topic_hook(locale: str, question: str, *, hint: str = "") -> str:
         elif any(w in q for w in ("карм", "прошл", "урок", "воплощ")):
             base = "Начну с главного — про уроки, которые жизнь повторяет, пока ты не скажешь «ага, понял»"
         else:
-            base = f"Отвечаю на «{topic}» — простыми словами, без загадок и без словаря астролога"
+            base = f"Разберём «{topic}» по-человечески — без ребусов, сухой теории и заумных слов"
         return f"{base}: {hint}" if hint else f"{base}."
     if any(w in q for w in ("love", "romance", "marriage", "partner", "relationship")):
         base = "Main point first — your line in love and closeness"

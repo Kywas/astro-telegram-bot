@@ -2,6 +2,7 @@
   "slug": "quiet-mind",
   "rubric": "🧠 Про себя",
   "day": "tuesday",
+  "slot": "morning",
   "status": "published",
   "gif": {
     "glow_rgb": [255, 200, 150],

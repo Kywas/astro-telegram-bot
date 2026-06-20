@@ -27,6 +27,9 @@ class Settings:
     premium_trial_days: int = DEFAULT_PREMIUM_TRIAL_DAYS
     feedback_username: str | None = None
     channel_id: str | None = None
+    channel_schedule_enabled: bool = True
+    channel_schedule_timezone: str = "Europe/Moscow"
+    channel_schedule_start: str = "2026-06-21"
 
 
 def load_settings() -> Settings:
@@ -90,6 +93,14 @@ def load_settings() -> Settings:
     channel_id_raw = os.getenv("CHANNEL_ID", "").strip() or os.getenv("TELEGRAM_CHANNEL_ID", "").strip()
     channel_id = channel_id_raw or "@AstroPulse_Channel"
 
+    channel_schedule_enabled_raw = os.getenv("CHANNEL_SCHEDULE_ENABLED", "true").strip().lower()
+    channel_schedule_enabled = channel_schedule_enabled_raw in {"1", "true", "yes", "on"}
+
+    channel_schedule_timezone = (
+        os.getenv("CHANNEL_SCHEDULE_TIMEZONE", "Europe/Moscow").strip() or "Europe/Moscow"
+    )
+    channel_schedule_start = os.getenv("CHANNEL_SCHEDULE_START", "2026-06-21").strip() or "2026-06-21"
+
     return Settings(
         bot_token=bot_token,
         proxy_url=proxy_url,
@@ -103,4 +114,7 @@ def load_settings() -> Settings:
         premium_trial_days=premium_trial_days,
         feedback_username=feedback_username,
         channel_id=channel_id,
+        channel_schedule_enabled=channel_schedule_enabled,
+        channel_schedule_timezone=channel_schedule_timezone,
+        channel_schedule_start=channel_schedule_start,
     )

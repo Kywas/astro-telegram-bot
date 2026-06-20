@@ -1,0 +1,16 @@
+{
+  "slug": "ask-help",
+  "rubric": "🤝 Попросить помощь",
+  "week_day": 6,
+  "slot": "morning",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 195, 175],
+    "sparkle_rgb": [255, 245, 235],
+    "aurora_rgb": [255, 170, 200],
+    "center_y": 0.41,
+    "breath": 0.022,
+    "sparkle_anchor": [0.50, 0.44]
+  },
+  "tags": ["help", "vulnerability", "support"]
+}

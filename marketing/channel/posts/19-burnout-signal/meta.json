@@ -1,0 +1,16 @@
+{
+  "slug": "burnout-signal",
+  "rubric": "🔋 Выгорание",
+  "week_day": 7,
+  "slot": "lunch",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 170, 150],
+    "sparkle_rgb": [255, 235, 220],
+    "aurora_rgb": [255, 140, 180],
+    "center_y": 0.43,
+    "breath": 0.019,
+    "sparkle_anchor": [0.48, 0.46]
+  },
+  "tags": ["burnout", "rest", "recovery"]
+}

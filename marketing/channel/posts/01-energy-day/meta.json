@@ -2,6 +2,7 @@
   "slug": "energy-day",
   "rubric": "🌙 Настроение дня",
   "day": "monday",
+  "slot": "morning",
   "status": "test",
   "gif": {
     "glow_rgb": [180, 200, 255],

@@ -1,0 +1,16 @@
+{
+  "slug": "inner-voice",
+  "rubric": "🪞 Внутренний голос",
+  "week_day": 2,
+  "slot": "lunch",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [190, 210, 255],
+    "sparkle_rgb": [240, 245, 255],
+    "aurora_rgb": [170, 190, 255],
+    "center_y": 0.41,
+    "breath": 0.022,
+    "sparkle_anchor": [0.51, 0.45]
+  },
+  "tags": ["self-esteem", "inner-critic", "kindness"]
+}

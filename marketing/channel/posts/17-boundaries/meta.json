@@ -1,0 +1,16 @@
+{
+  "slug": "boundaries",
+  "rubric": "🛑 Про границы",
+  "week_day": 2,
+  "slot": "evening",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 175, 195],
+    "sparkle_rgb": [255, 235, 225],
+    "aurora_rgb": [210, 170, 255],
+    "center_y": 0.43,
+    "breath": 0.021,
+    "sparkle_anchor": [0.49, 0.47]
+  },
+  "tags": ["boundaries", "communication", "self-care"]
+}

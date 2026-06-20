@@ -1288,6 +1288,7 @@ def main() -> None:
     test_natal_qa_synthesis()
     test_weekly_digest()
     test_channel_posting()
+    test_channel_scheduler()
     print(f"OK (trial default={DEFAULT_PREMIUM_TRIAL_DAYS}d)")
 
 
@@ -1302,4 +1303,45 @@ def test_channel_posting() -> None:
     assert channel_configured(None) is False
 
 
+def test_channel_scheduler() -> None:
+    from datetime import datetime, timezone
+
+    from app.channel_scheduler import (
+        due_slot_names,
+        load_channel_schedule_config,
+        planned_posts_for_date,
+        slots_for_date,
+    )
+    from app.services.channel_content import list_publishable_slugs_for_slot, pick_slug_for_slot
+
+    cfg = load_channel_schedule_config()
+    assert cfg.timezone == "Europe/Moscow"
+    assert cfg.weekday["morning"] == "08:30"
+    assert cfg.weekend["evening"] == "20:00"
+
+    weekday_noon = datetime(2026, 6, 22, 5, 30, tzinfo=timezone.utc)  # Mon 08:30 MSK
+    assert due_slot_names(weekday_noon, config=cfg) == ("morning",)
+    assert slots_for_date(weekday_noon, config=cfg)["evening"] == "19:30"
+
+    saturday_evening = datetime(2026, 6, 27, 17, 0, tzinfo=timezone.utc)  # Sat 20:00 MSK
+    assert due_slot_names(saturday_evening, config=cfg) == ("evening",)
+
+    morning_pool = list_publishable_slugs_for_slot("morning")
+    assert "energy-day" in morning_pool
+    assert "quiet-mind" in morning_pool
+    lunch_pool = list_publishable_slugs_for_slot("lunch")
+    assert "money-fear" in lunch_pool
+    evening_pool = list_publishable_slugs_for_slot("evening")
+    assert "closeness-fear" in evening_pool
+
+    slug = pick_slug_for_slot("morning", "2026-06-22")
+    assert slug in morning_pool
+
+    plan = planned_posts_for_date("2026-06-22", config=cfg)
+    assert len(plan) == 3
+    assert plan[0][0] == "morning" and plan[0][1] == "08:30"
+    assert plan[2][0] == "evening" and plan[2][1] == "19:30"
+
+
+if __name__ == "__main__":
     main()

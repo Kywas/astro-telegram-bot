@@ -1,0 +1,16 @@
+{
+  "slug": "need-control",
+  "rubric": "🎛 Пустить контроль",
+  "week_day": 7,
+  "slot": "evening",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 185, 200],
+    "sparkle_rgb": [255, 240, 245],
+    "aurora_rgb": [190, 150, 255],
+    "center_y": 0.44,
+    "breath": 0.021,
+    "sparkle_anchor": [0.51, 0.47]
+  },
+  "tags": ["control", "anxiety", "trust"]
+}

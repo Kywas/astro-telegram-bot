@@ -2,7 +2,8 @@
   "slug": "family-line",
   "rubric": "👨‍👩‍👧 Про род",
   "day": "saturday",
-  "status": "draft",
+  "slot": "evening",
+  "status": "ready",
   "gif": {
     "glow_rgb": [210, 180, 140],
     "sparkle_rgb": [250, 235, 210],

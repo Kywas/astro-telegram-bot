@@ -1,0 +1,16 @@
+{
+  "slug": "small-win",
+  "rubric": "⭐ Маленькая победа",
+  "week_day": 5,
+  "slot": "morning",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 220, 150],
+    "sparkle_rgb": [255, 250, 230],
+    "aurora_rgb": [255, 200, 120],
+    "center_y": 0.38,
+    "breath": 0.024,
+    "sparkle_anchor": [0.54, 0.39]
+  },
+  "tags": ["wins", "motivation", "kindness"]
+}

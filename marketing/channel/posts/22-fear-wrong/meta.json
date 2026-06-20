@@ -1,0 +1,16 @@
+{
+  "slug": "fear-wrong",
+  "rubric": "😰 Страх ошибиться",
+  "week_day": 5,
+  "slot": "lunch",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [200, 195, 255],
+    "sparkle_rgb": [245, 242, 255],
+    "aurora_rgb": [170, 160, 255],
+    "center_y": 0.42,
+    "breath": 0.023,
+    "sparkle_anchor": [0.49, 0.45]
+  },
+  "tags": ["fear", "mistakes", "growth"]
+}

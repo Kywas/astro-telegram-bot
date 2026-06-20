@@ -1,0 +1,16 @@
+{
+  "slug": "moon-day",
+  "rubric": "🌙 Подсказка дня",
+  "week_day": 7,
+  "slot": "morning",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [185, 195, 255],
+    "sparkle_rgb": [245, 247, 255],
+    "aurora_rgb": [150, 170, 255],
+    "center_y": 0.40,
+    "breath": 0.022,
+    "sparkle_anchor": [0.50, 0.42]
+  },
+  "tags": ["moon", "daily", "rhythm"]
+}

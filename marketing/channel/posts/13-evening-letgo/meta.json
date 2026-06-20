@@ -1,0 +1,16 @@
+{
+  "slug": "evening-letgo",
+  "rubric": "🌆 Вечерний сброс",
+  "week_day": 1,
+  "slot": "evening",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 160, 180],
+    "sparkle_rgb": [255, 230, 240],
+    "aurora_rgb": [180, 140, 255],
+    "center_y": 0.44,
+    "breath": 0.021,
+    "sparkle_anchor": [0.50, 0.48]
+  },
+  "tags": ["evening", "rest", "release"]
+}

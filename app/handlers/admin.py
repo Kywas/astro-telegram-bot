@@ -1,4 +1,5 @@
 """Admin commands and panel."""
+import asyncio
 from datetime import datetime, timezone
 
 from aiogram import Bot, F
@@ -241,6 +242,57 @@ async def channelpublish_handler(message: Message, bot: Bot) -> None:
     if result.startswith("✅") or "published" in result.lower() or "опубликован" in result.lower():
         await db.log_event(user.id, f"channel_publish:{slug}")
     await message.answer(result, reply_markup=admin_panel_keyboard(locale))
+
+
+@admin_router.message(Command("channelpublishall"))
+async def channelpublishall_handler(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    if not channel_configured():
+        await message.answer(t(locale, "channel_not_configured"), reply_markup=admin_panel_keyboard(locale))
+        return
+
+    slugs = list_post_slugs()
+    if not slugs:
+        await message.answer("Нет постов в marketing/channel/posts/", reply_markup=admin_panel_keyboard(locale))
+        return
+
+    await message.answer(f"Публикую {len(slugs)} постов в канал…", reply_markup=admin_panel_keyboard(locale))
+    ok = 0
+    fail = 0
+    failures: list[str] = []
+    for slug in slugs:
+        try:
+            bundle = load_post_bundle(slug)
+            await send_channel_animation(bot, bundle.gif_path, bundle.caption)
+            ok += 1
+            await asyncio.sleep(2)
+        except Exception as exc:
+            fail += 1
+            failures.append(f"{slug}: {exc}")
+
+    lines = [f"✅ Опубликовано: {ok}", f"❌ Ошибок: {fail}"]
+    if failures:
+        lines.append("")
+        lines.extend(f"• {line}" for line in failures[:8])
+    await message.answer("\n".join(lines), reply_markup=admin_panel_keyboard(locale))
+    await db.log_event(user.id, f"channel_publish_all:ok={ok}:fail={fail}")
+
+
+@admin_router.message(Command("channelschedule"))
+async def channelschedule_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+    locale = await get_user_locale(user.id)
+    from app.channel_scheduler import format_schedule_preview
+
+    preview = format_schedule_preview()
+    if not channel_configured():
+        preview = f"{t(locale, 'channel_not_configured')}\n\n{preview}"
+    await message.answer(preview, reply_markup=admin_panel_keyboard(locale))
 
 
 @admin_router.message(Command("channeltest"))

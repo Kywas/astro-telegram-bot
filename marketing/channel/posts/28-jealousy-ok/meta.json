@@ -1,0 +1,16 @@
+{
+  "slug": "jealousy-ok",
+  "rubric": "💚 Ревность — это ок",
+  "week_day": 6,
+  "slot": "lunch",
+  "status": "ready",
+  "gif": {
+    "glow_rgb": [255, 175, 190],
+    "sparkle_rgb": [255, 235, 240],
+    "aurora_rgb": [220, 160, 255],
+    "center_y": 0.42,
+    "breath": 0.022,
+    "sparkle_anchor": [0.51, 0.44]
+  },
+  "tags": ["jealousy", "relationships", "honesty"]
+}

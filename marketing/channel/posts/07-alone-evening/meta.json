@@ -2,7 +2,8 @@
   "slug": "alone-evening",
   "rubric": "😶 Когда одиноко",
   "day": "sunday",
-  "status": "draft",
+  "slot": "evening",
+  "status": "ready",
   "gif": {
     "glow_rgb": [160, 190, 255],
     "sparkle_rgb": [230, 235, 255],
