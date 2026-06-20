@@ -244,9 +244,22 @@ async def weeklysend_handler(message: Message, bot: Bot) -> None:
     locale = await get_user_locale(user.id)
     from app.weekly_digest import send_weekly_bootstrap_now
 
-    sent, failed = await send_weekly_bootstrap_now(db, bot)
+    report = await send_weekly_bootstrap_now(db, bot)
+    lines = [
+        f"Еженедельный launch-пост: отправлено {report.sent}, ошибок {report.failed}.",
+        f"Уже получали раньше: {report.skipped}.",
+    ]
+    if report.failures:
+        lines.append("")
+        lines.append("Ошибки:")
+        lines.extend(f"• {line}" for line in report.failures)
+        if report.failed > len(report.failures):
+            lines.append(f"• … и ещё {report.failed - len(report.failures)}")
+    elif report.failed:
+        lines.append("")
+        lines.append("Обычно это пользователи, которые заблокировали бота.")
     await message.answer(
-        f"Еженедельный launch-пост: отправлено {sent}, ошибок {failed}.",
+        "\n".join(lines),
         reply_markup=admin_panel_keyboard(locale),
     )
 

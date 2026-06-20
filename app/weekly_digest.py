@@ -537,6 +537,25 @@ async def _bootstrap_already_sent(db: "Database", user_id: int) -> bool:
     return False
 
 
+def _weekly_send_error_hint(exc: Exception) -> str:
+    text = str(exc).lower()
+    if "blocked" in text or "forbidden" in text:
+        return "бот заблокирован"
+    if "chat not found" in text or "deactivated" in text:
+        return "чат недоступен"
+    if "message is too long" in text:
+        return "слишком длинный текст"
+    return str(exc).replace("\n", " ")[:72]
+
+
+@dataclass(frozen=True)
+class WeeklyBootstrapReport:
+    sent: int
+    failed: int
+    skipped: int
+    failures: tuple[str, ...]
+
+
 async def _send_weekly_to_user(
     db: "Database",
     bot: Bot,
@@ -547,7 +566,7 @@ async def _send_weekly_to_user(
     period: str,
     event_name: str,
     slot: str,
-) -> bool:
+) -> tuple[bool, str]:
     locale = user.language or "ru"
     chart = None
     try:
@@ -568,10 +587,17 @@ async def _send_weekly_to_user(
         )
         await db.mark_daily_sent(user.user_id, period, date_key)
         await db.log_event(user.user_id, event_name)
-        return True
-    except Exception:
+        return True, ""
+    except Exception as exc:
+        logger.warning(
+            "weekly digest send failed for user %s: %s",
+            user.user_id,
+            exc,
+        )
         await db.log_event(user.user_id, f"{event_name}_failed")
-        return False
+        label = user.username or user.first_name or str(user.user_id)
+        who = f"@{label}" if user.username else str(label)
+        return False, f"{user.user_id} ({who}) — {_weekly_send_error_hint(exc)}"
 
 
 async def _try_send_weekly_bootstrap(
@@ -601,15 +627,18 @@ async def _try_send_weekly_bootstrap(
     )
 
 
-async def send_weekly_bootstrap_now(db: "Database", bot: Bot) -> tuple[int, int]:
+async def send_weekly_bootstrap_now(db: "Database", bot: Bot) -> WeeklyBootstrapReport:
     """Admin/manual: send launch post immediately (ignores time-of-day)."""
     theme = launch_theme()
     sent = 0
     failed = 0
+    skipped = 0
+    failures: list[str] = []
     for user in await db.get_weekly_digest_subscribers():
         if await _bootstrap_already_sent(db, user.user_id):
+            skipped += 1
             continue
-        ok = await _send_weekly_to_user(
+        ok, detail = await _send_weekly_to_user(
             db,
             bot,
             user,
@@ -623,7 +652,14 @@ async def send_weekly_bootstrap_now(db: "Database", bot: Bot) -> tuple[int, int]
             sent += 1
         else:
             failed += 1
-    return sent, failed
+            if detail:
+                failures.append(detail)
+    return WeeklyBootstrapReport(
+        sent=sent,
+        failed=failed,
+        skipped=skipped,
+        failures=tuple(failures[:8]),
+    )
 
 
 async def _try_send_weekly_digest(
