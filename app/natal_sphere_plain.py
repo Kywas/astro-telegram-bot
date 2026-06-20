@@ -13,11 +13,9 @@ from app.natal_qa_common import (
     rank_dignity,
 )
 from app.natal_qa_voice import (
-    life_manifestation_echo,
     plain_area,
     plain_lord_line,
     plain_placement_line,
-    plain_topic_hook,
     sanitize_plain_qa_text,
 )
 
@@ -52,15 +50,9 @@ def _pack(
     practice: str,
     roles: tuple[str, ...] = (),
 ) -> StructuredQaAnswer:
-    hook = plain_topic_hook(locale, question)
-    echo = life_manifestation_echo(locale, question, style="plain")
-    chunks = [opening.strip()]
-    if echo and echo.lower() not in opening.lower() and echo.lower() not in detail.lower():
-        chunks.append(echo)
-    chunks.append(detail.strip())
-    body = sanitize_plain_qa_text(" ".join(chunks), locale)
+    body = sanitize_plain_qa_text(detail.strip(), locale)
     return StructuredQaAnswer(
-        make_brief(locale, hook, body, style="plain"),
+        make_brief(locale, opening.strip(), body, style="plain"),
         pick_markers(locale, markers_chart, style="plain", roles=roles, limit=3),
         practice,
     )
@@ -117,30 +109,30 @@ def plain_finance(chart: JyotishChart, locale: str, idx: int, question: str) -> 
 
     if idx == 3:
         opening = (
-            "Долги и чужие ресурсы — тема «не только моё». Тут легко перепутать помощь и самоотдачу."
+            "Доход растёт не от молитвы к вселенной, а от связки «умею + не сливаю + не выгораю»."
             if lang == "ru"
-            else "Shared money and others' resources — easy to mix help with self-abandon."
+            else "Income grows from «can do + don't leak + don't burn out» — not universe spam."
         )
-        detail = f"{plain_lord_line(locale, chart, 8)} {plain_placement_line(locale, saturn)}"
+        detail = f"{plain_lord_line(locale, chart, 11)} {plain_placement_line(locale, jupiter)} {plain_lord_line(locale, chart, 2)}"
         practice = (
-            "Если что-то «висит» — назови вслух сумму и срок. Магия начинается с ясности."
+            "Запиши один источник дохода, который реально тянет — и один, который только съедает нервы."
             if lang == "ru"
-            else "If something «hangs» — say amount and deadline out loud. Clarity first."
+            else "List one income source that pulls you up — and one that only eats nerves."
         )
-        return _pack(locale, question, opening, detail, markers_chart=[lord_of(chart, 8), saturn], practice=practice)
+        return _pack(locale, question, opening, detail, markers_chart=[lord_of(chart, 11), jupiter, lord2], practice=practice)
 
     opening = (
-        "Доход растёт не от молитвы к вселенной, а от связки «умею + не сливаю + не выгораю»."
+        "Финансовые риски — не «ты неудачник», а повторяющиеся сценарии: импульс, страх нехватки, «быстрые деньги»."
         if lang == "ru"
-        else "Income grows from «can do + don't leak + don't burn out» — not universe spam."
+        else "Financial risks aren't «you're unlucky» — repeating scripts: impulse, scarcity fear, «easy money»."
     )
-    detail = f"{plain_lord_line(locale, chart, 11)} {plain_placement_line(locale, jupiter)}"
+    detail = f"{plain_placement_line(locale, saturn)} {plain_placement_line(locale, rahu)} {plain_placement_line(locale, mars)}"
     practice = (
-        "Запиши один источник дохода, который реально тянет — и один, который только съедает нервы."
+        "Перед крупной тратой — пауза 24 часа и вопрос «это ценность или импульс?»"
         if lang == "ru"
-        else "List one income source that pulls you up — and one that only eats nerves."
+        else "Before big spending — 24h pause: value or impulse?"
     )
-    return _pack(locale, question, opening, detail, markers_chart=[lord_of(chart, 11), jupiter], practice=practice)
+    return _pack(locale, question, opening, detail, markers_chart=[saturn, rahu, mars], practice=practice)
 
 
 def plain_karma(chart: JyotishChart, locale: str, idx: int, question: str) -> StructuredQaAnswer:
@@ -527,7 +519,12 @@ def plain_purpose(chart: JyotishChart, locale: str, idx: int, question: str) -> 
 
 def plain_dharma(chart: JyotishChart, locale: str, idx: int, question: str) -> StructuredQaAnswer:
     lang = _lang(locale)
-    jupiter, sun = chart.planets["JUPITER"], chart.planets["SUN"]
+    jupiter, sun, ketu, moon = (
+        chart.planets["JUPITER"],
+        chart.planets["SUN"],
+        chart.planets["KETU"],
+        chart.planets["MOON"],
+    )
 
     if idx == 0:
         opening = (
@@ -559,31 +556,32 @@ def plain_dharma(chart: JyotishChart, locale: str, idx: int, question: str) -> S
 
     if idx == 2:
         opening = (
-            "Вера в путь — не «всё будет хорошо», а «я не сдамся на полпути к себе»."
+            "Медитация — не обязательно подушка и ладошки вверх. "
+            "Иногда это 10 минут тишины, когда телефон в другой комнате."
             if lang == "ru"
-            else "Faith in the path isn't «all will be fine» — it's «I won't quit halfway to myself»."
+            else "Meditation isn't always a cushion — sometimes ten quiet minutes with the phone elsewhere."
         )
-        detail = plain_placement_line(locale, jupiter)
+        detail = f"{plain_placement_line(locale, ketu)} {plain_placement_line(locale, moon)} {plain_lord_line(locale, chart, 12)}"
         practice = (
-            "Когда сомневаешься — вернись к одному человеку или делу, где чувствуешь правду."
+            "10 минут тишины — таймер, без цели «просветиться к вечеру»."
             if lang == "ru"
-            else "When doubting — return to one person or thing where you feel truth."
+            else "Ten minutes of silence — timer on, no goal to «enlighten by dinner»."
         )
-        return _pack(locale, question, opening, detail, markers_chart=[jupiter], practice=practice)
+        return _pack(locale, question, opening, detail, markers_chart=[ketu, moon, lord_of(chart, 12)], practice=practice)
 
     if idx == 3:
         opening = (
-            "Честность с собой — самый непопулярный духовный практикум. Зато работает."
+            "Юпитер тянет расти, Кету просит отпустить — два голоса в голове, и оба иногда правы."
             if lang == "ru"
-            else "Honesty with yourself — least popular spiritual gym. Works though."
+            else "Jupiter pulls you to grow, Ketu asks you to release — two voices, both sometimes right."
         )
-        detail = f"{plain_lord_line(locale, chart, 9)} {plain_placement_line(locale, chart.planets['SATURN'])}"
+        detail = f"{plain_placement_line(locale, jupiter)} {plain_placement_line(locale, ketu)}"
         practice = (
-            "Признай одну маленькую правду, которую откладывал — без драмы, просто факт."
+            "На неделю: одну вещь «отпустить» и одну «приумножить». Без революции."
             if lang == "ru"
-            else "Admit one small truth you've postponed — fact, no drama."
+            else "This week: one thing to release, one to grow. No revolution."
         )
-        return _pack(locale, question, opening, detail, markers_chart=[lord_of(chart, 9), chart.planets["SATURN"]], practice=practice)
+        return _pack(locale, question, opening, detail, markers_chart=[jupiter, ketu, lord_of(chart, 9)], practice=practice)
 
     opening = (
         "Дхарма в быту — не только медитация, а «не вру себе в мелочах»."
@@ -646,31 +644,33 @@ def plain_travel(chart: JyotishChart, locale: str, idx: int, question: str) -> S
         return _pack(locale, question, opening, detail, markers_chart=[rahu, lord_of(chart, 9)], practice=practice)
 
     if idx == 3:
+        saturn = chart.planets["SATURN"]
         opening = (
-            "Дом vs дорога — не война, а баланс. Где корни, а где крылья."
+            "Переезд тормозят не только визы — страх, привычка и «а вдруг там хуже». "
+            "Карта показывает, где тормоз, а где подталкивает."
             if lang == "ru"
-            else "Home vs road — not war, balance. Where roots, where wings."
+            else "Relocation isn't blocked only by visas — fear, habit, «what if it's worse». Chart shows brake vs push."
         )
-        detail = f"{plain_lord_line(locale, chart, 4)} {plain_lord_line(locale, chart, 12)}"
+        detail = f"{plain_placement_line(locale, saturn)} {plain_lord_line(locale, chart, 12)} {plain_lord_line(locale, chart, 4)}"
         practice = (
-            "Спроси: «мне нужен дом или движение сейчас?» — честный ответ экономит деньги."
+            "Назови один страх переезда вслух — часто он меньше, чем кажется в голове."
             if lang == "ru"
-            else "Ask: «do I need home or motion now?» — honest answer saves money."
+            else "Name one relocation fear aloud — often smaller than it feels."
         )
-        return _pack(locale, question, opening, detail, markers_chart=[lord_of(chart, 4), lord_of(chart, 12)], practice=practice)
+        return _pack(locale, question, opening, detail, markers_chart=[saturn, lord_of(chart, 12), lord_of(chart, 4)], practice=practice)
 
     opening = (
-        "Эмиграция — большой шаг. Карта не говорит «да/нет», но показывает, где ты раскроешься, а где будешь скучать."
+        "«Дом» вдали от родины — не адрес в паспорте, а состояние, которое можно собрать из мелочей."
         if lang == "ru"
-        else "Emigration is a big step. Chart won't say yes/no — but where you'll open vs miss home."
+        else "«Home» far from homeland isn't a passport address — a state you build from small things."
     )
-    detail = f"{plain_placement_line(locale, rahu)} {plain_placement_line(locale, jupiter)}"
+    detail = f"{plain_placement_line(locale, moon)} {plain_lord_line(locale, chart, 4)} {plain_lord_line(locale, chart, 12)}"
     practice = (
-        "Пробный период или короткая поездка перед решением — не трусость, а разведка."
+        "Один якорь дома — запах, музыка, ритуал. Звучит sentimental, но мозг верит."
         if lang == "ru"
-        else "Trial period or short trip before deciding — recon, not cowardice."
+        else "One home anchor — scent, music, ritual. Sentimental, but the brain buys it."
     )
-    return _pack(locale, question, opening, detail, markers_chart=[rahu, jupiter], practice=practice)
+    return _pack(locale, question, opening, detail, markers_chart=[moon, lord_of(chart, 4), lord_of(chart, 12)], practice=practice)
 
 
 def plain_upaya(chart: JyotishChart, locale: str, idx: int, question: str) -> StructuredQaAnswer:
@@ -683,7 +683,11 @@ def plain_upaya(chart: JyotishChart, locale: str, idx: int, question: str) -> St
             if lang == "ru"
             else "Harmonizing isn't «buy a gem and forget». Routine and honesty first."
         )
-        detail = f"Сейчас мягче всего поддержать: {plain_placement_line(locale, focus)}."
+        detail = (
+            f"Сейчас мягче всего поддержать: {plain_placement_line(locale, focus)}."
+            if lang == "ru"
+            else f"Softest support now: {plain_placement_line(locale, focus)}."
+        )
         practice = (
             "Без консультации — мантра и доброе дело безопаснее камня."
             if lang == "ru"
@@ -692,28 +696,17 @@ def plain_upaya(chart: JyotishChart, locale: str, idx: int, question: str) -> St
         return _pack(locale, question, opening, detail, markers_chart=[focus], practice=practice)
 
     if idx == 1:
-        focus = _strong(chart)[0] if _strong(chart) else chart.planets["JUPITER"]
-        opening = (
-            "Опора — там, где у тебя уже есть сила. Не чинить то, что и так держит."
-            if lang == "ru"
-            else "Support what already holds — don't fix what's fine."
-        )
-        detail = f"Опирайся на: {plain_placement_line(locale, focus)}."
-        practice = (
-            "Раз в неделю благодарность вслух — звучит cheesy, но переключает фокус."
-            if lang == "ru"
-            else "Weekly gratitude out loud — cheesy, but shifts focus."
-        )
-        return _pack(locale, question, opening, detail, markers_chart=[focus], practice=practice)
-
-    if idx == 2:
         focus = _tense(chart)[0] if _tense(chart) else chart.planets["MARS"]
         opening = (
-            "Снять напряжение — не «стать другим человеком», а чуть смягчить привычный удар."
+            "Смягчить напряжение — не «стать другим человеком», а чуть приглушить привычный удар."
             if lang == "ru"
-            else "Ease tension — not «be someone else», soften the usual punch a bit."
+            else "Ease tension — not «be someone else», just soften the usual punch a bit."
         )
-        detail = f"Тут аккуратнее: {plain_placement_line(locale, focus)}."
+        detail = (
+            f"Тут аккуратнее: {plain_placement_line(locale, focus)}."
+            if lang == "ru"
+            else f"Go gently here: {plain_placement_line(locale, focus)}."
+        )
         practice = (
             "День без спешки и резких слов — мини-упайя, доступная бесплатно."
             if lang == "ru"
@@ -721,24 +714,44 @@ def plain_upaya(chart: JyotishChart, locale: str, idx: int, question: str) -> St
         )
         return _pack(locale, question, opening, detail, markers_chart=[focus], practice=practice)
 
-    if idx == 3:
+    if idx == 2:
+        focus = _strong(chart)[0] if _strong(chart) else chart.planets["JUPITER"]
         opening = (
-            "Мантры и практики — как зарядка для головы: регулярность важнее громкости."
+            "Усилить сильное — не чинить то, что держит, а опираться на то, что уже работает."
             if lang == "ru"
-            else "Mantras and practice — brain gym: regularity beats volume."
+            else "Strengthen what's strong — lean on what already works, don't fix what's fine."
         )
-        detail = plain_placement_line(locale, chart.planets["JUPITER"])
+        detail = (
+            f"Опирайся на: {plain_placement_line(locale, focus)}."
+            if lang == "ru"
+            else f"Lean on: {plain_placement_line(locale, focus)}."
+        )
+        practice = (
+            "Раз в неделю благодарность вслух — звучит cheesy, но переключает фокус."
+            if lang == "ru"
+            else "Weekly gratitude out loud — cheesy, but shifts focus."
+        )
+        return _pack(locale, question, opening, detail, markers_chart=[focus], practice=practice)
+
+    if idx == 3:
+        tense = _tense(chart)[:2] or [chart.planets["JUPITER"], chart.planets["MOON"]]
+        opening = (
+            "Дни планет — как расписание: скучно, зато понятно, когда «день доброты», а когда «день терпения»."
+            if lang == "ru"
+            else "Planetary days are like a schedule — boring, but clear when it's «kindness day» vs «patience day»."
+        )
+        detail = " ".join(plain_placement_line(locale, pl) for pl in tense)
         practice = (
             "2 минуты в день лучше, чем час раз в месяц «на героизме»."
             if lang == "ru"
             else "Two minutes daily beats one heroic hour monthly."
         )
-        return _pack(locale, question, opening, detail, markers_chart=[chart.planets["JUPITER"]], practice=practice)
+        return _pack(locale, question, opening, detail, markers_chart=list(tense), practice=practice)
 
     opening = (
-        "Камни — последний пункт списка, не первый. Сначала сон, слова и поведение."
+        "Мантры, дана и камни — не шопинг-лист. Сначала слова и поступки, камень — в конце и с умным человеком."
         if lang == "ru"
-        else "Gems are last on the list, not first. Sleep, words, behavior first."
+        else "Mantras, charity, gems — not a shopping list. Words and deeds first; gems last, with someone who knows."
     )
     detail = plain_placement_line(locale, chart.planets["VENUS"])
     practice = (

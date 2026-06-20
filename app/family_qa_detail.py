@@ -810,7 +810,10 @@ def _markers_q0(locale: str, chart: JyotishChart, *, style: str) -> tuple[str, .
             seen.add(pl.key)
             note = _planet_in_7_note(locale, pl.key, style=style)
             line = _placement_label(locale, pl, style=style)
-            lines.append(f"{line} — {note}" if note else line)
+            if _use_terms(style) and note:
+                lines.append(f"{line.rstrip('.')}: {note}.")
+            else:
+                lines.append(line)
     else:
         if _lang(locale) == "ru":
             if _use_terms(style):
@@ -923,8 +926,8 @@ def _practice_for(locale: str, question_index: int, chart: JyotishChart, *, styl
         if lang == "ru":
             if plain:
                 if moon.house in (3, 5):
-                    return "На неделю: сначала проговори, что чувствуешь — потом жди близости. Твои эмоции не торопятся, как Windows Update."
-                return "На неделю: заметь, при каком «приятно и по-настоящему» ты открываешься — это твой романтический Wi‑Fi."
+                    return "Сначала проговори, что чувствуешь — потом жди близости. Твои эмоции не торопятся, как Windows Update."
+                return "Заметь, при каком «приятно и по-настоящему» ты открываешься — это твой романтический Wi‑Fi."
             if moon.house in (3, 5):
                 return "На неделю: сначала проговаривай, что чувствуешь, — потом жди близости; так твоя Луна успевает довериться."
             return "На неделю: заметь, при каком «приятно и красиво» (Венера) ты открываешься — это твой романтический код."
@@ -981,14 +984,6 @@ def build_family_structured(
     brief_fns = (_brief_q0, _brief_q1, _brief_q2, _brief_q3, _brief_q4)
     marker_fns = (_markers_q0, _markers_q1, _markers_q2, _markers_q3, _markers_q4)
     brief = brief_fns[idx](locale, chart, question, style=style)
-    if not _use_terms(style):
-        from app.natal_qa_voice import life_manifestation_echo, sanitize_plain_qa_text, strip_telegram_html
-        from app.text_format import h
-
-        echo = life_manifestation_echo(locale, question, style="plain")
-        core = strip_telegram_html(brief)
-        if echo and echo.lower() not in core.lower():
-            brief = h(sanitize_plain_qa_text(f"{core} {echo}", locale))
     return FamilyStructuredAnswer(
         brief=brief,
         markers=marker_fns[idx](locale, chart, style=style),

@@ -146,9 +146,9 @@ def placement_label(
         pname = _pl(locale, pl.key)
         base = f"{pname} в {sign}, {pl.house}-й дом («{theme}»)"
         return f"{base} · {dig}" if dig else base
+    if not _use_terms(style):
+        return plain_placement_line(locale, pl, hint=role if role else "")
     line = plain_placement_line(locale, pl, hint=role if role else "")
-    if dig and lang == "ru":
-        return f"{line} ({dig})"
     if dig:
         return f"{line} ({dig})"
     return line

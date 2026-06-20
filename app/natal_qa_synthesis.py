@@ -253,6 +253,12 @@ def _classify_question(question: str, lang: str) -> str:
     if lang == "ru":
         if any(w in q for w in ("риск", "мешает", "меша", "блок", "препят", "трен", "сложн", "слаб")):
             return "challenge"
+        if any(w in q for w in ("карм", "воплощ", "раху", "кету", "сатурн")):
+            return "challenge"
+        if any(w in q for w in ("духов", "дхарм", "медита", "мокш")):
+            return "purpose"
+        if any(w in q for w in ("переезд", "эмиграц", "путешеств", "границ", "родин")):
+            return "where"
         if any(w in q for w in ("когда", "срок", "пора", "скоро", "время")):
             return "when"
         if any(w in q for w in ("деньг", "доход", "финанс", "инвест", "ценност")):
@@ -268,6 +274,8 @@ def _classify_question(question: str, lang: str) -> str:
                 return "how_relationship"
             if "кого" in q or "кто" in q:
                 return "who_partner"
+        if any(w in q for w in ("мам", "отец", "пап", "род", "предк", "родит")):
+            return "how_relationship"
         if q.startswith("как"):
             return "how"
         if q.startswith("где") or "откуда" in q or q.startswith("куда"):
@@ -287,6 +295,8 @@ def _classify_question(question: str, lang: str) -> str:
         return "general"
 
     if any(w in q for w in ("risk", "block", "obstacle", "friction", "weak", "holds me back")):
+        return "challenge"
+    if any(w in q for w in ("karma", "incarnation", "rahu", "ketu", "saturn", "dharma")):
         return "challenge"
     if any(w in q for w in ("when", "timing", "soon", "deadline")):
         return "when"
