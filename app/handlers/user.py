@@ -4171,6 +4171,12 @@ async def run_bot() -> None:
             error_type=type(e).__name__,
             message=str(e),
         )
+        if not settings.proxy_url:
+            logger.error(
+                "Cannot reach Telegram API. On RU VPS set BOT_PROXY in .env "
+                "(socks5:// or http://), then restart. "
+                "Run: PYTHONPATH=. python scripts/check_telegram_connectivity.py"
+            )
         logger.exception("Failed to connect to Telegram API on startup; polling may retry")
     try:
         await configure_public_profile(bot)

@@ -24,6 +24,7 @@ jobs:
             python -m compileall app main.py scripts
             PYTHONPATH=. python scripts/check_env.py
             PYTHONPATH=. python scripts/import_check.py
+            PYTHONPATH=. python scripts/check_telegram_connectivity.py || echo "WARN: Telegram API unreachable — set BOT_PROXY in .env on VPS"
             PYTHONPATH=. python scripts/smoke_test.py
             cp deploy/astrobot.service /etc/systemd/system/astrobot.service
             systemctl daemon-reload

@@ -1,52 +1,36 @@
-import asyncio
-from typing import cast
-
-from aiohttp import ClientError
-from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.exceptions import TelegramNetworkError
-from aiogram.methods.base import TelegramType
+from aiohttp import ClientSession
+from aiohttp_socks import ProxyConnector
+from aiogram import __version__
+from aiogram.client.session.aiohttp import SERVER_SOFTWARE, USER_AGENT, AiohttpSession
 
 
 class HttpProxyAiohttpSession(AiohttpSession):
     """
-    Aiohttp session with native HTTP proxy support.
+    Telegram API session via HTTP or SOCKS proxy.
 
-    This avoids optional aiohttp-socks dependency and works for HTTP proxies
-    like: http://user:password@host:port
+    Supported BOT_PROXY values:
+    - http://host:port
+    - http://user:pass@host:port
+    - socks5://host:port
+    - socks5://user:pass@host:port
     """
 
     def __init__(self, proxy_url: str, **kwargs: object) -> None:
-        self._http_proxy_url = proxy_url
+        self._proxy_url = proxy_url
         super().__init__(proxy=None, **kwargs)
 
-    async def make_request(
-        self,
-        bot,
-        method,
-        timeout: int | None = None,
-    ) -> TelegramType:
-        session = await self.create_session()
+    async def create_session(self) -> ClientSession:
+        if self._should_reset_connector:
+            await self.close()
 
-        url = self.api.api_url(token=bot.token, method=method.__api_method__)
-        form = self.build_form_data(bot=bot, method=method)
+        if self._session is None or self._session.closed:
+            connector = ProxyConnector.from_url(self._proxy_url)
+            self._session = ClientSession(
+                connector=connector,
+                headers={
+                    USER_AGENT: f"{SERVER_SOFTWARE} aiogram/{__version__}",
+                },
+            )
+            self._should_reset_connector = False
 
-        try:
-            async with session.post(
-                url,
-                data=form,
-                timeout=self.timeout if timeout is None else timeout,
-                proxy=self._http_proxy_url,
-            ) as resp:
-                raw_result = await resp.text()
-        except asyncio.TimeoutError as e:
-            raise TelegramNetworkError(method=method, message="Request timeout error") from e
-        except ClientError as e:
-            raise TelegramNetworkError(method=method, message=f"{type(e).__name__}: {e}") from e
-
-        response = self.check_response(
-            bot=bot,
-            method=method,
-            status_code=resp.status,
-            content=raw_result,
-        )
-        return cast(TelegramType, response.result)
+        return self._session
