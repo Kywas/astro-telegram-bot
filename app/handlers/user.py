@@ -222,11 +222,13 @@ from app.states import (
     ProfileSetup,
 )
 from app.timezones import normalize_timezone, timezone_label_with_offset, user_local_date_key
+from app.telegram_errors import is_benign_dispatcher_error
 from app.ui import (
     _save_user_panel,
     delete_user_wizard_message,
     edit_or_send,
     render_inline_panel,
+    safe_callback_answer,
     show_panel_from_message,
     show_ui_panel,
 )
@@ -2528,13 +2530,14 @@ async def checkin_mood_callback_handler(callback: CallbackQuery) -> None:
     locale = await get_user_locale(user.id)
     parts = (callback.data or "").split(":")
     if len(parts) < 3 or not parts[2].isdigit():
-        await callback.answer()
+        await safe_callback_answer(callback)
         return
     score = int(parts[2])
     if score < 1 or score > 10:
-        await callback.answer(t(locale, "mood_invalid"))
+        await safe_callback_answer(callback, t(locale, "mood_invalid"))
         return
 
+    await safe_callback_answer(callback)
     streak = await save_user_mood(user.id, locale, score)
     await db.log_event(user.id, "evening_checkin_done")
     profile = await db.get_user(user.id)
@@ -2547,7 +2550,6 @@ async def checkin_mood_callback_handler(callback: CallbackQuery) -> None:
         profile=profile,
         for_date=local_date,
     )
-    await callback.answer()
     if callback.message:
         await edit_or_send(callback, response_text)
 
@@ -4197,6 +4199,13 @@ async def run_bot() -> None:
         import logging
 
         exc = event.exception
+        if is_benign_dispatcher_error(exc):
+            logging.getLogger(__name__).info(
+                "Benign Telegram callback error update_id=%s: %s",
+                event.update.update_id,
+                exc,
+            )
+            return
         update = event.update
         user_id = None
         chat_id = None

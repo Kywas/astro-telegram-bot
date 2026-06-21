@@ -7,6 +7,7 @@ from aiogram import Bot
 
 from app.admin_alerts import notify_admins
 from app.bot_context import db
+from app.telegram_errors import is_benign_telegram_error_message
 
 _ERROR_ALERT_COOLDOWN = timedelta(minutes=10)
 _recent_error_alert_keys: dict[str, datetime] = {}
@@ -75,6 +76,8 @@ async def report_error(
     context: str | None = None,
     notify: bool = True,
 ) -> None:
+    if is_benign_telegram_error_message(message):
+        return
     await db.log_error(
         source=source,
         error_type=error_type,

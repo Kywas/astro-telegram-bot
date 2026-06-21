@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from app.bot_context import db, settings
 from app.error_reporting import report_error
+from app.telegram_errors import is_benign_callback_query_error
 from app.text_format import prepare_panel_text, split_telegram_text
 
 _USER_PANELS: dict[int, list[tuple[int, int]]] = {}
@@ -52,6 +53,22 @@ def _is_not_modified_error(exc: TelegramBadRequest) -> bool:
 
 def _is_message_too_long_error(exc: TelegramBadRequest) -> bool:
     return "message is too long" in str(exc).lower()
+
+
+async def safe_callback_answer(
+    callback: CallbackQuery,
+    text: str | None = None,
+    *,
+    show_alert: bool = False,
+) -> bool:
+    """Answer callback query; return False if the query already expired."""
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+        return True
+    except TelegramBadRequest as exc:
+        if is_benign_callback_query_error(exc):
+            return False
+        raise
 
 
 async def _send_text_chunks(
@@ -250,6 +267,7 @@ async def render_inline_panel(
     user = callback.from_user
     if user is None or callback.message is None:
         return
+    await safe_callback_answer(callback)
     await show_ui_panel(
         bot=callback.bot,
         user_id=user.id,
@@ -269,6 +287,7 @@ async def edit_or_send(
     user = callback.from_user
     if user is None or callback.message is None:
         return
+    await safe_callback_answer(callback)
     await show_ui_panel(
         bot=callback.bot,
         user_id=user.id,
