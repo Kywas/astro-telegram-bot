@@ -1,6 +1,7 @@
 """Track real user interactions (messages, buttons, payments)."""
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Awaitable, Callable
 
@@ -9,6 +10,7 @@ from aiogram.types import CallbackQuery, Message, PreCheckoutQuery, TelegramObje
 
 from app.bot_context import db
 
+logger = logging.getLogger(__name__)
 _TOUCH_INTERVAL_SEC = 300
 _last_touch: dict[int, float] = {}
 
@@ -32,11 +34,17 @@ class UserActivityMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        result = await handler(event, data)
         user_id = _extract_user_id(event)
-        if user_id is not None:
-            now = time.monotonic()
-            last = _last_touch.get(user_id, 0.0)
-            if now - last >= _TOUCH_INTERVAL_SEC:
-                _last_touch[user_id] = now
-                await db.touch_user_activity(user_id)
-        return await handler(event, data)
+        if user_id is None:
+            return result
+        now = time.monotonic()
+        last = _last_touch.get(user_id, 0.0)
+        if now - last < _TOUCH_INTERVAL_SEC:
+            return result
+        _last_touch[user_id] = now
+        try:
+            await db.touch_user_activity(user_id)
+        except Exception:
+            logger.warning("touch_user_activity failed user_id=%s", user_id, exc_info=True)
+        return result

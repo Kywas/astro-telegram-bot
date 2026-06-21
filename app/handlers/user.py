@@ -4236,16 +4236,10 @@ async def run_bot() -> None:
     router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(cleanup_middleware)
     admin_router.message.middleware(
-        AdminOnlyMiddleware(
-            admin_ids=settings.admin_ids,
-            deny_text=TEXTS["en"]["admin_only"],
-        )
+        AdminOnlyMiddleware(admin_ids=settings.admin_ids)
     )
     admin_router.callback_query.middleware(
-        AdminOnlyMiddleware(
-            admin_ids=settings.admin_ids,
-            deny_text=TEXTS["en"]["admin_only"],
-        )
+        AdminOnlyMiddleware(admin_ids=settings.admin_ids)
     )
     dp.include_router(admin_router)
     dp.include_router(router)

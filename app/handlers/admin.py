@@ -538,10 +538,11 @@ async def weeklysend_handler(message: Message, bot: Bot) -> None:
 
 
 @admin_router.message(Command("admin"))
-async def admin_panel_handler(message: Message) -> None:
+async def admin_panel_handler(message: Message, state: FSMContext) -> None:
     user = message.from_user
     if user is None:
         return
+    await state.clear()
     locale = await get_user_locale(user.id)
     await message.answer(
         f"{breadcrumb(locale, t(locale, 'crumb_admin'))}\n\n{t(locale, 'admin_panel')}",
